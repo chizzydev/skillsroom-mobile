@@ -1,0 +1,52 @@
+{
+  "name": "skillsroom-mobile",
+  "version": "0.1.0",
+  "private": true,
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "android:native": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web",
+    "build:android:preview": "npx eas build --platform android --profile preview",
+    "build:android:production": "npx eas build --platform android --profile production",
+    "submit:android": "npx eas submit --platform android --profile production",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@react-native-google-signin/google-signin": "^16.1.2",
+    "@tanstack/react-query": "^5.87.1",
+    "babel-preset-expo": "~55.0.8",
+    "expo": "~55.0.0",
+    "expo-auth-session": "~55.0.17",
+    "expo-constants": "~55.0.16",
+    "expo-device": "~55.0.18",
+    "expo-document-picker": "~55.0.14",
+    "expo-file-system": "~55.0.23",
+    "expo-image-picker": "~55.0.21",
+    "expo-linking": "~55.0.16",
+    "expo-navigation-bar": "~55.0.14",
+    "expo-notifications": "~55.0.24",
+    "expo-router": "~55.0.8",
+    "expo-secure-store": "~55.0.8",
+    "expo-status-bar": "~55.0.4",
+    "expo-web-browser": "~55.0.17",
+    "lucide-react-native": "^1.24.0",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "react-native": "0.83.0",
+    "react-native-gesture-handler": "~2.30.0",
+    "react-native-safe-area-context": "~5.6.0",
+    "react-native-screens": "~4.23.0",
+    "react-native-sse": "^1.2.1",
+    "react-native-svg": "^15.15.5",
+    "react-native-web": "^0.21.0",
+    "react-native-webview": "13.16.0",
+    "zustand": "^5.0.8"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.2",
+    "typescript": "^5.9.3"
+  }
+}

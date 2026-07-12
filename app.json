@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "Skillsroom",
+    "slug": "skillsroom-mobile",
+    "scheme": "skillsroom",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "android": {
+      "package": "com.skillsroom.mobile",
+      "versionCode": 1,
+      "allowBackup": false
+    },
+    "androidNavigationBar": {
+      "backgroundColor": "#18283a",
+      "barStyle": "light-content"
+    },
+    "ios": {
+      "bundleIdentifier": "com.skillsroom.mobile"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-notifications",
+      "expo-web-browser"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

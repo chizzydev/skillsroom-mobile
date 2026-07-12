@@ -1,0 +1,294 @@
+import { useQuery } from "@tanstack/react-query";
+import { router } from "expo-router";
+import { Clock3, DoorOpen, FileCheck2, Play, Plus, Search, ShieldCheck, Trophy, Users } from "lucide-react-native";
+import { useMemo, useState } from "react";
+import { ImageBackground, Pressable, StyleSheet, Text, View } from "react-native";
+import { listRooms } from "../../../api/rooms";
+import { AppScreen } from "../../../components/screen/AppScreen";
+import { AppButton } from "../../../components/ui/AppButton";
+import { Badge } from "../../../components/ui/Badge";
+import { FeedbackState } from "../../../components/ui/FeedbackState";
+import { FormNotice } from "../../../components/ui/FormNotice";
+import { SurfaceCard } from "../../../components/ui/SurfaceCard";
+import { colors, radius, shadow, spacing } from "../../../constants/theme";
+import type { MatchRoom } from "../../../types/api";
+
+type RoomQueue = "open" | "awaiting_funding" | "funding_review" | "live" | "done";
+type IconComponent = typeof DoorOpen;
+
+const queues: RoomQueue[] = ["open", "awaiting_funding", "funding_review", "live", "done"];
+const roomArtwork = require("../../../../assets/marketing/skillsroom-premium/tournaments-premium.png");
+
+function money(minor?: number, currency = "NGN") {
+  return `${currency} ${Math.round((minor ?? 0) / 100).toLocaleString()}`;
+}
+
+function queueLabel(queue: RoomQueue) {
+  if (queue === "awaiting_funding") return "Entry";
+  if (queue === "funding_review") return "Checking";
+  if (queue === "live") return "Live";
+  if (queue === "done") return "Done";
+  return "Open";
+}
+
+function queueFullLabel(queue: RoomQueue) {
+  if (queue === "awaiting_funding") return "Entry Needed";
+  if (queue === "funding_review") return "Entry Review";
+  if (queue === "live") return "Live / Review";
+  if (queue === "done") return "Completed";
+  return "Open Rooms";
+}
+
+function roomStatusLabel(status?: string) {
+  if (status === "awaiting_funding") return "Entry needed";
+  if (status === "funding_review") return "Entry review";
+  if (status === "funded") return "Funded";
+  if (status === "active") return "Live";
+  if (status === "awaiting_results") return "Awaiting results";
+  if (status === "under_review") return "Result review";
+  if (status === "disputed") return "Disputed";
+  if (status === "settlement_pending") return "Payout pending";
+  if (status === "completed") return "Done";
+  if (status === "draft") return "Draft";
+  if (status === "cancelled") return "Cancelled";
+  if (status === "voided") return "Voided";
+  return "Open";
+}
+
+function statusTone(status?: string): "cyan" | "green" | "amber" | "red" | "dark" {
+  if (status === "open" || status === "funded" || status === "active") return "green";
+  if (status === "funding_review" || status === "awaiting_funding" || status === "settlement_pending") return "amber";
+  if (status === "disputed" || status === "cancelled" || status === "voided") return "red";
+  if (status === "completed" || status === "refunded") return "dark";
+  return "cyan";
+}
+
+function roomQueue(room: MatchRoom): RoomQueue | "other" {
+  if (room.status === "open") return "open";
+  if (room.status === "awaiting_funding") return "awaiting_funding";
+  if (room.status === "funding_review") return "funding_review";
+  if (["funded", "active", "awaiting_results", "under_review", "disputed", "settlement_pending"].includes(String(room.status))) return "live";
+  if (["completed", "refunded", "voided", "cancelled"].includes(String(room.status))) return "done";
+  return "other";
+}
+
+function playerCount(room: MatchRoom) {
+  return `${room.participant_count ?? 0}/${room.max_participants ?? 2}`;
+}
+
+function nextStep(room: MatchRoom) {
+  if (room.status === "open") return (room.participant_count ?? 0) < (room.max_participants ?? 2) ? "Share code" : "Entry next";
+  if (room.status === "awaiting_funding") return "Complete entry";
+  if (room.status === "funding_review") return "Entry check";
+  if (room.status === "funded") return "Start play";
+  if (room.status === "active" || room.status === "awaiting_results") return "Submit result";
+  if (room.status === "under_review" || room.status === "disputed") return "Review";
+  if (room.status === "settlement_pending") return "Payout next";
+  if (room.status === "completed") return "Archived";
+  return "Open details";
+}
+
+export function RoomsScreen() {
+  const [selectedQueue, setSelectedQueue] = useState<RoomQueue>("open");
+  const roomsQuery = useQuery({ queryKey: ["rooms"], queryFn: () => listRooms(), refetchInterval: 15000 });
+
+  const rooms = roomsQuery.data ?? [];
+  const counts = useMemo(() => {
+    return queues.reduce<Record<RoomQueue, number>>((acc, queue) => {
+      acc[queue] = rooms.filter((room) => roomQueue(room) === queue).length;
+      return acc;
+    }, { open: 0, awaiting_funding: 0, funding_review: 0, live: 0, done: 0 });
+  }, [rooms]);
+  const selectedRooms = useMemo(() => rooms.filter((room) => roomQueue(room) === selectedQueue), [rooms, selectedQueue]);
+  const totalTracked = rooms.length;
+
+  return (
+    <AppScreen>
+      <ImageBackground source={roomArtwork} imageStyle={styles.heroImage} style={styles.hero}>
+        <View style={styles.heroShade}>
+          <Badge tone="cyan">Match rooms</Badge>
+          <Text style={styles.heroTitle}>Create, join, and track rooms.</Text>
+          <Text style={styles.heroCopy}>See every room from invite to entry confirmation, live play, result review, and final payout.</Text>
+          <View style={styles.heroActions}>
+            <AppButton style={styles.heroButton} onPress={() => router.push("/(app)/rooms/new")}>Create room</AppButton>
+            <AppButton style={styles.heroButton} variant="secondary" onPress={() => router.push("/(app)/rooms/join")}>Join code</AppButton>
+          </View>
+        </View>
+      </ImageBackground>
+
+      <View style={styles.statsGrid}>
+        <StatCard icon={DoorOpen} label="Open" value={counts.open} detail="Can be joined" tone="cyan" />
+        <StatCard icon={ShieldCheck} label="Entries" value={counts.awaiting_funding + counts.funding_review} detail="Waiting to play" tone="amber" />
+        <StatCard icon={Play} label="Live" value={counts.live} detail="Play or review" tone="green" />
+        <StatCard icon={Trophy} label="Tracked" value={totalTracked} detail="All rooms" tone="cyan" />
+      </View>
+
+      <SurfaceCard>
+        <Badge tone="green">Room flow</Badge>
+        <Text style={styles.sectionTitle}>How every room moves</Text>
+        <Text style={styles.copy}>Each room shows what needs to happen next, so players are not guessing.</Text>
+        <View style={styles.flowList}>
+          <FlowStep index="1" title="Open" detail="Create a room or join by code." />
+          <FlowStep index="2" title="Confirm entry" detail="Both players complete their entry before play opens." />
+          <FlowStep index="3" title="Play" detail="Start the match only when the room says it is ready." />
+          <FlowStep index="4" title="Review" detail="Submit the winner, proof, and any response needed." />
+          <FlowStep index="5" title="Payout" detail="Approved results move to wallet payout or refund." />
+        </View>
+      </SurfaceCard>
+
+      <SurfaceCard>
+        <View style={styles.sectionHead}>
+          <View style={styles.fill}>
+            <Badge tone="amber">Rooms</Badge>
+            <Text style={styles.sectionTitle}>Room activity</Text>
+          </View>
+          <Pressable style={styles.searchButton} onPress={() => router.push("/(app)/rooms/join")}>
+            <Search size={22} color={colors.ink} />
+          </Pressable>
+        </View>
+        <View style={styles.queueWrap}>
+          {queues.map((queue) => (
+            <Pressable key={queue} onPress={() => setSelectedQueue(queue)} style={[styles.queueButton, selectedQueue === queue && styles.queueButtonOn]}>
+              <Text style={[styles.queueText, selectedQueue === queue && styles.queueTextOn]}>{queueLabel(queue)}</Text>
+              <Text style={[styles.queueCount, selectedQueue === queue && styles.queueTextOn]}>{counts[queue]}</Text>
+            </Pressable>
+          ))}
+        </View>
+
+        {roomsQuery.isLoading ? <Text style={styles.copy}>Loading rooms...</Text> : null}
+        {roomsQuery.isError ? <FeedbackState tone="error" title="Unable to load rooms" body="Check your connection and try again." actionLabel="Retry" onAction={() => void roomsQuery.refetch()} /> : null}
+        {!roomsQuery.isLoading && !roomsQuery.isError && selectedRooms.length === 0 ? (
+          <FeedbackState title={`No ${queueFullLabel(selectedQueue).toLowerCase()}`} body={`Rooms will appear here as soon as they reach ${queueFullLabel(selectedQueue).toLowerCase()}.`} />
+        ) : null}
+
+        <View style={styles.roomList}>
+          {selectedRooms.map((room) => <RoomCard key={room.id} room={room} />)}
+        </View>
+      </SurfaceCard>
+
+      <SurfaceCard>
+        <Badge>Join code</Badge>
+        <Text style={styles.sectionTitle}>Have a private code?</Text>
+        <Text style={styles.copy}>Paste a private code to join an open room. Your profile and game identity are confirmed before entry.</Text>
+        <AppButton variant="secondary" onPress={() => router.push("/(app)/rooms/join")}>Open join screen</AppButton>
+      </SurfaceCard>
+    </AppScreen>
+  );
+}
+
+function StatCard({ icon: Icon, label, value, detail, tone }: { icon: IconComponent; label: string; value: number; detail: string; tone: "cyan" | "green" | "amber" }) {
+  return (
+    <SurfaceCard style={styles.stat}>
+      <View style={[styles.statIcon, tone === "green" ? styles.greenIcon : tone === "amber" ? styles.amberIcon : styles.cyanIcon]}>
+        <Icon size={22} color={tone === "green" ? colors.greenDark : tone === "amber" ? colors.amber : colors.cyan} />
+      </View>
+      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statCopy}>{detail}</Text>
+    </SurfaceCard>
+  );
+}
+
+function FlowStep({ index, title, detail }: { index: string; title: string; detail: string }) {
+  return (
+    <View style={styles.flowStep}>
+      <Text style={styles.flowIndex}>{index}</Text>
+      <View style={styles.fill}>
+        <Text style={styles.itemTitle}>{title}</Text>
+        <Text style={styles.copy}>{detail}</Text>
+      </View>
+    </View>
+  );
+}
+
+function RoomCard({ room }: { room: MatchRoom }) {
+  return (
+    <Pressable style={styles.roomCard} onPress={() => router.push(`/(app)/rooms/${room.id}`)}>
+      <View style={styles.roomTop}>
+        <Badge tone={statusTone(room.status)}>{roomStatusLabel(room.status)}</Badge>
+        <Text style={styles.roomPlayers}>{playerCount(room)}</Text>
+      </View>
+      <Text style={styles.roomTitle}>{room.title ?? "Skillsroom match"}</Text>
+      <Text style={styles.roomMeta}>{room.room_code ?? "No code"} / {money(room.entry_amount_minor, room.currency)}</Text>
+      <View style={styles.roomFacts}>
+        <View style={styles.factPill}><Users size={16} color={colors.cyan} /><Text style={styles.factText}>Players {playerCount(room)}</Text></View>
+        <View style={styles.factPill}><Clock3 size={16} color={colors.cyan} /><Text style={styles.factText}>{nextStep(room)}</Text></View>
+      </View>
+      <View style={styles.roomFooter}>
+        <Text style={styles.openText}>Open room</Text>
+        <ChevronLike />
+      </View>
+    </Pressable>
+  );
+}
+
+function ChevronLike() {
+  return <Text style={styles.chevron}>›</Text>;
+}
+
+const styles = StyleSheet.create({
+  hero: {
+    minHeight: 430,
+    overflow: "hidden",
+    borderRadius: radius.lg,
+    backgroundColor: colors.navy,
+    ...shadow.card
+  },
+  heroImage: { borderRadius: radius.lg },
+  heroShade: {
+    minHeight: 430,
+    padding: spacing.lg,
+    justifyContent: "space-between",
+    backgroundColor: "rgba(4,12,24,0.72)"
+  },
+  heroTitle: { color: colors.white, fontSize: 42, lineHeight: 48, fontWeight: "900" },
+  heroCopy: { color: "#d4deea", fontSize: 17, lineHeight: 26 },
+  heroActions: { flexDirection: "row", gap: spacing.md },
+  heroButton: { flex: 1 },
+  statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md },
+  stat: { flexBasis: "47%", flexGrow: 1, padding: spacing.md },
+  statIcon: { width: 46, height: 46, borderRadius: 16, alignItems: "center", justifyContent: "center", marginBottom: spacing.sm },
+  cyanIcon: { backgroundColor: colors.cyanSoft },
+  greenIcon: { backgroundColor: colors.greenSoft },
+  amberIcon: { backgroundColor: colors.amberSoft },
+  statLabel: { color: colors.faint, textTransform: "uppercase", letterSpacing: 2, fontWeight: "900", fontSize: 11 },
+  statValue: { color: colors.ink, fontSize: 34, fontWeight: "900" },
+  statCopy: { color: colors.muted, fontWeight: "700" },
+  sectionTitle: { color: colors.ink, fontSize: 28, lineHeight: 34, fontWeight: "900" },
+  sectionHead: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+  copy: { color: colors.muted, fontSize: 16, lineHeight: 24 },
+  itemTitle: { color: colors.ink, fontSize: 17, fontWeight: "900" },
+  fill: { flex: 1 },
+  searchButton: { width: 54, height: 54, borderRadius: 18, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white },
+  flowList: { gap: spacing.sm },
+  flowStep: { flexDirection: "row", gap: spacing.md, alignItems: "center", borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, padding: spacing.md, backgroundColor: colors.surfaceAlt },
+  flowIndex: { width: 38, height: 38, borderRadius: 14, textAlign: "center", textAlignVertical: "center", color: colors.cyan, backgroundColor: colors.cyanSoft, fontSize: 18, fontWeight: "900" },
+  queueWrap: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  queueButton: {
+    minHeight: 46,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    backgroundColor: colors.white
+  },
+  queueButtonOn: { borderColor: colors.green, backgroundColor: colors.greenSoft },
+  queueText: { color: colors.muted, fontWeight: "900" },
+  queueTextOn: { color: colors.greenDark },
+  queueCount: { color: colors.faint, fontWeight: "900" },
+  roomList: { gap: spacing.md },
+  roomCard: { borderWidth: 1, borderColor: colors.line, borderRadius: radius.lg, padding: spacing.md, backgroundColor: colors.white, gap: spacing.sm, ...shadow.card },
+  roomTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },
+  roomPlayers: { color: colors.ink, fontSize: 16, fontWeight: "900" },
+  roomTitle: { color: colors.ink, fontSize: 23, lineHeight: 29, fontWeight: "900" },
+  roomMeta: { color: colors.muted, fontSize: 15, lineHeight: 22 },
+  roomFacts: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  factPill: { flexDirection: "row", alignItems: "center", gap: spacing.xs, borderWidth: 1, borderColor: colors.line, borderRadius: radius.pill, paddingHorizontal: spacing.sm, minHeight: 36, backgroundColor: colors.surfaceAlt },
+  factText: { color: colors.muted, fontWeight: "900" },
+  roomFooter: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderTopWidth: 1, borderTopColor: colors.line, paddingTop: spacing.sm },
+  openText: { color: colors.ink, fontWeight: "900" },
+  chevron: { color: colors.cyan, fontSize: 30, fontWeight: "900" }
+});

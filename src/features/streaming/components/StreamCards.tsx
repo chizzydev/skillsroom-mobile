@@ -1,0 +1,385 @@
+import { useState } from "react";
+import { Linking, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { WebView } from "react-native-webview";
+import { AppButton } from "../../../components/ui/AppButton";
+import { Badge } from "../../../components/ui/Badge";
+import { FeedbackState } from "../../../components/ui/FeedbackState";
+import { FormNotice } from "../../../components/ui/FormNotice";
+import { env } from "../../../config/env";
+import { colors, radius, spacing } from "../../../constants/theme";
+import type { CommunityLivestreamLink, StreamingAccount } from "../../../types/api";
+
+type StreamProvider = "youtube" | "twitch" | "tiktok";
+type AttachInput = {
+  title: string;
+  stream_url: string;
+  provider?: StreamProvider;
+  visibility: "public" | "participants";
+  stream_role: "official" | "player_a" | "player_b";
+};
+
+function clean(value?: string | null) {
+  return String(value ?? "").replaceAll("_", " ") || "stream";
+}
+
+function tone(value?: string | null): "cyan" | "green" | "amber" | "red" | "dark" {
+  if (value === "live" || value === "connected" || value === "active") return "green";
+  if (value === "offline" || value === "unavailable" || value === "revoked") return "red";
+  if (value === "needs_reauth" || value === "manual" || value === "replay") return "amber";
+  return "cyan";
+}
+
+function providerHint(provider?: string | null) {
+  if (provider === "youtube") return "YouTube";
+  if (provider === "twitch") return "Twitch";
+  if (provider === "tiktok") return "TikTok";
+  return "Stream";
+}
+
+function embedParent() {
+  try {
+    return new URL(env.webAppUrl).hostname || "skillsroom.xyz";
+  } catch {
+    return "skillsroom.xyz";
+  }
+}
+
+function firstPathSegment(url: URL) {
+  return url.pathname.split("/").filter(Boolean)[0] ?? null;
+}
+
+function youtubeEmbedUrl(url: URL) {
+  if (url.hostname === "youtu.be") {
+    const videoId = firstPathSegment(url);
+    return videoId ? `https://www.youtube-nocookie.com/embed/${encodeURIComponent(videoId)}` : null;
+  }
+
+  if (!url.hostname.endsWith("youtube.com")) return null;
+  if (url.pathname === "/watch") {
+    const videoId = url.searchParams.get("v");
+    return videoId ? `https://www.youtube-nocookie.com/embed/${encodeURIComponent(videoId)}` : null;
+  }
+
+  const segments = url.pathname.split("/").filter(Boolean);
+  if ((segments[0] === "embed" || segments[0] === "live" || segments[0] === "shorts") && segments[1]) {
+    return `https://www.youtube-nocookie.com/embed/${encodeURIComponent(segments[1])}`;
+  }
+  return null;
+}
+
+function twitchEmbedUrl(url: URL) {
+  if (!url.hostname.endsWith("twitch.tv")) return null;
+  const parent = encodeURIComponent(embedParent());
+  const segments = url.pathname.split("/").filter(Boolean);
+  if (segments[0] === "videos" && segments[1]) {
+    return `https://player.twitch.tv/?video=${encodeURIComponent(segments[1])}&parent=${parent}`;
+  }
+  const channel = firstPathSegment(url);
+  if (!channel || ["directory", "downloads", "jobs", "p", "settings", "team", "turbo", "videos"].includes(channel)) return null;
+  return `https://player.twitch.tv/?channel=${encodeURIComponent(channel)}&parent=${parent}`;
+}
+
+function tiktokEmbedUrl(url: URL) {
+  if (!url.hostname.endsWith("tiktok.com")) return null;
+  const segments = url.pathname.split("/").filter(Boolean);
+  const videoIndex = segments.findIndex((segment) => segment === "video");
+  const videoId = videoIndex >= 0 ? segments[videoIndex + 1] : null;
+  return videoId && /^\d+$/.test(videoId) ? `https://www.tiktok.com/embed/v2/${encodeURIComponent(videoId)}` : null;
+}
+
+function computedEmbedUrl(input: { provider?: string | null; streamUrl?: string | null; embedUrl?: string | null }) {
+  if (input.embedUrl) return input.embedUrl;
+  if (!input.streamUrl) return null;
+
+  try {
+    const url = new URL(input.streamUrl);
+    if (url.protocol !== "https:") return null;
+    if (input.provider === "youtube") return youtubeEmbedUrl(url);
+    if (input.provider === "twitch") return twitchEmbedUrl(url);
+    if (input.provider === "tiktok") return tiktokEmbedUrl(url);
+    return youtubeEmbedUrl(url) ?? twitchEmbedUrl(url) ?? tiktokEmbedUrl(url);
+  } catch {
+    return null;
+  }
+}
+
+function allowedPlayerNavigation(requestUrl?: string) {
+  if (!requestUrl) return false;
+  try {
+    const url = new URL(requestUrl);
+    if (url.protocol !== "https:") return false;
+    const host = url.hostname.toLowerCase();
+    return [
+      "youtube.com",
+      "youtube-nocookie.com",
+      "youtu.be",
+      "googlevideo.com",
+      "gstatic.com",
+      "google.com",
+      "twitch.tv",
+      "twitchcdn.net",
+      "jtvnw.net",
+      "tiktok.com",
+      "tiktokcdn.com",
+      "byteoversea.com"
+    ].some((domain) => host === domain || host.endsWith(`.${domain}`));
+  } catch {
+    return false;
+  }
+}
+
+function EmbeddedStreamPlayer({
+  provider,
+  title,
+  streamUrl,
+  embedUrl
+}: {
+  provider?: string | null;
+  title?: string | null;
+  streamUrl?: string | null;
+  embedUrl?: string | null;
+}) {
+  const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const source = computedEmbedUrl({ provider, streamUrl, embedUrl });
+
+  if (!source) return null;
+
+  return (
+    <View style={styles.playerWrap}>
+      {loaded && !failed ? (
+        <WebView
+          source={{ uri: source }}
+          style={styles.webview}
+          originWhitelist={["https://*"]}
+          javaScriptEnabled
+          domStorageEnabled
+          allowsFullscreenVideo
+          mediaPlaybackRequiresUserAction={false}
+          setSupportMultipleWindows={false}
+          onError={() => setFailed(true)}
+          onHttpError={() => setFailed(true)}
+          onShouldStartLoadWithRequest={(request) => allowedPlayerNavigation(request.url)}
+          accessibilityLabel={`${providerHint(provider)} player for ${title ?? "stream"}`}
+        />
+      ) : (
+        <View style={styles.playerPlaceholder}>
+          <Badge tone={failed ? "amber" : "dark"}>{`${providerHint(provider)} player`}</Badge>
+          <Text style={styles.copy}>{failed ? "Player could not load here." : "Load the embedded player when you are ready to watch."}</Text>
+          <AppButton variant="secondary" onPress={() => {
+            setFailed(false);
+            setLoaded(true);
+          }}>
+            Load player
+          </AppButton>
+        </View>
+      )}
+    </View>
+  );
+}
+
+export function StreamLinkCard({ stream }: { stream: CommunityLivestreamLink }) {
+  return (
+    <View style={styles.card}>
+      <View style={styles.rowTop}>
+        <Badge tone={tone(stream.playback_status)}>{clean(stream.playback_status)}</Badge>
+        <Text style={styles.role}>{clean(stream.stream_role)}</Text>
+      </View>
+      <Text style={styles.title}>{stream.title ?? "Stream link"}</Text>
+      <Text style={styles.copy}>{providerHint(stream.provider)} - {clean(stream.playback_status)}</Text>
+      <EmbeddedStreamPlayer provider={stream.provider} title={stream.title} streamUrl={stream.stream_url} embedUrl={stream.embed_url} />
+      <AppButton variant="secondary" disabled={!stream.stream_url} onPress={() => stream.stream_url && void Linking.openURL(stream.stream_url)}>
+        Open externally
+      </AppButton>
+    </View>
+  );
+}
+
+export function ConnectedChannelCard({ account, onRefresh, loading }: { account: StreamingAccount; onRefresh?: () => void; loading?: boolean }) {
+  return (
+    <View style={styles.card}>
+      <View style={styles.rowTop}>
+        <Badge tone={tone(account.status)}>{account.provider}</Badge>
+        <Text style={styles.role}>{clean(account.live_status ?? account.status)}</Text>
+      </View>
+      <Text style={styles.title}>{account.display_name ?? "Stream channel"}</Text>
+      <Text style={styles.copy}>This is your saved profile channel. It is not a room or tournament stream until attached to one.</Text>
+      <EmbeddedStreamPlayer provider={account.provider} title={account.live_title ?? account.display_name} streamUrl={account.live_stream_url} embedUrl={account.live_embed_url} />
+      {account.channel_url ? (
+        <AppButton variant="secondary" onPress={() => account.channel_url && void Linking.openURL(account.channel_url)}>
+          Open channel
+        </AppButton>
+      ) : null}
+      {account.live_stream_url ? (
+        <AppButton variant="secondary" onPress={() => account.live_stream_url && void Linking.openURL(account.live_stream_url)}>
+          Open live video
+        </AppButton>
+      ) : null}
+      {onRefresh ? <AppButton variant="secondary" loading={loading} onPress={onRefresh}>Refresh status</AppButton> : null}
+    </View>
+  );
+}
+
+export function NoStreamState({ target }: { target: "room" | "tournament" }) {
+  return (
+    <FeedbackState
+      title={`No ${target} stream yet`}
+      body="Connected profile channels are separate from watch links. A stream appears here only after an eligible host attaches a live link to this room or tournament."
+    />
+  );
+}
+
+export function StreamAttachForm({
+  canAttach,
+  target,
+  loading,
+  onSubmit
+}: {
+  canAttach: boolean;
+  target: "room" | "tournament";
+  loading?: boolean;
+  onSubmit: (input: AttachInput) => void;
+}) {
+  const [provider, setProvider] = useState<StreamProvider>("youtube");
+  const [visibility, setVisibility] = useState<"public" | "participants">("participants");
+  const [streamRole, setStreamRole] = useState<"official" | "player_a" | "player_b">("official");
+  const [title, setTitle] = useState("");
+  const [url, setUrl] = useState("");
+
+  if (!canAttach) {
+    return <FormNotice tone="info" message={`Only eligible ${target} hosts can attach stream links here. Viewers will still see the stream once it is attached.`} />;
+  }
+
+  return (
+    <View style={styles.attach}>
+      <Text style={styles.title}>Attach stream link</Text>
+      <View style={styles.segmentRow}>
+        {(["youtube", "twitch", "tiktok"] as const).map((item) => (
+          <Pressable key={item} onPress={() => setProvider(item)} style={[styles.segment, provider === item && styles.segmentOn]}>
+            <Text style={[styles.segmentText, provider === item && styles.segmentTextOn]}>{item}</Text>
+          </Pressable>
+        ))}
+      </View>
+      <View style={styles.segmentRow}>
+        {(["official", "player_a", "player_b"] as const).map((item) => (
+          <Pressable key={item} onPress={() => setStreamRole(item)} style={[styles.segment, streamRole === item && styles.segmentOn]}>
+            <Text style={[styles.segmentText, streamRole === item && styles.segmentTextOn]}>{clean(item)}</Text>
+          </Pressable>
+        ))}
+      </View>
+      <View style={styles.segmentRow}>
+        {(["participants", "public"] as const).map((item) => (
+          <Pressable key={item} onPress={() => setVisibility(item)} style={[styles.segment, visibility === item && styles.segmentOn]}>
+            <Text style={[styles.segmentText, visibility === item && styles.segmentTextOn]}>{item}</Text>
+          </Pressable>
+        ))}
+      </View>
+      <TextInput value={title} onChangeText={setTitle} placeholder="Stream title" placeholderTextColor={colors.faint} style={styles.input} />
+      <TextInput value={url} onChangeText={setUrl} autoCapitalize="none" keyboardType="url" placeholder="https://youtube.com/..." placeholderTextColor={colors.faint} style={styles.input} />
+      <Text style={styles.copy}>Use YouTube, Twitch, or TikTok links. Viewers can load an embedded player where the provider allows it.</Text>
+      <AppButton
+        loading={loading}
+        disabled={!title.trim() || !url.trim()}
+        onPress={() => onSubmit({ provider, visibility, stream_role: streamRole, title: title.trim(), stream_url: url.trim() })}
+      >
+        Attach stream
+      </AppButton>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  card: {
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.sm,
+    padding: spacing.sm,
+    gap: spacing.sm,
+    backgroundColor: colors.surfaceAlt
+  },
+  rowTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.sm
+  },
+  role: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: "900",
+    textTransform: "uppercase"
+  },
+  title: {
+    color: colors.ink,
+    fontSize: 17,
+    fontWeight: "900"
+  },
+  copy: {
+    color: colors.muted,
+    fontSize: 14,
+    lineHeight: 20
+  },
+  attach: {
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+    paddingTop: spacing.md,
+    gap: spacing.sm
+  },
+  segmentRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.xs
+  },
+  segment: {
+    minHeight: 36,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.line,
+    paddingHorizontal: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surface
+  },
+  segmentOn: {
+    backgroundColor: colors.ink,
+    borderColor: colors.ink
+  },
+  segmentText: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: "900",
+    textTransform: "uppercase"
+  },
+  segmentTextOn: {
+    color: colors.white
+  },
+  input: {
+    minHeight: 52,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    color: colors.ink,
+    fontSize: 16
+  },
+  playerWrap: {
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.sm,
+    backgroundColor: colors.ink,
+    aspectRatio: 16 / 9
+  },
+  webview: {
+    flex: 1,
+    backgroundColor: colors.ink
+  },
+  playerPlaceholder: {
+    flex: 1,
+    justifyContent: "center",
+    padding: spacing.md,
+    gap: spacing.sm,
+    backgroundColor: colors.ink
+  }
+});
