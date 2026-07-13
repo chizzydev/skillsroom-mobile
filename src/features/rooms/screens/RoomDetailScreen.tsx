@@ -21,6 +21,7 @@ import { createLivestream } from "../../../api/streaming";
 import { AppScreen } from "../../../components/screen/AppScreen";
 import { AppButton } from "../../../components/ui/AppButton";
 import { Badge } from "../../../components/ui/Badge";
+import { CopyButton } from "../../../components/ui/CopyButton";
 import { FeedbackState } from "../../../components/ui/FeedbackState";
 import { FormNotice } from "../../../components/ui/FormNotice";
 import { SurfaceCard } from "../../../components/ui/SurfaceCard";
@@ -144,6 +145,7 @@ export function RoomDetailScreen() {
   const canAttachStream = canManageStreams(user?.role, room, user?.id);
   const isCreator = Boolean(user?.id && room?.creator_user_id === user.id);
   const canInvite = Boolean(room?.status === "open" && isCreator && participantCount < (room?.max_participants ?? 2));
+  const inviteCopy = room?.room_code ? `Join my Skillsroom room with code ${room.room_code}.` : null;
 
   const refreshRoom = async () => {
     await Promise.all([
@@ -317,8 +319,8 @@ export function RoomDetailScreen() {
         <Text style={styles.copy}>{actionBody}</Text>
         {room?.status === "draft" && isCreator ? <AppButton loading={openMutation.isPending} onPress={() => openMutation.mutate()}>Open room</AppButton> : null}
         <View style={styles.quickActions}>
-          <QuickAction icon={Copy} label="Code" value={room?.room_code ?? "..."} />
-          <QuickAction icon={Share2} label="Next" value={actionTitle} />
+          <QuickAction icon={Copy} label="Code" value={room?.room_code ?? "..."} copyValue={room?.room_code} />
+          <QuickAction icon={Share2} label="Invite" value="Copy text" copyValue={inviteCopy} copiedLabel="Invite copied" />
           <QuickAction icon={FileCheck2} label="Updates" value={(timelineQuery.data?.events?.length ?? 0).toString()} />
         </View>
       </SurfaceCard>
@@ -342,6 +344,7 @@ export function RoomDetailScreen() {
           <SurfaceCard>
             <Badge>Room code</Badge>
             <Text style={styles.bigCode}>{room?.room_code ?? "..."}</Text>
+            <CopyButton value={room?.room_code} label="Copy room code" copiedLabel="Room code copied" />
             <Text style={styles.copy}>Share this code with your opponent. The room will show when they join, complete entry, and submit a result.</Text>
             {canInvite ? (
               <View style={styles.inviteBox}>
@@ -506,12 +509,25 @@ function DarkMetric({ icon: Icon, label, value }: { icon: typeof ShieldCheck; la
   );
 }
 
-function QuickAction({ icon: Icon, label, value }: { icon: typeof Copy; label: string; value: string }) {
+function QuickAction({
+  icon: Icon,
+  label,
+  value,
+  copyValue,
+  copiedLabel
+}: {
+  icon: typeof Copy;
+  label: string;
+  value: string;
+  copyValue?: string | null;
+  copiedLabel?: string;
+}) {
   return (
     <View style={styles.quickAction}>
       <Icon size={18} color={colors.cyan} />
       <Text style={styles.quickLabel}>{label}</Text>
       <Text style={styles.quickValue} numberOfLines={1}>{value}</Text>
+      {copyValue ? <CopyButton value={copyValue} label="Copy" copiedLabel={copiedLabel ?? "Copied"} compact /> : null}
     </View>
   );
 }

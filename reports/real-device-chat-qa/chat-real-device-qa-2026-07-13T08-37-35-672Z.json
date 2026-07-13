@@ -1,0 +1,182 @@
+{
+  "run_id": "2026-07-13T08-37-35-672Z",
+  "started_at": "2026-07-13T08:39:08.941Z",
+  "package_name": "com.skillsroom.mobile",
+  "device": "TKJRNFCMIR6XXKO7",
+  "device_meta": {
+    "model": "23106RN0DA",
+    "android": "14",
+    "screen_size": "Physical size: 720x1600",
+    "battery": {
+      "level": 80,
+      "powered_usb": true,
+      "status": 2
+    },
+    "package": {
+      "version_name": "0.1.0",
+      "version_code": 1,
+      "debuggable": true,
+      "last_update_time": "2026-07-13 08:39:55"
+    }
+  },
+  "steps": [
+    {
+      "name": "launch_and_render",
+      "ok": false,
+      "duration_ms": 26571,
+      "observations": {
+        "rendered_text_count": 0,
+        "rendered_text_sample": [],
+        "redbox_detected": false,
+        "screenshot_path": "C:\\Users\\HP\\sr-mobile\\reports\\real-device-chat-qa\\2026-07-13T08-37-35-672Z\\launch.png"
+      },
+      "note": "App launched but rendered an empty native root."
+    },
+    {
+      "name": "background_foreground",
+      "ok": true,
+      "duration_ms": 29291,
+      "observations": {
+        "rendered_text_count": 22,
+        "rendered_text_sample": [
+          "SKILLSROOM",
+          "3",
+          "Welcome back, player.",
+          "Find a fair room, confirm entry once, play under clear rules, and keep every result easy to prove.",
+          "Create room",
+          "Join code",
+          "OPEN",
+          "3",
+          "Can be joined",
+          "ENTRIES",
+          "2",
+          "Needs confirmation"
+        ]
+      }
+    },
+    {
+      "name": "chat_tab_deeplink",
+      "ok": true,
+      "duration_ms": 14839,
+      "observations": {
+        "rendered_text_count": 30,
+        "rendered_text_sample": [
+          "CHAT",
+          "Global, rooms, and DMs.",
+          "0",
+          "Online",
+          "4",
+          "Unread",
+          "0",
+          "DM requests",
+          "Channels",
+          "DMs",
+          "Global Chat",
+          "GC",
+          "GC / 0 online / chizzydev250: Give me some time, I'll put you through.",
+          "YOUR ACCESSIBLE CHANNELS",
+          "Free Fire",
+          "FF"
+        ],
+        "screenshot_path": "C:\\Users\\HP\\sr-mobile\\reports\\real-device-chat-qa\\2026-07-13T08-37-35-672Z\\chat-tab.png"
+      }
+    },
+    {
+      "name": "chat_channel_deeplink",
+      "ok": true,
+      "duration_ms": 21079,
+      "observations": {
+        "channel": "chat_load_lab",
+        "rendered_text_count": 44,
+        "rendered_text_sample": [
+          "CL",
+          "Chat Load Lab",
+          "1 online / 19 channels",
+          "Delete",
+          "&#128077;",
+          "GG",
+          "&#128293;",
+          "&#128079;",
+          "&#127942;",
+          "❤️",
+          "YOU",
+          "You",
+          "@michael_johnson 09:27",
+          "michael_johnson: Real phone QA test",
+          "GG!",
+          "Reply",
+          "Thread",
+          "Pin",
+          "Save",
+          "Delete"
+        ],
+        "composer_visible": true,
+        "message_content_visible": true,
+        "screenshot_path": "C:\\Users\\HP\\sr-mobile\\reports\\real-device-chat-qa\\2026-07-13T08-37-35-672Z\\chat-channel.png"
+      }
+    }
+  ],
+  "log_summary": {
+    "fatal_count": 0,
+    "react_error_count": 138,
+    "sample": [
+      "07-13 09:38:48.671 I/BufferQueueProducer( 1133): [com.skillsroom.mobile/com.skillsroom.mobile.MainActivity#78504](this:0xb400007855b55a30,id:-1,api:0,p:-1,c:1133) queueBuffer: fps=0.30 dur=13348.87 max=12765.45 min=16.73",
+      "07-13 09:38:48.675 W/unknown:ReactNative(15861): StatusBarModule: Ignored status bar change, current activity is edge-to-edge.",
+      "07-13 09:38:48.701 D/SurfaceFlinger( 1133): [SF client] NEW(0xb4000078659ef080) for (15861:com.skillsroom.mobile)",
+      "07-13 09:38:48.714 I/ForceDarkHelperStubImpl(15861): setViewRootImplForceDark: false for com.skillsroom.mobile.MainActivity@a2ad8d1, reason: DarkModeEnabled",
+      "07-13 09:38:48.756 D/WindowManager( 1813): setParent old=Window{7ff6c1d u0 com.skillsroom.mobile/com.skillsroom.mobile.MainActivity},new=null,this window=Window{d6f7303 u0 PopupWindow:6efd1cb},callers=com.android.server.wm.WindowContainer.removeChild:831 com.android.server.wm.WindowContainer.removeImmediately:889 com.android.server.wm.WindowState.removeImmediately:2490 com.android.server.wm.WindowState.removeIfPossible:2662 com.android.server.wm.WindowManagerService.removeWindow:2412 com.android.server.wm.Session.remove:245 ",
+      "07-13 09:38:48.901 D/SurfaceFlinger( 1133): [SF client] REMOVE (0xb4000078659ef080) for (15861:com.skillsroom.mobile)",
+      "07-13 09:38:49.355 W/RenderInspector(15861): DequeueBuffer time out on com.skillsroom.mobile/com.skillsroom.mobile.MainActivity, count=2, avg=16 ms, max=20 ms.",
+      "07-13 09:38:49.659 I/libPowerHal( 1059): [perfNotifyAppState] pack:com.skillsroom.mobile, act:com.skillsroom.mobile.MainActivity, state:5, pid:15861, uid:10210, fps:60",
+      "07-13 09:38:49.672 I/UxUtility( 1059): notifyForegroundApp pack:com.skillsroom.mobile, uid:10210",
+      "07-13 09:38:50.467 D/PerfShielderService( 1813): com.skillsroom.mobile|com.skillsroom.mobile/com.skillsroom.mobile.MainActivity|762|624432764557525|126|0|31",
+      "07-13 09:38:50.468 W/MiuiPerfServiceClient( 3978): interceptAndQueuing:15861|com.skillsroom.mobile|762|126|624432764557525|Slow main thread|31",
+      "07-13 09:38:50.473 I/BufferQueueProducer( 1133): [com.skillsroom.mobile/com.skillsroom.mobile.MainActivity#78504](this:0xb400007855b55a30,id:-1,api:0,p:-1,c:1133) queueBuffer: fps=17.21 dur=1801.78 max=1052.93 min=15.81",
+      "07-13 09:38:52.504 I/BufferQueueProducer( 1133): [com.skillsroom.mobile/com.skillsroom.mobile.MainActivity#78504](this:0xb400007855b55a30,id:-1,api:0,p:-1,c:1133) queueBuffer: fps=8.37 dur=2031.35 max=1752.27 min=16.04",
+      "07-13 09:38:52.664 I/libPowerHal( 1059): [perfNotifyAppState] pack:com.skillsroom.mobile, act:com.skillsroom.mobile.MainActivity, state:5, pid:15861, uid:10210, fps:-1",
+      "07-13 09:38:52.667 I/UxUtility( 1059): notifyForegroundApp pack:com.skillsroom.mobile, uid:10210",
+      "07-13 09:38:53.150 E/FeatureFlagsImplExport(19357): android.os.flagging.AconfigStorageReadException: ERROR_PACKAGE_NOT_FOUND: package com.android.libcore cannot be found on the device",
+      "07-13 09:38:53.191 E/FeatureFlagsImplExport(19260): android.os.flagging.AconfigStorageReadException: ERROR_PACKAGE_NOT_FOUND: package com.android.libcore cannot be found on the device",
+      "07-13 09:38:53.518 I/BufferQueueProducer( 1133): [com.skillsroom.mobile/com.skillsroom.mobile.MainActivity#78504](this:0xb400007855b55a30,id:-1,api:0,p:-1,c:1133) queueBuffer: fps=10.85 dur=1013.90 max=816.89 min=16.17",
+      "07-13 09:38:53.659 I/libPowerHal( 1059): [perfNotifyAppState] pack:com.skillsroom.mobile, act:com.skillsroom.mobile.MainActivity, state:5, pid:15861, uid:10210, fps:60",
+      "07-13 09:38:53.660 I/UxUtility( 1059): notifyForegroundApp pack:com.skillsroom.mobile, uid:10210",
+      "07-13 09:38:54.220 D/PerfShielderService( 1813): com.skillsroom.mobile|com.skillsroom.mobile/com.skillsroom.mobile.MainActivity|1632|624437017844679|817|2|20",
+      "07-13 09:38:54.226 W/MiuiPerfServiceClient( 3978): interceptAndQueuing:15861|com.skillsroom.mobile|1632|817|624437017844679|Slow handle animation|20",
+      "07-13 09:38:54.454 I/AppsFilter( 1813): interaction: PackageSetting{1f267d0 com.skillsroom.mobile/10210} -> PackageSetting{17a46ba com.facebook.appmanager/10131} BLOCKED",
+      "07-13 09:38:54.647 D/PerfShielderService( 1813): com.skillsroom.mobile|com.skillsroom.mobile/com.skillsroom.mobile.MainActivity|497|624437630536064|468|5|3",
+      "07-13 09:38:54.648 W/MiuiPerfServiceClient( 3978): interceptAndQueuing:15861|com.skillsroom.mobile|497|468|624437630536064|Slow issue draw commands|3",
+      "07-13 09:38:54.652 I/BufferQueueProducer( 1133): [com.skillsroom.mobile/com.skillsroom.mobile.MainActivity#78504](this:0xb400007855b55a30,id:-1,api:0,p:-1,c:1133) queueBuffer: fps=10.59 dur=1133.40 max=583.74 min=16.53",
+      "07-13 09:38:54.659 I/libPowerHal( 1059): [perfNotifyAppState] pack:com.skillsroom.mobile, act:com.skillsroom.mobile.MainActivity, state:5, pid:15861, uid:10210, fps:-1",
+      "07-13 09:38:54.662 I/UxUtility( 1059): notifyForegroundApp pack:com.skillsroom.mobile, uid:10210",
+      "07-13 09:38:55.659 I/libPowerHal( 1059): [perfNotifyAppState] pack:com.skillsroom.mobile, act:com.skillsroom.mobile.MainActivity, state:5, pid:15861, uid:10210, fps:60",
+      "07-13 09:38:55.662 I/UxUtility( 1059): notifyForegroundApp pack:com.skillsroom.mobile, uid:10210",
+      "07-13 09:38:56.660 I/libPowerHal( 1059): [perfNotifyAppState] pack:com.skillsroom.mobile, act:com.skillsroom.mobile.MainActivity, state:5, pid:15861, uid:10210, fps:-1",
+      "07-13 09:38:56.662 I/UxUtility( 1059): notifyForegroundApp pack:com.skillsroom.mobile, uid:10210",
+      "07-13 09:39:03.444 D/AndroidRuntime(19570): >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<",
+      "07-13 09:39:03.519 I/AndroidRuntime(19570): Using default boot image",
+      "07-13 09:39:03.519 I/AndroidRuntime(19570): Leaving lock profiling enabled",
+      "07-13 09:39:04.275 D/AndroidRuntime(19570): Calling main entry com.android.commands.uiautomator.Launcher",
+      "07-13 09:39:06.739 D/AndroidRuntime(19570): Shutting down VM",
+      "07-13 09:39:08.487 I/adbd    (21521): adbd service requested 'shell,v2:export ANDROID_LOG_TAGS=''; exec logcat '-d' '-v' 'time''",
+      "07-13 09:39:08.685 D/SurfaceFlinger( 1133): [SF client] NEW(0xb4000078559c8900) for (15861:com.skillsroom.mobile)",
+      "07-13 09:39:08.698 I/ForceDarkHelperStubImpl(15861): setViewRootImplForceDark: false for com.skillsroom.mobile.MainActivity@a2ad8d1, reason: DarkModeEnabled"
+    ]
+  },
+  "memory_summary": {
+    "total_pss_kb": 396236,
+    "total_rss_kb": 285272
+  },
+  "frame_summary": {
+    "total_frames": 502,
+    "janky_frames": 35,
+    "p50_ms": 12,
+    "p90_ms": 32,
+    "p95_ms": 97,
+    "p99_ms": 550
+  },
+  "artifacts": {
+    "dir": "C:\\Users\\HP\\sr-mobile\\reports\\real-device-chat-qa\\2026-07-13T08-37-35-672Z",
+    "logcat": "C:\\Users\\HP\\sr-mobile\\reports\\real-device-chat-qa\\2026-07-13T08-37-35-672Z\\logcat.txt"
+  },
+  "ok": false
+}

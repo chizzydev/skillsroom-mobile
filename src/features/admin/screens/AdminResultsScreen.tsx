@@ -22,6 +22,7 @@ import { getRoomResults, getRoomTimeline } from "../../../api/rooms";
 import { AppScreen } from "../../../components/screen/AppScreen";
 import { AppButton } from "../../../components/ui/AppButton";
 import { Badge } from "../../../components/ui/Badge";
+import { CopyButton } from "../../../components/ui/CopyButton";
 import { FeedbackState } from "../../../components/ui/FeedbackState";
 import { FormNotice } from "../../../components/ui/FormNotice";
 import { SurfaceCard } from "../../../components/ui/SurfaceCard";
@@ -537,6 +538,7 @@ function ResultClaimCard({ card, selected, onSelect, onOpenEvidence }: { card: R
         <ClipboardCheck color={selected ? colors.greenDark : colors.cyan} size={18} />
         <Text style={[styles.selectHintText, selected && styles.selectHintTextActive]}>{selected ? "Ready for decision" : "Tap to review"}</Text>
       </View>
+      <CopyButton value={claim.id} label="Copy claim ID" copiedLabel="Claim ID copied" compact />
     </Pressable>
   );
 }

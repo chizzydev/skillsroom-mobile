@@ -1,0 +1,106 @@
+{
+  "run_id": "2026-07-13T07-46-25-198Z",
+  "started_at": "2026-07-13T07:46:53.809Z",
+  "package_name": "com.skillsroom.mobile",
+  "device": "TKJRNFCMIR6XXKO7",
+  "device_meta": {
+    "model": "23106RN0DA",
+    "android": "14",
+    "screen_size": "Physical size: 720x1600",
+    "battery": {
+      "level": 78,
+      "powered_usb": true,
+      "status": 2
+    },
+    "package": {
+      "version_name": "0.1.0",
+      "version_code": 1,
+      "debuggable": true,
+      "last_update_time": "2026-07-13 08:39:55"
+    }
+  },
+  "steps": [
+    {
+      "name": "launch_and_render",
+      "ok": false,
+      "duration_ms": 27329,
+      "observations": {
+        "rendered_text_count": 0,
+        "rendered_text_sample": [],
+        "redbox_detected": false,
+        "screenshot_path": "C:\\Users\\HP\\sr-mobile\\reports\\real-device-chat-qa\\2026-07-13T07-46-25-198Z\\launch.png"
+      },
+      "note": "App launched but rendered an empty native root."
+    },
+    {
+      "name": "background_foreground",
+      "ok": false,
+      "duration_ms": 164,
+      "observations": {},
+      "note": "Command failed: C:\\Users\\HP\\AppData\\Local\\Android\\Sdk\\platform-tools\\adb.exe -s TKJRNFCMIR6XXKO7 shell input keyevent HOME\n\r\nException occurred while executing 'keyevent':\r\njava.lang.SecurityException: Injecting input events requires the caller (or the source of the instrumentation, if any) to have the INJECT_EVENTS permission.\r\n\tat com.android.server.input.InputManagerService.injectInputEventToTarget(InputManagerService.java:912)\r\n\tat android.hardware.input.InputManagerGlobal.injectInputEvent(InputManagerGlobal.java:1217)\r\n\tat android.hardware.input.InputManagerGlobal.injectInputEvent(InputManagerGlobal.java:1227)\r\n\tat com.android.server.input.InputShellCommand.injectKeyEvent(InputShellCommand.java:124)\r\n\tat com.android.server.input.InputShellCommand.sendKeyEvent(InputShellCommand.java:377)\r\n\tat com.android.server.input.InputShellCommand.runKeyEvent(InputShellCommand.java:365)\r\n\tat com.android.server.input.InputShellCommand.onCommand(InputShellCommand.java:253)\r\n\tat com.android.modules.utils.BasicShellCommandHandler.exec(BasicShellCommandHandler.java:97)\r\n\tat android.os.ShellCommand.exec(ShellCommand.java:38)\r\n\tat com.android.server.input.InputManagerService.onShellCommand(InputManagerService.java:3445)\r\n\tat android.os.Binder.shellCommand(Binder.java:1075)\r\n\tat android.os.Binder.onTransact(Binder.java:895)\r\n\tat android.hardware.input.IInputManager$Stub.onTransact(IInputManager.java:1372)\r\n\tat android.os.Binder.execTransactInternal(Binder.java:1351)\r\n\tat android.os.Binder.execTransact(Binder.java:1282)\r\n"
+    }
+  ],
+  "log_summary": {
+    "fatal_count": 46,
+    "react_error_count": 23,
+    "sample": [
+      "07-13 08:46:47.507 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10288, CallingPid=19459",
+      "07-13 08:46:47.960 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10279, CallingPid=443",
+      "07-13 08:46:48.009 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10288, CallingPid=19459",
+      "07-13 08:46:48.452 W/System.err(30141): android.content.pm.PackageManager$NameNotFoundException: com.xiaomi.mi_connect_service",
+      "07-13 08:46:48.461 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10279, CallingPid=443",
+      "07-13 08:46:48.513 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10288, CallingPid=19459",
+      "07-13 08:46:48.964 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10279, CallingPid=443",
+      "07-13 08:46:49.003 I/adbd    (21521): adbd service requested 'shell,v2,raw:uiautomator dump /sdcard/skillsroom-window.xml'",
+      "07-13 08:46:49.015 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10288, CallingPid=19459",
+      "07-13 08:46:49.468 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10279, CallingPid=443",
+      "07-13 08:46:49.517 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10288, CallingPid=19459",
+      "07-13 08:46:49.828 D/AndroidRuntime(30226): >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<",
+      "07-13 08:46:49.876 I/AndroidRuntime(30226): Using default boot image",
+      "07-13 08:46:49.876 I/AndroidRuntime(30226): Leaving lock profiling enabled",
+      "07-13 08:46:49.970 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10279, CallingPid=443",
+      "07-13 08:46:50.021 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10288, CallingPid=19459",
+      "07-13 08:46:50.448 D/AndroidRuntime(30226): Calling main entry com.android.commands.uiautomator.Launcher",
+      "07-13 08:46:50.473 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10279, CallingPid=443",
+      "07-13 08:46:50.498 E/BoostFramework(30226): BoostFramework() : Exception_1 = java.lang.ClassNotFoundException: com.qualcomm.qti.Performance",
+      "07-13 08:46:50.498 E/BoostFramework(30226): BoostFramework() Ux Perf: Exception = java.lang.ClassNotFoundException: com.qualcomm.qti.UxPerformance",
+      "07-13 08:46:50.525 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10288, CallingPid=19459",
+      "07-13 08:46:50.975 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10279, CallingPid=443",
+      "07-13 08:46:51.028 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10288, CallingPid=19459",
+      "07-13 08:46:51.476 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10279, CallingPid=443",
+      "07-13 08:46:51.531 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10288, CallingPid=19459",
+      "07-13 08:46:51.652 D/AndroidRuntime(30226): Shutting down VM",
+      "07-13 08:46:51.979 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10279, CallingPid=443",
+      "07-13 08:46:52.033 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10288, CallingPid=19459",
+      "07-13 08:46:52.482 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10279, CallingPid=443",
+      "07-13 08:46:52.536 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10288, CallingPid=19459",
+      "07-13 08:46:52.684 I/adbd    (21521): adbd service requested 'exec:cat '/sdcard/skillsroom-window.xml''",
+      "07-13 08:46:52.985 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10279, CallingPid=443",
+      "07-13 08:46:53.038 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10288, CallingPid=19459",
+      "07-13 08:46:53.455 E/msys    (28813): E[N mns:DGWClient]_LogError(280)=>Failed to resolve using system DNS resolver, getaddrinfo(): No address associated with hostname",
+      "07-13 08:46:53.460 W/System.err(30141): android.content.pm.PackageManager$NameNotFoundException: com.xiaomi.mi_connect_service",
+      "07-13 08:46:53.462 E/msys    (28813): E[N mns:DGWClient]_LogError(280)=>Failed to resolve using system DNS resolver, getaddrinfo(): No address associated with hostname",
+      "07-13 08:46:53.487 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10279, CallingPid=443",
+      "07-13 08:46:53.541 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10288, CallingPid=19459",
+      "07-13 08:46:53.543 E/msys    (28813): E[N mns:DGWClient]_LogError(280)=>Failed to resolve using system DNS resolver, getaddrinfo(): No address associated with hostname",
+      "07-13 08:46:53.624 I/adbd    (21521): adbd service requested 'shell,v2:export ANDROID_LOG_TAGS=''; exec logcat '-d' '-v' 'time''"
+    ]
+  },
+  "memory_summary": {
+    "total_pss_kb": null,
+    "total_rss_kb": null
+  },
+  "frame_summary": {
+    "total_frames": null,
+    "janky_frames": null,
+    "p50_ms": null,
+    "p90_ms": null,
+    "p95_ms": null,
+    "p99_ms": null
+  },
+  "artifacts": {
+    "dir": "C:\\Users\\HP\\sr-mobile\\reports\\real-device-chat-qa\\2026-07-13T07-46-25-198Z",
+    "logcat": "C:\\Users\\HP\\sr-mobile\\reports\\real-device-chat-qa\\2026-07-13T07-46-25-198Z\\logcat.txt"
+  },
+  "ok": false
+}

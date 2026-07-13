@@ -9,7 +9,6 @@ import { queryClient } from "./query-client";
 import { useAuthStore } from "../store/auth-store";
 import { LiveUpdatesProvider } from "./LiveUpdatesProvider";
 import { PushNotificationsProvider } from "./PushNotificationsProvider";
-import { colors } from "../constants/theme";
 
 function AndroidNavigationBarController() {
   const pathname = usePathname();
@@ -17,7 +16,6 @@ function AndroidNavigationBarController() {
   useEffect(() => {
     if (Platform.OS !== "android") return;
     const darkRoute = pathname.startsWith("/chat/");
-    void NavigationBar.setBackgroundColorAsync(darkRoute ? "#18283a" : colors.bg).catch(() => undefined);
     void NavigationBar.setButtonStyleAsync(darkRoute ? "light" : "dark").catch(() => undefined);
   }, [pathname]);
 

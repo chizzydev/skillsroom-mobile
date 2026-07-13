@@ -1,0 +1,138 @@
+{
+  "run_id": "2026-07-13T08-33-44-613Z",
+  "started_at": "2026-07-13T08:35:08.856Z",
+  "package_name": "com.skillsroom.mobile",
+  "device": "TKJRNFCMIR6XXKO7",
+  "device_meta": {
+    "model": "23106RN0DA",
+    "android": "14",
+    "screen_size": "Physical size: 720x1600",
+    "battery": {
+      "level": 79,
+      "powered_usb": true,
+      "status": 2
+    },
+    "package": {
+      "version_name": "0.1.0",
+      "version_code": 1,
+      "debuggable": true,
+      "last_update_time": "2026-07-13 08:39:55"
+    }
+  },
+  "steps": [
+    {
+      "name": "launch_and_render",
+      "ok": false,
+      "duration_ms": 24279,
+      "observations": {
+        "rendered_text_count": 3,
+        "rendered_text_sample": [
+          "The development server returned response error code: 500\n\nURL: http://localhost:8081/.expo/.virtual-metro-entry.bundle?platform=android&dev=true&lazy=true&minify=false&app=com.skillsroom.mobile&modulesOnly=false&runModule=true&excludeSource=true&sourcePaths=url-server\n\nBody:\n{\"type\":\"UnableToResolveError\",\"originModulePath\":\"C:\\\\Users\\\\HP\\\\sr-mobile\\\\node_modules\\\\@shopify\\\\flash-list\\\\dist\\\\recyclerview\\\\RecyclerViewManager.js\",\"targetModuleName\":\"./layout-managers/MasonryLayoutManager\",\"message\":\"Unable to resolve module ./layout-managers/MasonryLayoutManager from C:\\\\Users\\\\HP\\\\sr-mobile\\\\node_modules\\\\@shopify\\\\flash-list\\\\dist\\\\recyclerview\\\\RecyclerViewManager.js: \\n\\nNone of these files exist:\\n  * node_modules\\\\@shopify\\\\flash-list\\\\dist\\\\recyclerview\\\\layout-managers\\\\MasonryLayoutManager(.android.ts|.native.ts|.ts|.android.tsx|.native.tsx|.tsx|.android.mjs|.native.mjs|.mjs|.android.js|.native.js|.js|.android.jsx|.native.jsx|.jsx|.android.json|.native.json|.json|.android.cjs|.native.cjs|.cjs|.android.scss|.native.scss|.scss|.android.sass|.native.sass|.sass|.android.css|.native.css|.css)\\n  * node_modules\\\\@shopify\\\\flash-list\\\\dist\\\\recyclerview\\\\layout-managers\\\\MasonryLayoutManager\\n\\u001b[0m \\u001b[90m  7 |\\u001b[39m \\u001b[36mvar\\u001b[39m \\u001b[33mGridLayoutManager_1\\u001b[39m \\u001b[33m=\\u001b[39m require(\\u001b[32m\\\"./layout-managers/GridLayoutManager\\\"\\u001b[39m)\\u001b[33m;\\u001b[39m\\n \\u001b[90m  8 |\\u001b[39m \\u001b[36mvar\\u001b[39m \\u001b[33mLinearLayoutManager_1\\u001b[39m \\u001b[33m=\\u001b[39m require(\\u001b[32m\\\"./layout-managers/LinearLayoutManager\\\"\\u001b[39m)\\u001b[33m;\\u001b[39m\\n\\u001b[31m\\u001b[1m&gt;\\u001b[22m\\u001b[39m\\u001b[90m  9 |\\u001b[39m \\u001b[36mvar\\u001b[39m \\u001b[33mMasonryLayoutManager_1\\u001b[39m \\u001b[33m=\\u001b[39m require(\\u001b[32m\\\"./layout-managers/MasonryLayoutManager\\\"\\u001b[39m)\\u001b[33m;\\u001b[39m\\n \\u001b[90m    |\\u001b[39m                                       \\u001b[31m\\u001b[1m^\\u001b[22m\\u001b[39m\\n \\u001b[90m 10 |\\u001b[39m \\u001b[36mvar\\u001b[39m \\u001b[33mEngagedIndicesTracker_1\\u001b[39m \\u001b[33m=\\u001b[39m require(\\u001b[32m\\\"./helpers/EngagedIndicesTracker\\\"\\u001b[39m)\\u001b[33m;\\u001b[39m\\n \\u001b[90m 11 |\\u001b[39m \\u001b[36mvar\\u001b[39m \\u001b[33mRenderStackManager_1\\u001b[39m \\u001b[33m=\\u001b[39m require(\\u001b[32m\\\"./RenderStackManager\\\"\\u001b[39m)\\u001b[33m;\\u001b[39m\\n \\u001b[90m 12 |\\u001b[39m \\u001b[90m// Abstracts layout manager, render stack manager and viewability manager and generates render stack (progressively on load)\\u001b[39m\\u001b[0m\",\"cause\":{\"candidates\":{\"file\":{\"type\":\"sourceFile\",\"filePathPrefix\":\"node_modules\\\\@shopify\\\\flash-list\\\\dist\\\\recyclerview\\\\layout-managers\\\\MasonryLayoutManager\",\"candidateExts\":[\"\",\".android.ts\",\".native.ts\",\".ts\",\".android.tsx\",\".native.tsx\",\".tsx\",\".android.mjs\",\".native.mjs\",\".mjs\",\".android.js\",\".native.js\",\".js\",\".android.jsx\",\".native.jsx\",\".jsx\",\".android.json\",\".native.json\",\".json\",\".android.cjs\",\".native.cjs\",\".cjs\",\".android.scss\",\".native.scss\",\".scss\",\".android.sass\",\".native.sass\",\".sass\",\".android.css\",\".native.css\",\".css\"]},\"dir\":{\"type\":\"sourceFile\",\"filePathPrefix\":\"node_modules\\\\@shopify\\\\flash-list\\\\dist\\\\recyclerview\\\\layout-managers\\\\MasonryLayoutManager\",\"candidateExts\":[]}},\"_expoImportStack\":\"Import stack:\\n\\n node_modules\\\\@shopify\\\\flash-list\\\\dist\\\\recyclerview\\\\RecyclerViewManager.js\\n | import \\\"./layout-managers/MasonryLayoutManager\\\"\\n\\n node_modules\\\\@shopify\\\\flash-list\\\\dist\\\\recyclerview\\\\hooks\\\\useRecyclerViewManager.js\\n | import \\\"../RecyclerViewManager\\\"\\n\\n node_modules\\\\@shopify\\\\flash-list\\\\dist\\\\recyclerview\\\\RecyclerView.js\\n | import \\\"./hooks/useRecyclerViewManager\\\"\\n\\n node_modules\\\\@shopify\\\\flash-list\\\\dist\\\\FlashList.js\\n | import \\\"./recyclerview/RecyclerView\\\"\\n\\n node_modules\\\\@shopify\\\\flash-list\\\\dist\\\\index.js\\n | import \\\"./FlashList\\\"\\n\\n src\\\\features\\\\chat\\\\screens\\\\ChatThreadScreen.tsx\\n | import \\\"@shopify/flash-list\\\"\\n\\n app\\\\(app)\\\\chat\\\\[channelId].tsx\\n | import \\\"../../../src/features/chat/screens/ChatThreadScreen\\\"\\n\\n app (require.context)\\n\",\"name\":\"Error\",\"message\":\"The module could not be resolved because none of these files exist:\\n\\n  * C:\\\\Users\\\\HP\\\\sr-mobile\\\\node_modules\\\\@shopify\\\\flash-list\\\\dist\\\\recyclerview\\\\layout-managers\\\\MasonryLayoutManager(.android.ts|.native.ts|.ts|.android.tsx|.native.tsx|.tsx|.android.mjs|.native.mjs|.mjs|.android.js|.native.js|.js|.android.jsx|.native.jsx|.jsx|.android.json|.native.json|.json|.android.cjs|.native.cjs|.cjs|.android.scss|.native.scss|.scss|.android.sass|.native.sass|.sass|.android.css|.native.css|.css)\\n  * C:\\\\Users\\\\HP\\\\sr-mobile\\\\node_modules\\\\@shopify\\\\flash-list\\\\dist\\\\recyclerview\\\\layout-managers\\\\MasonryLayoutManager\",\"stack\":\"Error: The module could not be resolved because none of these files exist:\\n\\n  * C:\\\\Users\\\\HP\\\\sr-mobile\\\\node_modules\\\\@shopify\\\\flash-list\\\\dist\\\\recyclerview\\\\layout-managers\\\\MasonryLayoutManager(.android.ts|.native.ts|.ts|.android.tsx|.native.tsx|.tsx|.android.mjs|.native.mjs|.mjs|.android.js|.native.js|.js|.android.jsx|.native.jsx|.jsx|.android.json|.native.json|.json|.android.cjs|.native.cjs|.cjs|.android.scss|.native.scss|.scss|.android.sass|.native.sass|.sass|.android.css|.native.css|.css)\\n  * C:\\\\Users\\\\HP\\\\sr-mobile\\\\node_modules\\\\@shopify\\\\flash-list\\\\dist\\\\recyclerview\\\\layout-managers\\\\MasonryLayoutManager\\n    at upstreamResolveRequest (C:\\\\Users\\\\HP\\\\sr-mobile\\\\node_modules\\\\metro-resolver\\\\src\\\\resolve.js:53:13)\\n    at resolveRequest (C:\\\\Users\\\\HP\\\\sr-mobile\\\\node_modules\\\\expo\\\\node_modules\\\\@expo\\\\cli\\\\src\\\\start\\\\server\\\\metro\\\\withMetroResolvers.ts:89:20)\\n    at upstreamResolveRequest (C:\\\\Users\\\\HP\\\\sr-mobile\\\\node_modules\\\\metro-resolver\\\\src\\\\resolve.js:41:12)\\n    at firstResolver (C:\\\\Users\\\\HP\\\\sr-mobile\\\\node_modules\\\\expo\\\\node_modules\\\\@expo\\\\cli\\\\src\\\\start\\\\server\\\\metro\\\\withMetroResolvers.ts:89:20)\\n    at firstResolver (C:\\\\Users\\\\HP\\\\sr-mobile\\\\node_modules\\\\expo\\\\node_modules\\\\@expo\\\\cli\\\\src\\\\start\\\\server\\\\metro\\\\withMetroResolvers.ts:103:16)\\n    at firstResolver (C:\\\\Users\\\\HP\\\\sr-mobile\\\\node_modules\\\\expo\\\\node_modules\\\\@expo\\\\cli\\\\src\\\\start\\\\server\\\\metro\\\\withMetroResolvers.ts:132:16)\\n    at resolveRequest (C:\\\\Users\\\\HP\\\\sr-mobile\\\\node_modules\\\\expo\\\\node_modules\\\\@expo\\\\cli\\\\src\\\\start\\\\server\\\\metro\\\\withMetroErrorReportingResolver.ts:60:23)\\n    at Object.resolve (C:\\\\Users\\\\HP\\\\sr-mobile\\\\node_modules\\\\metro-resolver\\\\src\\\\resolve.js:41:12)\\n    at ModuleResolver.resolveDependency (C:\\\\Users\\\\HP\\\\sr-mobile\\\\node_modules\\\\metro\\\\src\\\\node-haste\\\\DependencyGraph\\\\ModuleResolution.js:103:31)\\n    at DependencyGraph.resolveDependency (C:\\\\Users\\\\HP\\\\sr-mobile\\\\node_modules\\\\metro\\\\src\\\\node-haste\\\\DependencyGraph.js:263:43)\"},\"name\":\"Error\",\"stack\":\"Error: Unable to resolve module ./layout-managers/MasonryLayoutManager from C:\\\\Users\\\\HP\\\\sr-mobile\\\\node_modules\\\\@shopify\\\\flash-list\\\\dist\\\\recyclerview\\\\RecyclerViewManager.js: \\n\\nNone of these files exist:\\n  * node_modules\\\\@shopify\\\\flash-list\\\\dist\\\\recyclerview\\\\layout-managers\\\\MasonryLayoutManager(.android.ts|.native.ts|.ts|.android.tsx|.native.tsx|.tsx|.android.mjs|.native.mjs|.mjs|.android.js|.native.js|.js|.android.jsx|.native.jsx|.jsx|.android.json|.native.json|.json|.android.cjs|.native.cjs|.cjs|.android.scss|.native.scss|.scss|.android.sass|.native.sass|.sass|.android.css|.native.css|.css)\\n  * node_modules\\\\@shopify\\\\flash-list\\\\dist\\\\recyclerview\\\\layout-managers\\\\MasonryLayoutManager\\n\\u001b[0m \\u001b[90m  7 |\\u001b[39m \\u001b[36mvar\\u001b[39m \\u001b[33mGridLayoutManager_1\\u001b[39m \\u001b[33m=\\u001b[39m require(\\u001b[32m\\\"./layout-managers/GridLayoutManager\\\"\\u001b[39m)\\u001b[33m;\\u001b[39m\\n \\u001b[90m  8 |\\u001b[39m \\u001b[36mvar\\u001b[39m \\u001b[33mLinearLayoutManager_1\\u001b[39m \\u001b[33m=\\u001b[39m require(\\u001b[32m\\\"./layout-managers/LinearLayoutManager\\\"\\u001b[39m)\\u001b[33m;\\u001b[39m\\n\\u001b[31m\\u001b[1m&gt;\\u001b[22m\\u001b[39m\\u001b[90m  9 |\\u001b[39m \\u001b[36mvar\\u001b[39m \\u001b[33mMasonryLayoutManager_1\\u001b[39m \\u001b[33m=\\u001b[39m require(\\u001b[32m\\\"./layout-managers/MasonryLayoutManager\\\"\\u001b[39m)\\u001b[33m;\\u001b[39m\\n \\u001b[90m    |\\u001b[39m                                       \\u001b[31m\\u001b[1m^\\u001b[22m\\u001b[39m\\n \\u001b[90m 10 |\\u001b[39m \\u001b[36mvar\\u001b[39m \\u001b[33mEngagedIndicesTracker_1\\u001b[39m \\u001b[33m=\\u001b[39m require(\\u001b[32m\\\"./helpers/EngagedIndicesTracker\\\"\\u001b[39m)\\u001b[33m;\\u001b[39m\\n \\u001b[90m 11 |\\u001b[39m \\u001b[36mvar\\u001b[39m \\u001b[33mRenderStackManager_1\\u001b[39m \\u001b[33m=\\u001b[39m require(\\u001b[32m\\\"./RenderStackManager\\\"\\u001b[39m)\\u001b[33m;\\u001b[39m\\n \\u001b[90m 12 |\\u001b[39m \\u001b[90m// Abstracts layout manager, render stack manager and viewability manager and generates render stack (progressively on load)\\u001b[39m\\u001b[0m\\n    at ModuleResolver.resolveDependency (C:\\\\Users\\\\HP\\\\sr-mobile\\\\node_modules\\\\metro\\\\src\\\\node-haste\\\\DependencyGraph\\\\ModuleResolution.js:143:15)\\n    at DependencyGraph.resolveDependency (C:\\\\Users\\\\HP\\\\sr-mobile\\\\node_modules\\\\metro\\\\src\\\\node-haste\\\\DependencyGraph.js:263:43)\\n    at C:\\\\Users\\\\HP\\\\sr-mobile\\\\node_modules\\\\metro\\\\src\\\\lib\\\\transformHelpers.js:165:21\\n    at resolveDependencies (C:\\\\Users\\\\HP\\\\sr-mobile\\\\node_modules\\\\metro\\\\src\\\\DeltaBundler\\\\buildSubgraph.js:43:25)\\n    at visit (C:\\\\Users\\\\HP\\\\sr-mobile\\\\node_modules\\\\metro\\\\src\\\\DeltaBundler\\\\buildSubgraph.js:81:30)\\n    at async Promise.all (index 2)\\n    at visit (C:\\\\Users\\\\HP\\\\sr-mobile\\\\node_modules\\\\metro\\\\src\\\\DeltaBundler\\\\buildSubgraph.js:90:5)\\n    at async Promise.all (index 8)\\n    at visit (C:\\\\Users\\\\HP\\\\sr-mobile\\\\node_modules\\\\metro\\\\src\\\\DeltaBundler\\\\buildSubgraph.js:90:5)\\n    at async Promise.all (index 0)\",\"errors\":[{\"description\":\"Unable to resolve module ./layout-managers/MasonryLayoutManager from C:\\\\Users\\\\HP\\\\sr-mobile\\\\node_modules\\\\@shopify\\\\flash-list\\\\dist\\\\recyclerview\\\\RecyclerViewManager.js: \\n\\nNone of these files exist:\\n  * node_modules\\\\@shopify\\\\flash-list\\\\dist\\\\recyclerview\\\\layout-managers\\\\MasonryLayoutManager(.android.ts|.native.ts|.ts|.android.tsx|.native.tsx|.tsx|.android.mjs|.native.mjs|.mjs|.android.js|.native.js|.js|.android.jsx|.native.jsx|.jsx|.android.json|.native.json|.json|.android.cjs|.native.cjs|.cjs|.android.scss|.native.scss|.scss|.android.sass|.native.sass|.sass|.android.css|.native.css|.css)\\n  * node_modules\\\\@shopify\\\\flash-list\\\\dist\\\\recyclerview\\\\layout-managers\\\\MasonryLayoutManager\\n\\u001b[0m \\u001b[90m  7 |\\u001b[39m \\u001b[36mvar\\u001b[39m \\u001b[33mGridLayoutManager_1\\u001b[39m \\u001b[33m=\\u001b[39m require(\\u001b[32m\\\"./layout-managers/GridLayoutManager\\\"\\u001b[39m)\\u001b[33m;\\u001b[39m\\n \\u001b[90m  8 |\\u001b[39m \\u001b[36mvar\\u001b[39m \\u001b[33mLinearLayoutManager_1\\u001b[39m \\u001b[33m=\\u001b[39m require(\\u001b[32m\\\"./layout-managers/LinearLayoutManager\\\"\\u001b[39m)\\u001b[33m;\\u001b[39m\\n\\u001b[31m\\u001b[1m&gt;\\u001b[22m\\u001b[39m\\u001b[90m  9 |\\u001b[39m \\u001b[36mvar\\u001b[39m \\u001b[33mMasonryLayoutManager_1\\u001b[39m \\u001b[33m=\\u001b[39m require(\\u001b[32m\\\"./layout-managers/MasonryLayoutManager\\\"\\u001b[39m)\\u001b[33m;\\u001b[39m\\n \\u001b[90m    |\\u001b[39m                                       \\u001b[31m\\u001b[1m^\\u001b[22m\\u001b[39m\\n \\u001b[90m 10 |\\u001b[39m \\u001b[36mvar\\u001b[39m \\u001b[33mEngagedIndicesTracker_1\\u001b[39m \\u001b[33m=\\u001b[39m require(\\u001b[32m\\\"./helpers/EngagedIndicesTracker\\\"\\u001b[39m)\\u001b[33m;\\u001b[39m\\n \\u001b[90m 11 |\\u001b[39m \\u001b[36mvar\\u001b[39m \\u001b[33mRenderStackManager_1\\u001b[39m \\u001b[33m=\\u001b[39m require(\\u001b[32m\\\"./RenderStackManager\\\"\\u001b[39m)\\u001b[33m;\\u001b[39m\\n \\u001b[90m 12 |\\u001b[39m \\u001b[90m// Abstracts layout manager, render stack manager and viewability manager and generates render stack (progressively on load)\\u001b[39m\\u001b[0m\"}]}",
+          "DISMISS\n(ESC)",
+          "RELOAD\n(R, R)"
+        ],
+        "redbox_detected": true,
+        "screenshot_path": "C:\\Users\\HP\\sr-mobile\\reports\\real-device-chat-qa\\2026-07-13T08-33-44-613Z\\launch.png"
+      },
+      "note": "React Native redbox was visible."
+    },
+    {
+      "name": "background_foreground",
+      "ok": false,
+      "duration_ms": 26437,
+      "observations": {
+        "rendered_text_count": 0,
+        "rendered_text_sample": []
+      },
+      "note": "No app UI text after background/foreground."
+    },
+    {
+      "name": "chat_tab_deeplink",
+      "ok": false,
+      "duration_ms": 13780,
+      "observations": {
+        "rendered_text_count": 0,
+        "rendered_text_sample": [],
+        "screenshot_path": "C:\\Users\\HP\\sr-mobile\\reports\\real-device-chat-qa\\2026-07-13T08-33-44-613Z\\chat-tab.png"
+      },
+      "note": "Chat tab did not render expected channel/DM shell."
+    },
+    {
+      "name": "chat_channel_deeplink",
+      "ok": false,
+      "duration_ms": 18111,
+      "observations": {
+        "channel": "chat_load_lab",
+        "rendered_text_count": 0,
+        "rendered_text_sample": [],
+        "composer_visible": false,
+        "message_content_visible": false,
+        "screenshot_path": "C:\\Users\\HP\\sr-mobile\\reports\\real-device-chat-qa\\2026-07-13T08-33-44-613Z\\chat-channel.png"
+      },
+      "note": "Chat channel did not show both message content and composer."
+    }
+  ],
+  "log_summary": {
+    "fatal_count": 0,
+    "react_error_count": 526,
+    "sample": [
+      "07-13 09:34:50.613 D/WindowManagerShell( 2459): onActivityRestartAttempt: ComponentInfo{com.skillsroom.mobile/com.skillsroom.mobile.MainActivity}",
+      "07-13 09:34:50.621 W/unknown:BridgelessReact(15018): ReactHost{0}.raiseSoftException(onNewIntent(intent = \"Intent { act=android.intent.action.VIEW dat=skillsroom://chat/... flg=0x10000000 pkg=com.skillsroom.mobile cmp=com.skillsroom.mobile/.MainActivity }\")): Tried to access onNewIntent while context is not ready",
+      "07-13 09:34:50.625 E/unknown:ReactHost(15018): Unhandled SoftException",
+      "07-13 09:34:50.625 E/unknown:ReactHost(15018): com.facebook.react.bridge.ReactNoCrashSoftException: raiseSoftException(onNewIntent(intent = \"Intent { act=android.intent.action.VIEW dat=skillsroom://chat/... flg=0x10000000 pkg=com.skillsroom.mobile cmp=com.skillsroom.mobile/.MainActivity }\")): Tried to access onNewIntent while context is not ready",
+      "07-13 09:34:50.625 E/unknown:ReactHost(15018): \tat com.facebook.react.runtime.ReactHostImpl.raiseSoftException(ReactHostImpl.kt:861)",
+      "07-13 09:34:50.625 E/unknown:ReactHost(15018): \tat com.facebook.react.runtime.ReactHostImpl.raiseSoftException$default(ReactHostImpl.kt:852)",
+      "07-13 09:34:50.625 E/unknown:ReactHost(15018): \tat com.facebook.react.runtime.ReactHostImpl.onNewIntent(ReactHostImpl.kt:652)",
+      "07-13 09:34:50.625 E/unknown:ReactHost(15018): \tat com.facebook.react.ReactDelegate.onNewIntent(ReactDelegate.kt:196)",
+      "07-13 09:34:50.625 E/unknown:ReactHost(15018): \tat com.facebook.react.ReactActivityDelegate.onNewIntent(ReactActivityDelegate.java:233)",
+      "07-13 09:34:50.625 E/unknown:ReactHost(15018): \tat expo.modules.ReactActivityDelegateWrapper.onNewIntent(ReactActivityDelegateWrapper.kt:313)",
+      "07-13 09:34:50.625 E/unknown:ReactHost(15018): \tat com.facebook.react.ReactActivity.onNewIntent(ReactActivity.java:131)",
+      "07-13 09:34:50.625 E/unknown:ReactHost(15018): \tat android.app.Activity.performNewIntent(Activity.java:8908)",
+      "07-13 09:34:50.625 E/unknown:ReactHost(15018): \tat android.app.Instrumentation.callActivityOnNewIntent(Instrumentation.java:1570)",
+      "07-13 09:34:50.625 E/unknown:ReactHost(15018): \tat android.app.Instrumentation.callActivityOnNewIntent(Instrumentation.java:1583)",
+      "07-13 09:34:50.625 E/unknown:ReactHost(15018): \tat android.app.ActivityThread.deliverNewIntents(ActivityThread.java:4207)",
+      "07-13 09:34:50.625 E/unknown:ReactHost(15018): \tat android.app.ActivityThread.handleNewIntent(ActivityThread.java:4214)",
+      "07-13 09:34:50.625 E/unknown:ReactHost(15018): \tat android.app.servertransaction.NewIntentItem.execute(NewIntentItem.java:56)",
+      "07-13 09:34:50.625 E/unknown:ReactHost(15018): \tat android.app.servertransaction.ActivityTransactionItem.execute(ActivityTransactionItem.java:45)",
+      "07-13 09:34:50.625 E/unknown:ReactHost(15018): \tat android.app.servertransaction.TransactionExecutor.executeCallbacks(TransactionExecutor.java:149)",
+      "07-13 09:34:50.625 E/unknown:ReactHost(15018): \tat android.app.servertransaction.TransactionExecutor.execute(TransactionExecutor.java:99)",
+      "07-13 09:34:50.625 E/unknown:ReactHost(15018): \tat android.app.ActivityThread$H.handleMessage(ActivityThread.java:2612)",
+      "07-13 09:34:50.625 E/unknown:ReactHost(15018): \tat android.os.Handler.dispatchMessage(Handler.java:106)",
+      "07-13 09:34:50.625 E/unknown:ReactHost(15018): \tat android.os.Looper.loopOnce(Looper.java:222)",
+      "07-13 09:34:50.625 E/unknown:ReactHost(15018): \tat android.os.Looper.loop(Looper.java:314)",
+      "07-13 09:34:50.625 E/unknown:ReactHost(15018): \tat android.app.ActivityThread.main(ActivityThread.java:8671)",
+      "07-13 09:34:50.625 E/unknown:ReactHost(15018): \tat java.lang.reflect.Method.invoke(Native Method)",
+      "07-13 09:34:50.625 E/unknown:ReactHost(15018): \tat com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:565)",
+      "07-13 09:34:50.625 E/unknown:ReactHost(15018): \tat com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1081)",
+      "07-13 09:34:50.632 W/unknown:BridgelessReact(15018): ReactHost{0}.onHostResume(activity)",
+      "07-13 09:34:54.660 D/SurfaceFlinger( 1133): [SF client] REMOVE (0xb40000786c921480) for (15018:com.skillsroom.mobile)",
+      "07-13 09:35:05.134 D/nativeloader(15453): Extending system_exposed_libraries: libapuwareapusys.mtk.so:libapuwareapusys_v2.mtk.so:libapuwarexrp.mtk.so:libapuwarexrp_v2.mtk.so:libapuwareutils.mtk.so:libapuwareutils_v2.mtk.so:libapuwarehmp.mtk.so:libmcv_runtime_usdk.mtk.so:libneuron_graph_delegate.mtk.so:libneuronusdk_adapter.mtk.so:libtflite_mtk.mtk.so:libarmnn_ndk.mtk.so:libcmdl_ndk.mtk.so:libnir_neon_driver_ndk.mtk.so:libmvpu_runtime.mtk.so:libmvpu_runtime_pub.mtk.so:libmvpu_engine_pub.mtk.so:libmvpu_pattern_pub.mtk.so:libmvpuop_mtk_cv.mtk.so:libmvpuop_mtk_nn.mtk.so:libmvpu_runtime_25.mtk.so:libmvpu_runtime_25_pub.mtk.so:libmvpu_engine_25_pub.mtk.so:libmvpu_pattern_25_pub.mtk.so:libmvpuop25_mtk_cv.mtk.so:libmvpuop25_mtk_nn.mtk.so:libmvpu_config.mtk.so:libteeservice_client.trustonic.so:libmisys_jni.xiaomi.so",
+      "07-13 09:35:05.144 D/nativeloader(15453): Extending system_exposed_libraries: libapuwareapusys.mtk.so:libapuwareapusys_v2.mtk.so:libapuwarexrp.mtk.so:libapuwarexrp_v2.mtk.so:libapuwareutils.mtk.so:libapuwareutils_v2.mtk.so:libapuwarehmp.mtk.so:libmcv_runtime_usdk.mtk.so:libneuron_graph_delegate.mtk.so:libneuronusdk_adapter.mtk.so:libtflite_mtk.mtk.so:libarmnn_ndk.mtk.so:libcmdl_ndk.mtk.so:libnir_neon_driver_ndk.mtk.so:libmvpu_runtime.mtk.so:libmvpu_runtime_pub.mtk.so:libmvpu_engine_pub.mtk.so:libmvpu_pattern_pub.mtk.so:libmvpuop_mtk_cv.mtk.so:libmvpuop_mtk_nn.mtk.so:libmvpu_runtime_25.mtk.so:libmvpu_runtime_25_pub.mtk.so:libmvpu_engine_25_pub.mtk.so:libmvpu_pattern_25_pub.mtk.so:libmvpuop25_mtk_cv.mtk.so:libmvpuop25_mtk_nn.mtk.so:libmvpu_config.mtk.so:libteeservice_client.trustonic.so:libmisys_jni.xiaomi.so",
+      "07-13 09:35:05.152 D/nativeloader(15453): Extending system_exposed_libraries: libapuwareapusys.mtk.so:libapuwareapusys_v2.mtk.so:libapuwarexrp.mtk.so:libapuwarexrp_v2.mtk.so:libapuwareutils.mtk.so:libapuwareutils_v2.mtk.so:libapuwarehmp.mtk.so:libmcv_runtime_usdk.mtk.so:libneuron_graph_delegate.mtk.so:libneuronusdk_adapter.mtk.so:libtflite_mtk.mtk.so:libarmnn_ndk.mtk.so:libcmdl_ndk.mtk.so:libnir_neon_driver_ndk.mtk.so:libmvpu_runtime.mtk.so:libmvpu_runtime_pub.mtk.so:libmvpu_engine_pub.mtk.so:libmvpu_pattern_pub.mtk.so:libmvpuop_mtk_cv.mtk.so:libmvpuop_mtk_nn.mtk.so:libmvpu_runtime_25.mtk.so:libmvpu_runtime_25_pub.mtk.so:libmvpu_engine_25_pub.mtk.so:libmvpu_pattern_25_pub.mtk.so:libmvpuop25_mtk_cv.mtk.so:libmvpuop25_mtk_nn.mtk.so:libmvpu_config.mtk.so:libteeservice_client.trustonic.so:libmisys_jni.xiaomi.so",
+      "07-13 09:35:05.858 D/AndroidRuntime(15490): >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<",
+      "07-13 09:35:05.866 D/nativeloader(15453): Extending system_exposed_libraries: libapuwareapusys.mtk.so:libapuwareapusys_v2.mtk.so:libapuwarexrp.mtk.so:libapuwarexrp_v2.mtk.so:libapuwareutils.mtk.so:libapuwareutils_v2.mtk.so:libapuwarehmp.mtk.so:libmcv_runtime_usdk.mtk.so:libneuron_graph_delegate.mtk.so:libneuronusdk_adapter.mtk.so:libtflite_mtk.mtk.so:libarmnn_ndk.mtk.so:libcmdl_ndk.mtk.so:libnir_neon_driver_ndk.mtk.so:libmvpu_runtime.mtk.so:libmvpu_runtime_pub.mtk.so:libmvpu_engine_pub.mtk.so:libmvpu_pattern_pub.mtk.so:libmvpuop_mtk_cv.mtk.so:libmvpuop_mtk_nn.mtk.so:libmvpu_runtime_25.mtk.so:libmvpu_runtime_25_pub.mtk.so:libmvpu_engine_25_pub.mtk.so:libmvpu_pattern_25_pub.mtk.so:libmvpuop25_mtk_cv.mtk.so:libmvpuop25_mtk_nn.mtk.so:libmvpu_config.mtk.so:libteeservice_client.trustonic.so:libmisys_jni.xiaomi.so",
+      "07-13 09:35:05.871 I/AndroidRuntime(15490): Using default boot image",
+      "07-13 09:35:05.871 I/AndroidRuntime(15490): Leaving lock profiling enabled",
+      "07-13 09:35:06.054 D/AndroidRuntime(15490): Calling main entry com.android.commands.uiautomator.Launcher",
+      "07-13 09:35:07.179 D/AndroidRuntime(15490): Shutting down VM",
+      "07-13 09:35:08.664 I/adbd    (21521): adbd service requested 'shell,v2:export ANDROID_LOG_TAGS=''; exec logcat '-d' '-v' 'time''"
+    ]
+  },
+  "memory_summary": {
+    "total_pss_kb": 93501,
+    "total_rss_kb": 149044
+  },
+  "frame_summary": {
+    "total_frames": 23,
+    "janky_frames": 5,
+    "p50_ms": 9,
+    "p90_ms": 200,
+    "p95_ms": 650,
+    "p99_ms": 1650
+  },
+  "artifacts": {
+    "dir": "C:\\Users\\HP\\sr-mobile\\reports\\real-device-chat-qa\\2026-07-13T08-33-44-613Z",
+    "logcat": "C:\\Users\\HP\\sr-mobile\\reports\\real-device-chat-qa\\2026-07-13T08-33-44-613Z\\logcat.txt"
+  },
+  "ok": false
+}

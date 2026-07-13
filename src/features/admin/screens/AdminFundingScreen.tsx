@@ -18,6 +18,7 @@ import { env } from "../../../config/env";
 import { AppScreen } from "../../../components/screen/AppScreen";
 import { AppButton } from "../../../components/ui/AppButton";
 import { Badge } from "../../../components/ui/Badge";
+import { CopyButton } from "../../../components/ui/CopyButton";
 import { FeedbackState } from "../../../components/ui/FeedbackState";
 import { FormNotice } from "../../../components/ui/FormNotice";
 import { SurfaceCard } from "../../../components/ui/SurfaceCard";
@@ -432,6 +433,7 @@ function FundingSubmissionCard({
           <ClipboardCheck color={selected ? colors.greenDark : colors.cyan} size={18} />
           <Text style={[styles.selectHintText, selected && styles.selectHintTextActive]}>{selected ? "Ready for decision" : "Tap to review"}</Text>
         </View>
+        <CopyButton value={submission.id} label="Copy ID" copiedLabel="ID copied" compact />
         {url ? (
           <Pressable style={styles.proofButton} onPress={() => onOpenProof(url)}>
             <ExternalLink color={colors.cyan} size={18} />

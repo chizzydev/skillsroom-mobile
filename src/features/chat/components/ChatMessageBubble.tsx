@@ -1,6 +1,6 @@
 ﻿import { memo, useCallback, useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { Bookmark, Check, FileText, Flag, Image as ImageIcon, ListChecks, MessageCircle, Pin, Reply, Trash2 } from "lucide-react-native";
 import { absoluteChatMediaUrl, getChatAttachmentAccess } from "../../../api/chat";
 import { plainApiError } from "../../../api/errors";
@@ -27,6 +27,7 @@ const reactionOptions = [
   { value: "hundred", label: "\u{1F4AF}" },
   { value: "game", label: "\u{1F3AE}" }
 ];
+const primaryReactionOptions = reactionOptions.slice(0, 6);
 
 export type MessageAction = "bookmark" | "pin" | "report" | "delete";
 export type ChatAttachmentPreview = { url: string; title: string; image: boolean };
@@ -177,14 +178,14 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({
       ))}
 
       {!deleted ? (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.messageActions}>
+        <View style={styles.messageActions}>
           <ActionChip label="Reply" icon={<Reply size={14} color={chatCyan} />} onPress={() => onReply(message)} />
           <ActionChip label="Thread" icon={<MessageCircle size={14} color={chatCyan} />} onPress={() => onThread(message)} />
           <ActionChip label="Pin" icon={<Pin size={14} color={chatCyan} />} onPress={() => onMessageAction("pin", message)} />
           <ActionChip label="Save" icon={<Bookmark size={14} color={chatCyan} />} onPress={() => onMessageAction("bookmark", message)} />
           {!isMine ? <ActionChip label="Report" icon={<Flag size={14} color="#ff9aad" />} onPress={() => onMessageAction("report", message)} /> : null}
           {isMine ? <ActionChip label="Delete" icon={<Trash2 size={14} color="#ff9aad" />} onPress={() => onMessageAction("delete", message)} /> : null}
-        </ScrollView>
+        </View>
       ) : null}
 
       <View style={styles.reactions}>
@@ -196,13 +197,13 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({
       </View>
 
       {!deleted ? (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickReactions}>
-          {reactionOptions.map((reaction) => (
+        <View style={styles.quickReactions}>
+          {primaryReactionOptions.map((reaction) => (
             <Pressable key={reaction.value} disabled={reacting} onPress={() => onReact(message.id, reaction.value)} style={styles.quickReaction}>
               <Text style={styles.quickReactionText}>{reaction.label}</Text>
             </Pressable>
           ))}
-        </ScrollView>
+        </View>
       ) : null}
     </View>
   );
@@ -594,6 +595,8 @@ const styles = StyleSheet.create({
     fontSize: 12
   },
   quickReactions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: spacing.xs,
     paddingTop: 2
   },
@@ -610,6 +613,8 @@ const styles = StyleSheet.create({
     fontWeight: "900"
   },
   messageActions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: spacing.xs,
     paddingVertical: 2
   },

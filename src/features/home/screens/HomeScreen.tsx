@@ -57,6 +57,10 @@ function firstName(value?: string | null) {
   return trimmed.split(/\s+/)[0];
 }
 
+function userGreetingName(user: ReturnType<typeof useAuthStore.getState>["user"], profileName?: string | null) {
+  return profileName ?? user?.display_name ?? user?.username ?? user?.email?.split("@")[0] ?? null;
+}
+
 export function HomeScreen() {
   const user = useAuthStore((state) => state.user);
   const roomsQuery = useQuery({ queryKey: ["home", "rooms"], queryFn: () => listRooms() });
@@ -78,6 +82,7 @@ export function HomeScreen() {
   const availableBalance = walletQuery.data?.balance?.available_minor ?? walletQuery.data?.account?.available_balance_minor ?? 0;
   const currency = walletQuery.data?.balance?.currency ?? walletQuery.data?.account?.currency ?? "NGN";
   const profile = profileQuery.data;
+  const profileName = userGreetingName(user, profile?.profile?.display_name ?? profile?.profile?.username ?? profile?.user?.display_name ?? profile?.user?.username);
   const missingProfileItems = profile?.completion?.missing?.length ?? 0;
   const readinessCopy = missingProfileItems === 0 ? "Ready for rooms, prizes, and tournaments." : `${missingProfileItems} setup item${missingProfileItems === 1 ? "" : "s"} left.`;
   const tournaments = tournamentsQuery.data ?? [];
@@ -92,7 +97,7 @@ export function HomeScreen() {
             {unreadNotifications + dmRequests > 0 ? <Text style={styles.inboxCount}>{unreadNotifications + dmRequests}</Text> : null}
           </Pressable>
         </View>
-        <Text style={styles.heroTitle}>Welcome back, {firstName(user?.display_name ?? user?.username)}.</Text>
+        <Text style={styles.heroTitle}>Welcome back, {firstName(profileName)}.</Text>
         <Text style={styles.heroCopy}>Find a fair room, confirm entry once, play under clear rules, and keep every result easy to prove.</Text>
         <View style={styles.heroActions}>
           <AppButton style={styles.heroAction} onPress={() => router.push("/(app)/rooms/new")}>Create room</AppButton>

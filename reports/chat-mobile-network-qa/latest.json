@@ -1,0 +1,141 @@
+{
+  "run_id": "2026-07-13T07-29-38-596Z",
+  "started_at": "2026-07-13T07:29:55.423Z",
+  "api_base_url": "http://127.0.0.1:4100",
+  "channel": "chat_load_lab",
+  "scenarios": [
+    {
+      "name": "mobile_api_long_channel",
+      "ok": true,
+      "duration_ms": 3164,
+      "observations": {
+        "channel_found": true,
+        "visible_messages": 80,
+        "older_cursor_present": true
+      }
+    },
+    {
+      "name": "mobile_api_slow_network",
+      "ok": true,
+      "duration_ms": 8875,
+      "observations": {
+        "artificial_delay_ms": 1200,
+        "completed_ms": 8875
+      }
+    },
+    {
+      "name": "mobile_api_offline",
+      "ok": true,
+      "duration_ms": 0,
+      "observations": {
+        "failed_as_network_error": true
+      }
+    },
+    {
+      "name": "mobile_sse_reconnect",
+      "ok": true,
+      "duration_ms": 1637,
+      "observations": {
+        "first_connected": true,
+        "second_connected": true,
+        "first_events": 1,
+        "second_events": 1
+      }
+    },
+    {
+      "name": "mobile_api_recovered_after_offline",
+      "ok": true,
+      "duration_ms": 2199,
+      "observations": {
+        "presence_loaded": true,
+        "thread_checked": true
+      }
+    }
+  ],
+  "summaries": [
+    {
+      "label": "channels",
+      "count": 1,
+      "ok": 1,
+      "failed": 0,
+      "p50_ms": 932,
+      "p95_ms": 932,
+      "max_ms": 932
+    },
+    {
+      "label": "media",
+      "count": 1,
+      "ok": 1,
+      "failed": 0,
+      "p50_ms": 2562,
+      "p95_ms": 2562,
+      "max_ms": 2562
+    },
+    {
+      "label": "messages",
+      "count": 1,
+      "ok": 1,
+      "failed": 0,
+      "p50_ms": 2232,
+      "p95_ms": 2232,
+      "max_ms": 2232
+    },
+    {
+      "label": "offline_channels",
+      "count": 1,
+      "ok": 0,
+      "failed": 1,
+      "p50_ms": 0,
+      "p95_ms": 0,
+      "max_ms": 0
+    },
+    {
+      "label": "older_messages",
+      "count": 1,
+      "ok": 1,
+      "failed": 0,
+      "p50_ms": 3818,
+      "p95_ms": 3818,
+      "max_ms": 3818
+    },
+    {
+      "label": "presence",
+      "count": 1,
+      "ok": 1,
+      "failed": 0,
+      "p50_ms": 1074,
+      "p95_ms": 1074,
+      "max_ms": 1074
+    },
+    {
+      "label": "search",
+      "count": 1,
+      "ok": 1,
+      "failed": 0,
+      "p50_ms": 2495,
+      "p95_ms": 2495,
+      "max_ms": 2495
+    },
+    {
+      "label": "thread",
+      "count": 1,
+      "ok": 1,
+      "failed": 0,
+      "p50_ms": 1125,
+      "p95_ms": 1125,
+      "max_ms": 1125
+    }
+  ],
+  "errors": [
+    {
+      "label": "offline_channels",
+      "method": "GET",
+      "path": "/community/channels",
+      "ok": false,
+      "duration_ms": 0,
+      "error": "Simulated mobile offline network error."
+    }
+  ],
+  "total_requests": 8,
+  "ok": true
+}

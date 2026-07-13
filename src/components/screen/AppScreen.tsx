@@ -5,7 +5,7 @@ import { colors, spacing } from "../../constants/theme";
 
 export function AppScreen({ children, scroll = true }: { children: ReactNode; scroll?: boolean }) {
   const insets = useSafeAreaInsets();
-  const bottomPadding = Math.max(insets.bottom + spacing.lg, spacing.xl);
+  const bottomPadding = Math.max(spacing.md, Math.min(insets.bottom, spacing.md));
   const content = <View style={[styles.content, { paddingBottom: scroll ? bottomPadding : 0 }]}>{children}</View>;
 
   return (

@@ -2,7 +2,22 @@ import type { MyCommunityClanResponse, MyReferralProgramResponse, PlayerTrustSum
 import { apiRequest } from "./client";
 
 export async function profileOverview() {
-  return apiRequest<ProfileOverview>("/profiles/me");
+  const summary = await apiRequest<ProfileOverview>("/profiles/me?view=summary");
+  const [gameAccountsResult, payoutProfileResult] = await Promise.allSettled([
+    profileGameAccounts(),
+    profilePayoutProfile()
+  ]);
+
+  const fallbackPrimaryAccount =
+    summary.primary_game_account && typeof summary.primary_game_account === "object"
+      ? [{ ...summary.primary_game_account, is_primary: true }]
+      : [];
+
+  return {
+    ...summary,
+    game_accounts: gameAccountsResult.status === "fulfilled" ? gameAccountsResult.value : fallbackPrimaryAccount,
+    payout_profile: payoutProfileResult.status === "fulfilled" ? payoutProfileResult.value : summary.payout_profile ?? null
+  };
 }
 
 export async function profileTrustSummary(userId: string) {
@@ -16,6 +31,16 @@ export async function myCommunityClan() {
 
 export async function myReferralProgram() {
   return apiRequest<MyReferralProgramResponse>("/community/referrals/me");
+}
+
+export async function profileGameAccounts() {
+  const data = await apiRequest<{ game_accounts: NonNullable<ProfileOverview["game_accounts"]> }>("/profiles/me/game-accounts");
+  return data.game_accounts ?? [];
+}
+
+export async function profilePayoutProfile() {
+  const data = await apiRequest<{ payout_profile: ProfileOverview["payout_profile"] }>("/profiles/me/payout-profile");
+  return data.payout_profile ?? null;
 }
 
 export async function saveProfile(input: {

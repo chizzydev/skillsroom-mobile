@@ -8,6 +8,7 @@ export function AppButton({
   variant = "primary",
   disabled,
   loading,
+  loadingLabel,
   style
 }: {
   children: ReactNode;
@@ -15,9 +16,11 @@ export function AppButton({
   variant?: "primary" | "secondary" | "danger" | "dark";
   disabled?: boolean;
   loading?: boolean;
+  loadingLabel?: string;
   style?: ViewStyle;
 }) {
   const isDisabled = Boolean(disabled || loading);
+  const visuallyDisabled = Boolean(disabled && !loading);
   const isInverse = variant === "danger" || variant === "dark";
 
   return (
@@ -28,15 +31,18 @@ export function AppButton({
       style={({ pressed }) => [
         styles.base,
         styles[variant],
-        isDisabled && styles[`${variant}Disabled`],
+        visuallyDisabled && styles[`${variant}Disabled`],
         pressed && !isDisabled ? styles.pressed : null,
         style
       ]}
     >
       {loading ? (
-        <ActivityIndicator color={isInverse ? colors.white : colors.ink} />
+        <>
+          <ActivityIndicator color={isInverse ? colors.white : colors.ink} />
+          {loadingLabel ? <Text style={[styles.text, styles.loadingText, isInverse && styles.inverseText]}>{loadingLabel}</Text> : null}
+        </>
       ) : (
-        <Text style={[styles.text, isInverse && styles.inverseText, isDisabled && !isInverse && styles.disabledText, isDisabled && isInverse && styles.disabledInverseText]}>{children}</Text>
+        <Text style={[styles.text, isInverse && styles.inverseText, visuallyDisabled && !isInverse && styles.disabledText, visuallyDisabled && isInverse && styles.disabledInverseText]}>{children}</Text>
       )}
     </Pressable>
   );
@@ -48,6 +54,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     alignItems: "center",
     justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
     paddingHorizontal: 18,
     borderWidth: 1
   },
@@ -96,6 +104,9 @@ const styles = StyleSheet.create({
   },
   inverseText: {
     color: colors.white
+  },
+  loadingText: {
+    fontSize: 14
   },
   disabledText: {
     color: colors.faint

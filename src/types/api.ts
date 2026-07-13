@@ -826,6 +826,8 @@ export type ProfileCompletion = {
 export type ProfileOverview = {
   profile?: PlayerProfile | null;
   game_accounts?: UserGameAccount[];
+  primary_game_account?: UserGameAccount | null;
+  game_account_count?: number;
   payout_profile?: PayoutProfile | null;
   completion?: ProfileCompletion;
   trust?: Record<string, unknown> | null;

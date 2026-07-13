@@ -35,6 +35,7 @@ import { env } from "../../../config/env";
 import { AppScreen } from "../../../components/screen/AppScreen";
 import { AppButton } from "../../../components/ui/AppButton";
 import { Badge } from "../../../components/ui/Badge";
+import { CopyButton } from "../../../components/ui/CopyButton";
 import { FeedbackState } from "../../../components/ui/FeedbackState";
 import { FormNotice } from "../../../components/ui/FormNotice";
 import { SurfaceCard } from "../../../components/ui/SurfaceCard";
@@ -529,6 +530,7 @@ function TopupCard({ topup, selected, onSelect, onOpenProof }: { topup: WalletTo
       </View>
       <View style={styles.submissionActions}>
         <SelectHint selected={selected} label={selected ? "Ready for decision" : "Tap to review"} />
+        <CopyButton value={topup.id} label="Copy ID" copiedLabel="Top-up ID copied" compact />
         {url ? (
           <Pressable style={styles.proofButton} onPress={() => onOpenProof(url)}>
             <ExternalLink color={colors.cyan} size={18} />
@@ -554,6 +556,7 @@ function PayoutCard({ payout, selected, onSelect }: { payout: WalletPayoutReques
       </View>
       <View style={styles.submissionActions}>
         <SelectHint selected={selected} label={selected ? "Ready for payout decision" : "Tap to review"} />
+        <CopyButton value={payout.id} label="Copy ID" copiedLabel="Payout ID copied" compact />
       </View>
     </Pressable>
   );

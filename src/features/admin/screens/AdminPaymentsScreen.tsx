@@ -38,6 +38,7 @@ import { plainApiError } from "../../../api/errors";
 import { AppScreen } from "../../../components/screen/AppScreen";
 import { AppButton } from "../../../components/ui/AppButton";
 import { Badge } from "../../../components/ui/Badge";
+import { CopyButton } from "../../../components/ui/CopyButton";
 import { FeedbackState } from "../../../components/ui/FeedbackState";
 import { FormNotice } from "../../../components/ui/FormNotice";
 import { SurfaceCard } from "../../../components/ui/SurfaceCard";
@@ -710,7 +711,12 @@ function PaymentRow({
       <Text style={styles.amountText}>{amount}</Text>
       <Text style={styles.rowMeta}>{detail}</Text>
       <View style={styles.identifierGrid}>
-        {identifiers.map(([label, value]) => <DetailCell key={`${label}:${value}`} label={label} value={shortId(value)} mono />)}
+        {identifiers.map(([label, value]) => (
+          <View key={`${label}:${value}`} style={styles.identifierCell}>
+            <DetailCell label={label} value={shortId(value)} mono />
+            <CopyButton value={value} label="Copy" copiedLabel="Copied" compact />
+          </View>
+        ))}
       </View>
       {onPress ? (
         <View style={styles.selectHint}>
@@ -850,6 +856,7 @@ const styles = StyleSheet.create({
   paymentTitle: { color: colors.ink, fontSize: 18, lineHeight: 24, fontWeight: "900" },
   amountText: { color: colors.ink, fontSize: 30, fontWeight: "900" },
   identifierGrid: { gap: spacing.sm },
+  identifierCell: { gap: spacing.xs },
   detailCell: { borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white, padding: spacing.md },
   detailLabel: { color: colors.faint, fontSize: 11, fontWeight: "900", letterSpacing: 2, textTransform: "uppercase" },
   detailValue: { marginTop: spacing.xs, color: colors.ink, fontSize: 14, lineHeight: 20, fontWeight: "800", flexShrink: 1 },

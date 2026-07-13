@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { BadgeCheck, Banknote, BriefcaseBusiness, Copy, Gamepad2, Link as LinkIcon, Radio, ShieldCheck } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
-import { ImageBackground, Linking, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { ImageBackground, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import * as AuthSession from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
 import { canAccessAdmin, roleLabel } from "../../../api/admin";
@@ -13,6 +13,7 @@ import { completeStreamingOauth, listStreamingAccounts, saveManualStreamingAccou
 import { AppScreen } from "../../../components/screen/AppScreen";
 import { AppButton } from "../../../components/ui/AppButton";
 import { Badge } from "../../../components/ui/Badge";
+import { CopyButton } from "../../../components/ui/CopyButton";
 import { FeedbackState } from "../../../components/ui/FeedbackState";
 import { FormNotice } from "../../../components/ui/FormNotice";
 import { SurfaceCard } from "../../../components/ui/SurfaceCard";
@@ -512,11 +513,15 @@ export function ProfileScreen() {
           <View style={styles.referralBox}>
             <Text style={styles.referralCode}>{referralQuery.data?.referral_code ?? "Loading"}</Text>
             {referralUrl ? (
-              <Pressable style={styles.linkRow} onPress={() => void Linking.openURL(referralUrl)}>
+              <View style={styles.linkRow}>
                 <LinkIcon size={18} color={colors.cyan} />
                 <Text numberOfLines={2} style={styles.linkText}>{referralUrl}</Text>
-              </Pressable>
+              </View>
             ) : null}
+            <View style={styles.copyRow}>
+              <CopyButton value={referralQuery.data?.referral_code} label="Copy code" copiedLabel="Code copied" compact />
+              <CopyButton value={referralUrl} label="Copy link" copiedLabel="Link copied" compact />
+            </View>
           </View>
           <View style={styles.compactStats}>
             <CompactStat label="Total" value={String(referralSummary.total ?? 0)} />
@@ -540,7 +545,7 @@ export function ProfileScreen() {
           <AccountTile icon={BadgeCheck} title="Google sign-in" detail="Manage linked Google access from the secure web profile for now." />
           <AccountTile icon={Copy} title="Password setup" detail="Use the secure email reset flow if this account needs a new password." />
         </View>
-        <AppButton variant="danger" loading={logoutLoading} onPress={logout}>Sign out</AppButton>
+        <AppButton variant="danger" loading={logoutLoading} loadingLabel="Signing out..." onPress={logout}>Sign out</AppButton>
       </SurfaceCard>
     </AppScreen>
   );
@@ -803,6 +808,7 @@ const styles = StyleSheet.create({
   referralCode: { color: colors.ink, fontSize: 28, fontWeight: "900", letterSpacing: 1 },
   linkRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   linkText: { color: colors.cyan, fontWeight: "900", flex: 1, minWidth: 0, lineHeight: 20 },
+  copyRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   referralRow: { borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, padding: spacing.md, gap: spacing.sm, backgroundColor: colors.white },
   accountGrid: { gap: spacing.sm },
   accountTile: {

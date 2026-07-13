@@ -1,0 +1,2 @@
+Manual QA session started 2026-07-13T09:03:26.8720319+01:00
+Opened skillsroom://chat/chat_load_lab

@@ -1,0 +1,109 @@
+{
+  "run_id": "2026-07-13T07-47-07-401Z",
+  "started_at": "2026-07-13T07:47:51.030Z",
+  "package_name": "com.skillsroom.mobile",
+  "device": "TKJRNFCMIR6XXKO7",
+  "device_meta": {
+    "model": "23106RN0DA",
+    "android": "14",
+    "screen_size": "Physical size: 720x1600",
+    "battery": {
+      "level": 78,
+      "powered_usb": true,
+      "status": 2
+    },
+    "package": {
+      "version_name": "0.1.0",
+      "version_code": 1,
+      "debuggable": true,
+      "last_update_time": "2026-07-13 08:39:55"
+    }
+  },
+  "steps": [
+    {
+      "name": "launch_and_render",
+      "ok": false,
+      "duration_ms": 27177,
+      "observations": {
+        "rendered_text_count": 0,
+        "rendered_text_sample": [],
+        "redbox_detected": false,
+        "screenshot_path": "C:\\Users\\HP\\sr-mobile\\reports\\real-device-chat-qa\\2026-07-13T07-47-07-401Z\\launch.png"
+      },
+      "note": "App launched but rendered an empty native root."
+    },
+    {
+      "name": "background_foreground",
+      "ok": false,
+      "duration_ms": 15336,
+      "observations": {
+        "rendered_text_count": 0,
+        "rendered_text_sample": []
+      },
+      "note": "No app UI text after background/foreground."
+    }
+  ],
+  "log_summary": {
+    "fatal_count": 2,
+    "react_error_count": 45,
+    "sample": [
+      "07-13 08:47:48.033 I/AndroidRuntime(31268): Leaving lock profiling enabled",
+      "07-13 08:47:48.070 E/NetworkErrorMessage(30984): (REDACTED) Invalid connectivity state: %s",
+      "07-13 08:47:48.315 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10279, CallingPid=443",
+      "07-13 08:47:48.327 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10288, CallingPid=19459",
+      "07-13 08:47:48.449 D/AndroidRuntime(31268): Calling main entry com.android.commands.uiautomator.Launcher",
+      "07-13 08:47:48.500 E/BoostFramework(31268): BoostFramework() : Exception_1 = java.lang.ClassNotFoundException: com.qualcomm.qti.Performance",
+      "07-13 08:47:48.501 E/BoostFramework(31268): BoostFramework() Ux Perf: Exception = java.lang.ClassNotFoundException: com.qualcomm.qti.UxPerformance",
+      "07-13 08:47:48.614 E/MendelPackageState(30984): java.lang.IllegalArgumentException: Account must be in ENABLED state, but was UNSPECIFIED.",
+      "07-13 08:47:48.624 E/MendelPackageState(30984): java.lang.IllegalArgumentException: Account must be in ENABLED state, but was UNSPECIFIED.",
+      "07-13 08:47:48.638 E/MendelPackageState(30984): java.lang.IllegalArgumentException: Account must be in ENABLED state, but was UNSPECIFIED.",
+      "07-13 08:47:48.671 E/MendelPackageState(30984): java.lang.IllegalArgumentException: Account must be in ENABLED state, but was UNSPECIFIED.",
+      "07-13 08:47:48.714 E/MendelPackageState(30984): java.lang.IllegalArgumentException: Account must be in ENABLED state, but was UNSPECIFIED.",
+      "07-13 08:47:48.742 E/MendelPackageState(30984): java.lang.IllegalArgumentException: Account must be in ENABLED state, but was UNSPECIFIED.",
+      "07-13 08:47:48.779 E/MendelPackageState(30984): java.lang.IllegalArgumentException: Account must be in ENABLED state, but was UNSPECIFIED.",
+      "07-13 08:47:48.785 E/MendelPackageState(30984): java.lang.IllegalArgumentException: Account must be in ENABLED state, but was UNSPECIFIED.",
+      "07-13 08:47:48.818 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10279, CallingPid=443",
+      "07-13 08:47:48.828 E/MendelPackageState(30984): java.lang.IllegalArgumentException: Account must be in ENABLED state, but was UNSPECIFIED.",
+      "07-13 08:47:48.833 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10288, CallingPid=19459",
+      "07-13 08:47:48.843 E/MendelPackageState(30984): java.lang.IllegalArgumentException: Account must be in ENABLED state, but was UNSPECIFIED.",
+      "07-13 08:47:48.897 E/MendelPackageState(30984): java.lang.IllegalArgumentException: Account must be in ENABLED state, but was UNSPECIFIED.",
+      "07-13 08:47:48.909 E/MendelPackageState(30984): java.lang.IllegalArgumentException: Account must be in ENABLED state, but was UNSPECIFIED.",
+      "07-13 08:47:48.942 E/MendelPackageState(30984): java.lang.IllegalArgumentException: Account must be in ENABLED state, but was UNSPECIFIED.",
+      "07-13 08:47:48.954 E/MendelPackageState(30984): java.lang.IllegalArgumentException: Account must be in ENABLED state, but was UNSPECIFIED.",
+      "07-13 08:47:48.991 E/MendelPackageState(30984): java.lang.IllegalArgumentException: Account must be in ENABLED state, but was UNSPECIFIED.",
+      "07-13 08:47:49.003 E/MendelPackageState(30984): java.lang.IllegalArgumentException: Account must be in ENABLED state, but was UNSPECIFIED.",
+      "07-13 08:47:49.053 E/MendelPackageState(30984): java.lang.IllegalArgumentException: Account must be in ENABLED state, but was UNSPECIFIED.",
+      "07-13 08:47:49.068 E/MendelPackageState(30984): java.lang.IllegalArgumentException: Account must be in ENABLED state, but was UNSPECIFIED.",
+      "07-13 08:47:49.076 E/MendelPackageState(30984): java.lang.IllegalArgumentException: Account must be in ENABLED state, but was UNSPECIFIED.",
+      "07-13 08:47:49.088 E/MendelPackageState(30984): java.lang.IllegalArgumentException: Account must be in ENABLED state, but was UNSPECIFIED.",
+      "07-13 08:47:49.321 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10279, CallingPid=443",
+      "07-13 08:47:49.336 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10288, CallingPid=19459",
+      "07-13 08:47:49.823 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10279, CallingPid=443",
+      "07-13 08:47:49.838 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10288, CallingPid=19459",
+      "07-13 08:47:49.851 D/AndroidRuntime(31268): Shutting down VM",
+      "07-13 08:47:50.325 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10279, CallingPid=443",
+      "07-13 08:47:50.340 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10288, CallingPid=19459",
+      "07-13 08:47:50.820 I/adbd    (21521): adbd service requested 'exec:cat '/sdcard/skillsroom-window.xml''",
+      "07-13 08:47:50.828 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10279, CallingPid=443",
+      "07-13 08:47:50.842 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10288, CallingPid=19459",
+      "07-13 08:47:50.907 I/adbd    (21521): adbd service requested 'shell,v2:export ANDROID_LOG_TAGS=''; exec logcat '-d' '-v' 'time''"
+    ]
+  },
+  "memory_summary": {
+    "total_pss_kb": null,
+    "total_rss_kb": null
+  },
+  "frame_summary": {
+    "total_frames": null,
+    "janky_frames": null,
+    "p50_ms": null,
+    "p90_ms": null,
+    "p95_ms": null,
+    "p99_ms": null
+  },
+  "artifacts": {
+    "dir": "C:\\Users\\HP\\sr-mobile\\reports\\real-device-chat-qa\\2026-07-13T07-47-07-401Z",
+    "logcat": "C:\\Users\\HP\\sr-mobile\\reports\\real-device-chat-qa\\2026-07-13T07-47-07-401Z\\logcat.txt"
+  },
+  "ok": false
+}

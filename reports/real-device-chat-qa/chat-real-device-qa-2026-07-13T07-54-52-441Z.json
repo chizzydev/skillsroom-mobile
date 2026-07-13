@@ -1,0 +1,183 @@
+{
+  "run_id": "2026-07-13T07-54-52-441Z",
+  "started_at": "2026-07-13T07:56:25.657Z",
+  "package_name": "com.skillsroom.mobile",
+  "device": "TKJRNFCMIR6XXKO7",
+  "device_meta": {
+    "model": "23106RN0DA",
+    "android": "14",
+    "screen_size": "Physical size: 720x1600",
+    "battery": {
+      "level": 78,
+      "powered_usb": true,
+      "status": 2
+    },
+    "package": {
+      "version_name": "0.1.0",
+      "version_code": 1,
+      "debuggable": true,
+      "last_update_time": "2026-07-13 08:39:55"
+    }
+  },
+  "steps": [
+    {
+      "name": "launch_and_render",
+      "ok": true,
+      "duration_ms": 28676,
+      "observations": {
+        "rendered_text_count": 22,
+        "rendered_text_sample": [
+          "SKILLSROOM",
+          "3",
+          "Welcome back, player.",
+          "Find a fair room, confirm entry once, play under clear rules, and keep every result easy to prove.",
+          "Create room",
+          "Join code",
+          "OPEN",
+          "3",
+          "Can be joined",
+          "ENTRIES",
+          "2",
+          "Needs confirmation"
+        ],
+        "redbox_detected": false,
+        "screenshot_path": "C:\\Users\\HP\\sr-mobile\\reports\\real-device-chat-qa\\2026-07-13T07-54-52-441Z\\launch.png"
+      }
+    },
+    {
+      "name": "background_foreground",
+      "ok": false,
+      "duration_ms": 23445,
+      "observations": {
+        "rendered_text_count": 0,
+        "rendered_text_sample": []
+      },
+      "note": "No app UI text after background/foreground."
+    },
+    {
+      "name": "chat_tab_deeplink",
+      "ok": false,
+      "duration_ms": 19065,
+      "observations": {
+        "rendered_text_count": 22,
+        "rendered_text_sample": [
+          "SKILLSROOM",
+          "3",
+          "Welcome back, player.",
+          "Find a fair room, confirm entry once, play under clear rules, and keep every result easy to prove.",
+          "Create room",
+          "Join code",
+          "OPEN",
+          "3",
+          "Can be joined",
+          "ENTRIES",
+          "2",
+          "Needs confirmation",
+          "LIVE",
+          "UNREAD",
+          "Home",
+          "Rooms"
+        ],
+        "screenshot_path": "C:\\Users\\HP\\sr-mobile\\reports\\real-device-chat-qa\\2026-07-13T07-54-52-441Z\\chat-tab.png"
+      },
+      "note": "Chat tab did not render expected channel/DM shell."
+    },
+    {
+      "name": "chat_channel_deeplink",
+      "ok": true,
+      "duration_ms": 20407,
+      "observations": {
+        "channel": "chat_load_lab",
+        "rendered_text_count": 54,
+        "rendered_text_sample": [
+          "CL",
+          "Chat Load Lab",
+          "1 online / ? channels",
+          "CL",
+          "Chat Load User 1",
+          "@chatload001 06:55",
+          "web load 2026-07-13T05-55-23-333Z",
+          "Reply",
+          "Thread",
+          "Pin",
+          "Save",
+          "Report",
+          "&#128077;",
+          "GG",
+          "&#128293;",
+          "&#128079;",
+          "&#127942;",
+          "❤️",
+          "&#128514;",
+          "CL"
+        ],
+        "composer_visible": true,
+        "message_content_visible": true,
+        "screenshot_path": "C:\\Users\\HP\\sr-mobile\\reports\\real-device-chat-qa\\2026-07-13T07-54-52-441Z\\chat-channel.png"
+      }
+    }
+  ],
+  "log_summary": {
+    "fatal_count": 0,
+    "react_error_count": 78,
+    "sample": [
+      "07-13 08:56:22.537 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10288, CallingPid=19459",
+      "07-13 08:56:22.538 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10279, CallingPid=443",
+      "07-13 08:56:22.547 I/AccessibilityNodeInfoDumper(18441): Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@73835; boundsInParent: Rect(0, 0 - 84, 68); boundsInScreen: Rect(654, 1264 - 720, 1332); boundsInWindow: Rect(654, 1264 - 720, 1332); packageName: com.skillsroom.mobile; className: android.view.ViewGroup; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: 💯; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: true; focused: false; selected: false; clickable: true; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; importantForAccessibility: true; visible: false; actions: [AccessibilityAction: ACTION_FOCUS - null, AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_CLICK - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false",
+      "07-13 08:56:22.554 I/AccessibilityNodeInfoDumper(18441): Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@73fb7; boundsInParent: Rect(0, 0 - 84, 68); boundsInScreen: Rect(654, 1264 - 720, 1332); boundsInWindow: Rect(654, 1264 - 720, 1332); packageName: com.skillsroom.mobile; className: android.view.ViewGroup; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: 🎮; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: true; focused: false; selected: false; clickable: true; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; importantForAccessibility: true; visible: false; actions: [AccessibilityAction: ACTION_FOCUS - null, AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_CLICK - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false",
+      "07-13 08:56:22.764 I/AccessibilityNodeInfoDumper(18441): Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@81971; boundsInParent: Rect(0, 0 - 84, 68); boundsInScreen: Rect(654, 802 - 720, 870); boundsInWindow: Rect(654, 802 - 720, 870); packageName: com.skillsroom.mobile; className: android.view.ViewGroup; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: 😮; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: true; focused: false; selected: false; clickable: true; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; importantForAccessibility: true; visible: false; actions: [AccessibilityAction: ACTION_FOCUS - null, AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_CLICK - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false",
+      "07-13 08:56:22.771 I/AccessibilityNodeInfoDumper(18441): Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@820f3; boundsInParent: Rect(0, 0 - 84, 68); boundsInScreen: Rect(654, 802 - 720, 870); boundsInWindow: Rect(654, 802 - 720, 870); packageName: com.skillsroom.mobile; className: android.view.ViewGroup; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: 😢; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: true; focused: false; selected: false; clickable: true; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; importantForAccessibility: true; visible: false; actions: [AccessibilityAction: ACTION_FOCUS - null, AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_CLICK - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false",
+      "07-13 08:56:22.778 I/AccessibilityNodeInfoDumper(18441): Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@82875; boundsInParent: Rect(0, 0 - 84, 68); boundsInScreen: Rect(654, 802 - 720, 870); boundsInWindow: Rect(654, 802 - 720, 870); packageName: com.skillsroom.mobile; className: android.view.ViewGroup; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: 😡; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: true; focused: false; selected: false; clickable: true; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; importantForAccessibility: true; visible: false; actions: [AccessibilityAction: ACTION_FOCUS - null, AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_CLICK - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false",
+      "07-13 08:56:22.785 I/AccessibilityNodeInfoDumper(18441): Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@82ff7; boundsInParent: Rect(0, 0 - 84, 68); boundsInScreen: Rect(654, 802 - 720, 870); boundsInWindow: Rect(654, 802 - 720, 870); packageName: com.skillsroom.mobile; className: android.view.ViewGroup; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: 💯; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: true; focused: false; selected: false; clickable: true; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; importantForAccessibility: true; visible: false; actions: [AccessibilityAction: ACTION_FOCUS - null, AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_CLICK - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false",
+      "07-13 08:56:22.793 I/AccessibilityNodeInfoDumper(18441): Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@83779; boundsInParent: Rect(0, 0 - 84, 68); boundsInScreen: Rect(654, 802 - 720, 870); boundsInWindow: Rect(654, 802 - 720, 870); packageName: com.skillsroom.mobile; className: android.view.ViewGroup; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: 🎮; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: true; focused: false; selected: false; clickable: true; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; importantForAccessibility: true; visible: false; actions: [AccessibilityAction: ACTION_FOCUS - null, AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_CLICK - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false",
+      "07-13 08:56:22.803 I/AccessibilityNodeInfoDumper(18441): Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@8467d; boundsInParent: Rect(0, 0 - 84, 84); boundsInScreen: Rect(66, 0 - 150, 240); boundsInWindow: Rect(66, 0 - 150, 240); packageName: com.skillsroom.mobile; className: android.view.ViewGroup; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; importantForAccessibility: false; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false",
+      "07-13 08:56:22.810 I/AccessibilityNodeInfoDumper(18441): Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@84a3e; boundsInParent: Rect(0, 0 - 31, 36); boundsInScreen: Rect(92, 0 - 123, 240); boundsInWindow: Rect(92, 0 - 123, 240); packageName: com.skillsroom.mobile; className: android.widget.TextView; text: CL; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; importantForAccessibility: true; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_NEXT_AT_MOVEMENT_GRANULARITY - null, AccessibilityAction: ACTION_PREVIOUS_AT_MOVEMENT_GRANULARITY - null, AccessibilityAction: ACTION_SET_SELECTION - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false",
+      "07-13 08:56:22.816 I/AccessibilityNodeInfoDumper(18441): Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@84dff; boundsInParent: Rect(0, 0 - 484, 38); boundsInScreen: Rect(170, 0 - 654, 240); boundsInWindow: Rect(170, 0 - 654, 240); packageName: com.skillsroom.mobile; className: android.widget.TextView; text: Chat Load User 39; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; importantForAccessibility: true; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_NEXT_AT_MOVEMENT_GRANULARITY - null, AccessibilityAction: ACTION_PREVIOUS_AT_MOVEMENT_GRANULARITY - null, AccessibilityAction: ACTION_SET_SELECTION - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false",
+      "07-13 08:56:22.822 I/AccessibilityNodeInfoDumper(18441): Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@851c0; boundsInParent: Rect(0, 0 - 484, 36); boundsInScreen: Rect(170, 0 - 654, 240); boundsInWindow: Rect(170, 0 - 654, 240); packageName: com.skillsroom.mobile; className: android.widget.TextView; text: @chatload039 06:52; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; importantForAccessibility: true; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_NEXT_AT_MOVEMENT_GRANULARITY - null, AccessibilityAction: ACTION_PREVIOUS_AT_MOVEMENT_GRANULARITY - null, AccessibilityAction: ACTION_SET_SELECTION - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false",
+      "07-13 08:56:22.827 I/AccessibilityNodeInfoDumper(18441): Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@85581; boundsInParent: Rect(0, 0 - 588, 108); boundsInScreen: Rect(66, 0 - 654, 240); boundsInWindow: Rect(66, 0 - 654, 240); packageName: com.skillsroom.mobile; className: android.view.ViewGroup; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; importantForAccessibility: false; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false",
+      "07-13 08:56:22.833 I/AccessibilityNodeInfoDumper(18441): Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@85942; boundsInParent: Rect(0, 0 - 542, 68); boundsInScreen: Rect(92, 0 - 634, 240); boundsInWindow: Rect(92, 0 - 634, 240); packageName: com.skillsroom.mobile; className: android.widget.TextView; text: Chat Load User 38: This is a poll marker and attachment-heavy mobile render test. #99998; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; importantForAccessibility: true; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_NEXT_AT_MOVEMENT_GRANULARITY - null, AccessibilityAction: ACTION_PREVIOUS_AT_MOVEMENT_GRANULARITY - null, AccessibilityAction: ACTION_SET_SELECTION - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false",
+      "07-13 08:56:22.839 I/AccessibilityNodeInfoDumper(18441): Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@85d03; boundsInParent: Rect(0, 0 - 588, 150); boundsInScreen: Rect(66, 0 - 654, 240); boundsInWindow: Rect(66, 0 - 654, 240); packageName: com.skillsroom.mobile; className: android.widget.TextView; text: Reply flow, bookmarks, pins, and realtime updates all need scale. #99999; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; importantForAccessibility: true; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_NEXT_AT_MOVEMENT_GRANULARITY - null, AccessibilityAction: ACTION_PREVIOUS_AT_MOVEMENT_GRANULARITY - null, AccessibilityAction: ACTION_SET_SELECTION - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false",
+      "07-13 08:56:23.040 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10288, CallingPid=19459",
+      "07-13 08:56:23.041 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10279, CallingPid=443",
+      "07-13 08:56:23.056 I/AccessibilityNodeInfoDumper(18441): Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@918b5; boundsInParent: Rect(0, 0 - 84, 68); boundsInScreen: Rect(654, 240 - 720, 252); boundsInWindow: Rect(654, 240 - 720, 252); packageName: com.skillsroom.mobile; className: android.view.ViewGroup; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: 😮; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: true; focused: false; selected: false; clickable: true; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; importantForAccessibility: true; visible: false; actions: [AccessibilityAction: ACTION_FOCUS - null, AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_CLICK - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false",
+      "07-13 08:56:23.064 I/AccessibilityNodeInfoDumper(18441): Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@92037; boundsInParent: Rect(0, 0 - 84, 68); boundsInScreen: Rect(654, 240 - 720, 252); boundsInWindow: Rect(654, 240 - 720, 252); packageName: com.skillsroom.mobile; className: android.view.ViewGroup; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: 😢; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: true; focused: false; selected: false; clickable: true; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; importantForAccessibility: true; visible: false; actions: [AccessibilityAction: ACTION_FOCUS - null, AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_CLICK - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false",
+      "07-13 08:56:23.072 I/AccessibilityNodeInfoDumper(18441): Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@927b9; boundsInParent: Rect(0, 0 - 84, 68); boundsInScreen: Rect(654, 240 - 720, 252); boundsInWindow: Rect(654, 240 - 720, 252); packageName: com.skillsroom.mobile; className: android.view.ViewGroup; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: 😡; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: true; focused: false; selected: false; clickable: true; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; importantForAccessibility: true; visible: false; actions: [AccessibilityAction: ACTION_FOCUS - null, AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_CLICK - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false",
+      "07-13 08:56:23.080 I/AccessibilityNodeInfoDumper(18441): Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@92f3b; boundsInParent: Rect(0, 0 - 84, 68); boundsInScreen: Rect(654, 240 - 720, 252); boundsInWindow: Rect(654, 240 - 720, 252); packageName: com.skillsroom.mobile; className: android.view.ViewGroup; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: 💯; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: true; focused: false; selected: false; clickable: true; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; importantForAccessibility: true; visible: false; actions: [AccessibilityAction: ACTION_FOCUS - null, AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_CLICK - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false",
+      "07-13 08:56:23.089 I/AccessibilityNodeInfoDumper(18441): Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@936bd; boundsInParent: Rect(0, 0 - 84, 68); boundsInScreen: Rect(654, 240 - 720, 252); boundsInWindow: Rect(654, 240 - 720, 252); packageName: com.skillsroom.mobile; className: android.view.ViewGroup; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: 🎮; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: true; focused: false; selected: false; clickable: true; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; importantForAccessibility: true; visible: false; actions: [AccessibilityAction: ACTION_FOCUS - null, AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_CLICK - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false",
+      "07-13 08:56:23.136 I/AccessibilityNodeInfoDumper(18441): Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@d381; boundsInParent: Rect(0, 0 - 624, 0); boundsInScreen: Rect(48, 88 - 672, 88); boundsInWindow: Rect(48, 88 - 672, 88); packageName: com.skillsroom.mobile; className: android.view.ViewGroup; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; importantForAccessibility: false; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false",
+      "07-13 08:56:23.235 D/AndroidRuntime(18441): Shutting down VM",
+      "07-13 08:56:23.543 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10279, CallingPid=443",
+      "07-13 08:56:23.543 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10288, CallingPid=19459",
+      "07-13 08:56:24.046 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10288, CallingPid=19459",
+      "07-13 08:56:24.047 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10279, CallingPid=443",
+      "07-13 08:56:24.258 I/adbd    (21521): adbd service requested 'exec:cat '/sdcard/skillsroom-window.xml''",
+      "07-13 08:56:24.336 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10283, CallingPid=7279",
+      "07-13 08:56:24.549 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10288, CallingPid=19459",
+      "07-13 08:56:24.549 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10279, CallingPid=443",
+      "07-13 08:56:25.051 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10288, CallingPid=19459",
+      "07-13 08:56:25.051 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10279, CallingPid=443",
+      "07-13 08:56:25.064 I/adbd    (21521): adbd service requested 'shell,v2:export ANDROID_LOG_TAGS=''; exec logcat '-d' '-v' 'time''",
+      "07-13 08:56:25.247 D/SurfaceFlinger( 1133): [SF client] NEW(0xb40000786c1d6f00) for (16437:com.skillsroom.mobile)",
+      "07-13 08:56:25.254 I/ForceDarkHelperStubImpl(16437): setViewRootImplForceDark: false for com.skillsroom.mobile.MainActivity@a2ad8d1, reason: DarkModeEnabled",
+      "07-13 08:56:25.319 I/ForceDarkHelperStubImpl(16437): setViewRootImplForceDark: false for com.skillsroom.mobile.MainActivity@a2ad8d1, reason: DarkModeEnabled",
+      "07-13 08:56:25.376 D/WindowManager( 1813): setParent old=Window{7f4cb5b u0 com.skillsroom.mobile/com.skillsroom.mobile.MainActivity},new=null,this window=Window{ae176c8 u0 PopupWindow:a44bc6e},callers=com.android.server.wm.WindowContainer.removeChild:831 com.android.server.wm.WindowContainer.removeImmediately:889 com.android.server.wm.WindowState.removeImmediately:2490 com.android.server.wm.WindowState.removeIfPossible:2662 com.android.server.wm.WindowManagerService.removeWindow:2412 com.android.server.wm.Session.remove:245 "
+    ]
+  },
+  "memory_summary": {
+    "total_pss_kb": 401523,
+    "total_rss_kb": 333956
+  },
+  "frame_summary": {
+    "total_frames": 189,
+    "janky_frames": 21,
+    "p50_ms": 11,
+    "p90_ms": 101,
+    "p95_ms": 250,
+    "p99_ms": 2750
+  },
+  "artifacts": {
+    "dir": "C:\\Users\\HP\\sr-mobile\\reports\\real-device-chat-qa\\2026-07-13T07-54-52-441Z",
+    "logcat": "C:\\Users\\HP\\sr-mobile\\reports\\real-device-chat-qa\\2026-07-13T07-54-52-441Z\\logcat.txt"
+  },
+  "ok": false
+}

@@ -1,0 +1,194 @@
+{
+  "run_id": "2026-07-13T08-20-04-313Z",
+  "started_at": "2026-07-13T08:21:35.559Z",
+  "package_name": "com.skillsroom.mobile",
+  "device": "TKJRNFCMIR6XXKO7",
+  "device_meta": {
+    "model": "23106RN0DA",
+    "android": "14",
+    "screen_size": "Physical size: 720x1600",
+    "battery": {
+      "level": 79,
+      "powered_usb": true,
+      "status": 2
+    },
+    "package": {
+      "version_name": "0.1.0",
+      "version_code": 1,
+      "debuggable": true,
+      "last_update_time": "2026-07-13 08:39:55"
+    }
+  },
+  "steps": [
+    {
+      "name": "launch_and_render",
+      "ok": true,
+      "duration_ms": 25604,
+      "observations": {
+        "rendered_text_count": 22,
+        "rendered_text_sample": [
+          "SKILLSROOM",
+          "3",
+          "Welcome back, player.",
+          "Find a fair room, confirm entry once, play under clear rules, and keep every result easy to prove.",
+          "Create room",
+          "Join code",
+          "OPEN",
+          "3",
+          "Can be joined",
+          "ENTRIES",
+          "2",
+          "Needs confirmation"
+        ],
+        "redbox_detected": false,
+        "screenshot_path": "C:\\Users\\HP\\sr-mobile\\reports\\real-device-chat-qa\\2026-07-13T08-20-04-313Z\\launch.png"
+      }
+    },
+    {
+      "name": "background_foreground",
+      "ok": true,
+      "duration_ms": 28281,
+      "observations": {
+        "rendered_text_count": 22,
+        "rendered_text_sample": [
+          "SKILLSROOM",
+          "3",
+          "Welcome back, player.",
+          "Find a fair room, confirm entry once, play under clear rules, and keep every result easy to prove.",
+          "Create room",
+          "Join code",
+          "OPEN",
+          "3",
+          "Can be joined",
+          "ENTRIES",
+          "2",
+          "Needs confirmation"
+        ]
+      }
+    },
+    {
+      "name": "chat_tab_deeplink",
+      "ok": true,
+      "duration_ms": 14976,
+      "observations": {
+        "rendered_text_count": 30,
+        "rendered_text_sample": [
+          "CHAT",
+          "Global, rooms, and DMs.",
+          "1",
+          "Online",
+          "4",
+          "Unread",
+          "0",
+          "DM requests",
+          "Channels",
+          "DMs",
+          "Global Chat",
+          "GC",
+          "GC / 0 online / chizzydev250: Give me some time, I'll put you through.",
+          "YOUR ACCESSIBLE CHANNELS",
+          "Free Fire",
+          "FF"
+        ],
+        "screenshot_path": "C:\\Users\\HP\\sr-mobile\\reports\\real-device-chat-qa\\2026-07-13T08-20-04-313Z\\chat-tab.png"
+      }
+    },
+    {
+      "name": "chat_channel_deeplink",
+      "ok": true,
+      "duration_ms": 20416,
+      "observations": {
+        "channel": "chat_load_lab",
+        "rendered_text_count": 53,
+        "rendered_text_sample": [
+          "CL",
+          "Chat Load Lab",
+          "1 online / 19 channels",
+          "YOU",
+          "You",
+          "@michael_johnson 09:05",
+          "Real phone QA test",
+          "Reply",
+          "Thread",
+          "Pin",
+          "Save",
+          "Delete",
+          "&#128077;",
+          "GG",
+          "&#128293;",
+          "&#128079;",
+          "&#127942;",
+          "❤️",
+          "&#128514;",
+          "CL"
+        ],
+        "composer_visible": true,
+        "message_content_visible": true,
+        "screenshot_path": "C:\\Users\\HP\\sr-mobile\\reports\\real-device-chat-qa\\2026-07-13T08-20-04-313Z\\chat-channel.png"
+      }
+    }
+  ],
+  "log_summary": {
+    "fatal_count": 0,
+    "react_error_count": 98,
+    "sample": [
+      "07-13 09:21:14.657 I/adbd    (21521): adbd service requested 'shell,v2,raw:am start -a android.intent.action.VIEW -d skillsroom://chat/chat_load_lab com.skillsroom.mobile'",
+      "07-13 09:21:14.778 D/WindowManager( 1813): Collecting in transition 6382: ActivityRecord{d552e1b u0 com.skillsroom.mobile/.MainActivity init visibleRequested:false",
+      "07-13 09:21:14.783 D/MiuiFreeFormManagerService( 1813): onStartActivityInner as = Task{6f470f #5360 type=standard A=10210:com.skillsroom.mobile} op = null",
+      "07-13 09:21:14.785 D/WindowManager( 1813): setLockTaskAuth: task=Task{6f470f #5360 type=standard A=10210:com.skillsroom.mobile} mLockTaskAuth=LOCK_TASK_AUTH_PINNABLE",
+      "07-13 09:21:14.793 I/ActivityTaskManager( 1813): START u0 {act=android.intent.action.VIEW dat=skillsroom://chat/... flg=0x10000000 pkg=com.skillsroom.mobile cmp=com.skillsroom.mobile/.MainActivity} with LAUNCH_SINGLE_TASK from uid 2000 (BAL_ALLOW_PERMISSION) result code=3",
+      "07-13 09:21:14.796 D/WindowManagerShell( 2459): onActivityRestartAttempt: ComponentInfo{com.skillsroom.mobile/com.skillsroom.mobile.MainActivity}",
+      "07-13 09:21:14.803 W/unknown:BridgelessReact( 4669): ReactHost{0}.onHostPause(activity)",
+      "07-13 09:21:14.831 W/unknown:BridgelessReact( 4669): ReactHost{0}.ReactContext.onHostPause()",
+      "07-13 09:21:14.868 W/unknown:BridgelessReact( 4669): ReactHost{0}.onHostResume(activity)",
+      "07-13 09:21:14.882 W/unknown:BridgelessReact( 4669): ReactHost{0}.ReactContext.onHostResume()",
+      "07-13 09:21:14.934 D/SurfaceFlinger( 1133): [SF client] NEW(0xb40000786c235880) for (4669:com.skillsroom.mobile)",
+      "07-13 09:21:14.949 I/ForceDarkHelperStubImpl( 4669): setViewRootImplForceDark: false for com.skillsroom.mobile.MainActivity@a2ad8d1, reason: DarkModeEnabled",
+      "07-13 09:21:15.028 D/WindowManager( 1813): setParent old=Window{4230ba3 u0 com.skillsroom.mobile/com.skillsroom.mobile.MainActivity},new=null,this window=Window{7994cce u0 PopupWindow:a43365e},callers=com.android.server.wm.WindowContainer.removeChild:831 com.android.server.wm.WindowContainer.removeImmediately:889 com.android.server.wm.WindowState.removeImmediately:2490 com.android.server.wm.WindowState.removeIfPossible:2662 com.android.server.wm.WindowManagerService.removeWindow:2412 com.android.server.wm.Session.remove:245 ",
+      "07-13 09:21:16.027 W/ReactNativeJS( 4669): '`setBackgroundColorAsync` is not supported with edge-to-edge enabled.', { [Stack] name: 'Stack' }",
+      "07-13 09:21:16.057 W/unknown:ReactNative( 4669): StatusBarModule: Ignored status bar change, current activity is edge-to-edge.",
+      "07-13 09:21:16.078 D/PerfShielderService( 1813): com.skillsroom.mobile|com.skillsroom.mobile/com.skillsroom.mobile.MainActivity|493|623368758342462|472|2|2",
+      "07-13 09:21:16.081 I/BufferQueueProducer( 1133): [com.skillsroom.mobile/com.skillsroom.mobile.MainActivity#78175](this:0xb400007855b75a30,id:-1,api:0,p:-1,c:1133) queueBuffer: fps=0.28 dur=10714.93 max=10564.97 min=17.83",
+      "07-13 09:21:16.081 W/MiuiPerfServiceClient( 3978): interceptAndQueuing:4669|com.skillsroom.mobile|493|472|623368758342462|Slow handle animation|2",
+      "07-13 09:21:17.081 I/libPowerHal( 1059): [perfNotifyAppState] pack:com.skillsroom.mobile, act:com.skillsroom.mobile.MainActivity, state:5, pid:4669, uid:10210, fps:60",
+      "07-13 09:21:17.085 I/UxUtility( 1059): notifyForegroundApp pack:com.skillsroom.mobile, uid:10210",
+      "07-13 09:21:17.873 D/PerfShielderService( 1813): com.skillsroom.mobile|com.skillsroom.mobile/com.skillsroom.mobile.MainActivity|687|623380116102770|346|5|15",
+      "07-13 09:21:17.873 W/MiuiPerfServiceClient( 3978): interceptAndQueuing:4669|com.skillsroom.mobile|687|346|623380116102770|Slow issue draw commands|15",
+      "07-13 09:21:17.880 I/BufferQueueProducer( 1133): [com.skillsroom.mobile/com.skillsroom.mobile.MainActivity#78175](this:0xb400007855b75a30,id:-1,api:0,p:-1,c:1133) queueBuffer: fps=8.89 dur=1799.04 max=1099.61 min=16.35",
+      "07-13 09:21:19.077 I/libPowerHal( 1059): [perfNotifyAppState] pack:com.skillsroom.mobile, act:com.skillsroom.mobile.MainActivity, state:5, pid:4669, uid:10210, fps:-1",
+      "07-13 09:21:19.080 I/UxUtility( 1059): notifyForegroundApp pack:com.skillsroom.mobile, uid:10210",
+      "07-13 09:21:20.416 D/SurfaceFlinger( 1133): [SF client] REMOVE (0xb40000786c235880) for (4669:com.skillsroom.mobile)",
+      "07-13 09:21:21.030 I/BufferQueueProducer( 1133): [com.skillsroom.mobile/com.skillsroom.mobile.MainActivity#78175](this:0xb400007855b75a30,id:-1,api:0,p:-1,c:1133) queueBuffer: fps=5.08 dur=3149.41 max=2898.96 min=15.97",
+      "07-13 09:21:30.248 D/AndroidRuntime( 7032): >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<",
+      "07-13 09:21:30.309 I/AndroidRuntime( 7032): Using default boot image",
+      "07-13 09:21:30.309 I/AndroidRuntime( 7032): Leaving lock profiling enabled",
+      "07-13 09:21:30.547 D/nativeloader( 7035): Extending system_exposed_libraries: libapuwareapusys.mtk.so:libapuwareapusys_v2.mtk.so:libapuwarexrp.mtk.so:libapuwarexrp_v2.mtk.so:libapuwareutils.mtk.so:libapuwareutils_v2.mtk.so:libapuwarehmp.mtk.so:libmcv_runtime_usdk.mtk.so:libneuron_graph_delegate.mtk.so:libneuronusdk_adapter.mtk.so:libtflite_mtk.mtk.so:libarmnn_ndk.mtk.so:libcmdl_ndk.mtk.so:libnir_neon_driver_ndk.mtk.so:libmvpu_runtime.mtk.so:libmvpu_runtime_pub.mtk.so:libmvpu_engine_pub.mtk.so:libmvpu_pattern_pub.mtk.so:libmvpuop_mtk_cv.mtk.so:libmvpuop_mtk_nn.mtk.so:libmvpu_runtime_25.mtk.so:libmvpu_runtime_25_pub.mtk.so:libmvpu_engine_25_pub.mtk.so:libmvpu_pattern_25_pub.mtk.so:libmvpuop25_mtk_cv.mtk.so:libmvpuop25_mtk_nn.mtk.so:libmvpu_config.mtk.so:libteeservice_client.trustonic.so:libmisys_jni.xiaomi.so",
+      "07-13 09:21:30.570 D/nativeloader( 7035): Extending system_exposed_libraries: libapuwareapusys.mtk.so:libapuwareapusys_v2.mtk.so:libapuwarexrp.mtk.so:libapuwarexrp_v2.mtk.so:libapuwareutils.mtk.so:libapuwareutils_v2.mtk.so:libapuwarehmp.mtk.so:libmcv_runtime_usdk.mtk.so:libneuron_graph_delegate.mtk.so:libneuronusdk_adapter.mtk.so:libtflite_mtk.mtk.so:libarmnn_ndk.mtk.so:libcmdl_ndk.mtk.so:libnir_neon_driver_ndk.mtk.so:libmvpu_runtime.mtk.so:libmvpu_runtime_pub.mtk.so:libmvpu_engine_pub.mtk.so:libmvpu_pattern_pub.mtk.so:libmvpuop_mtk_cv.mtk.so:libmvpuop_mtk_nn.mtk.so:libmvpu_runtime_25.mtk.so:libmvpu_runtime_25_pub.mtk.so:libmvpu_engine_25_pub.mtk.so:libmvpu_pattern_25_pub.mtk.so:libmvpuop25_mtk_cv.mtk.so:libmvpuop25_mtk_nn.mtk.so:libmvpu_config.mtk.so:libteeservice_client.trustonic.so:libmisys_jni.xiaomi.so",
+      "07-13 09:21:30.588 D/nativeloader( 7035): Extending system_exposed_libraries: libapuwareapusys.mtk.so:libapuwareapusys_v2.mtk.so:libapuwarexrp.mtk.so:libapuwarexrp_v2.mtk.so:libapuwareutils.mtk.so:libapuwareutils_v2.mtk.so:libapuwarehmp.mtk.so:libmcv_runtime_usdk.mtk.so:libneuron_graph_delegate.mtk.so:libneuronusdk_adapter.mtk.so:libtflite_mtk.mtk.so:libarmnn_ndk.mtk.so:libcmdl_ndk.mtk.so:libnir_neon_driver_ndk.mtk.so:libmvpu_runtime.mtk.so:libmvpu_runtime_pub.mtk.so:libmvpu_engine_pub.mtk.so:libmvpu_pattern_pub.mtk.so:libmvpuop_mtk_cv.mtk.so:libmvpuop_mtk_nn.mtk.so:libmvpu_runtime_25.mtk.so:libmvpu_runtime_25_pub.mtk.so:libmvpu_engine_25_pub.mtk.so:libmvpu_pattern_25_pub.mtk.so:libmvpuop25_mtk_cv.mtk.so:libmvpuop25_mtk_nn.mtk.so:libmvpu_config.mtk.so:libteeservice_client.trustonic.so:libmisys_jni.xiaomi.so",
+      "07-13 09:21:30.916 D/AndroidRuntime( 7032): Calling main entry com.android.commands.uiautomator.Launcher",
+      "07-13 09:21:31.654 D/nativeloader( 7092): Extending system_exposed_libraries: libapuwareapusys.mtk.so:libapuwareapusys_v2.mtk.so:libapuwarexrp.mtk.so:libapuwarexrp_v2.mtk.so:libapuwareutils.mtk.so:libapuwareutils_v2.mtk.so:libapuwarehmp.mtk.so:libmcv_runtime_usdk.mtk.so:libneuron_graph_delegate.mtk.so:libneuronusdk_adapter.mtk.so:libtflite_mtk.mtk.so:libarmnn_ndk.mtk.so:libcmdl_ndk.mtk.so:libnir_neon_driver_ndk.mtk.so:libmvpu_runtime.mtk.so:libmvpu_runtime_pub.mtk.so:libmvpu_engine_pub.mtk.so:libmvpu_pattern_pub.mtk.so:libmvpuop_mtk_cv.mtk.so:libmvpuop_mtk_nn.mtk.so:libmvpu_runtime_25.mtk.so:libmvpu_runtime_25_pub.mtk.so:libmvpu_engine_25_pub.mtk.so:libmvpu_pattern_25_pub.mtk.so:libmvpuop25_mtk_cv.mtk.so:libmvpuop25_mtk_nn.mtk.so:libmvpu_config.mtk.so:libteeservice_client.trustonic.so:libmisys_jni.xiaomi.so",
+      "07-13 09:21:33.122 D/AndroidRuntime( 7032): Shutting down VM",
+      "07-13 09:21:35.070 I/adbd    (21521): adbd service requested 'shell,v2:export ANDROID_LOG_TAGS=''; exec logcat '-d' '-v' 'time''",
+      "07-13 09:21:35.235 D/SurfaceFlinger( 1133): [SF client] NEW(0xb400007865d4c980) for (4669:com.skillsroom.mobile)",
+      "07-13 09:21:35.244 I/ForceDarkHelperStubImpl( 4669): setViewRootImplForceDark: false for com.skillsroom.mobile.MainActivity@a2ad8d1, reason: DarkModeEnabled",
+      "07-13 09:21:35.332 I/ForceDarkHelperStubImpl( 4669): setViewRootImplForceDark: false for com.skillsroom.mobile.MainActivity@a2ad8d1, reason: DarkModeEnabled"
+    ]
+  },
+  "memory_summary": {
+    "total_pss_kb": 391879,
+    "total_rss_kb": 311432
+  },
+  "frame_summary": {
+    "total_frames": 239,
+    "janky_frames": 31,
+    "p50_ms": 21,
+    "p90_ms": 93,
+    "p95_ms": 250,
+    "p99_ms": 950
+  },
+  "artifacts": {
+    "dir": "C:\\Users\\HP\\sr-mobile\\reports\\real-device-chat-qa\\2026-07-13T08-20-04-313Z",
+    "logcat": "C:\\Users\\HP\\sr-mobile\\reports\\real-device-chat-qa\\2026-07-13T08-20-04-313Z\\logcat.txt"
+  },
+  "ok": true
+}

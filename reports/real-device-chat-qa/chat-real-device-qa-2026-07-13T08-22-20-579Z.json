@@ -1,0 +1,194 @@
+{
+  "run_id": "2026-07-13T08-22-20-579Z",
+  "started_at": "2026-07-13T08:23:52.047Z",
+  "package_name": "com.skillsroom.mobile",
+  "device": "TKJRNFCMIR6XXKO7",
+  "device_meta": {
+    "model": "23106RN0DA",
+    "android": "14",
+    "screen_size": "Physical size: 720x1600",
+    "battery": {
+      "level": 79,
+      "powered_usb": true,
+      "status": 2
+    },
+    "package": {
+      "version_name": "0.1.0",
+      "version_code": 1,
+      "debuggable": true,
+      "last_update_time": "2026-07-13 08:39:55"
+    }
+  },
+  "steps": [
+    {
+      "name": "launch_and_render",
+      "ok": true,
+      "duration_ms": 25768,
+      "observations": {
+        "rendered_text_count": 22,
+        "rendered_text_sample": [
+          "SKILLSROOM",
+          "3",
+          "Welcome back, player.",
+          "Find a fair room, confirm entry once, play under clear rules, and keep every result easy to prove.",
+          "Create room",
+          "Join code",
+          "OPEN",
+          "3",
+          "Can be joined",
+          "ENTRIES",
+          "2",
+          "Needs confirmation"
+        ],
+        "redbox_detected": false,
+        "screenshot_path": "C:\\Users\\HP\\sr-mobile\\reports\\real-device-chat-qa\\2026-07-13T08-22-20-579Z\\launch.png"
+      }
+    },
+    {
+      "name": "background_foreground",
+      "ok": true,
+      "duration_ms": 28223,
+      "observations": {
+        "rendered_text_count": 22,
+        "rendered_text_sample": [
+          "SKILLSROOM",
+          "3",
+          "Welcome back, player.",
+          "Find a fair room, confirm entry once, play under clear rules, and keep every result easy to prove.",
+          "Create room",
+          "Join code",
+          "OPEN",
+          "3",
+          "Can be joined",
+          "ENTRIES",
+          "2",
+          "Needs confirmation"
+        ]
+      }
+    },
+    {
+      "name": "chat_tab_deeplink",
+      "ok": true,
+      "duration_ms": 14736,
+      "observations": {
+        "rendered_text_count": 30,
+        "rendered_text_sample": [
+          "CHAT",
+          "Global, rooms, and DMs.",
+          "1",
+          "Online",
+          "4",
+          "Unread",
+          "0",
+          "DM requests",
+          "Channels",
+          "DMs",
+          "Global Chat",
+          "GC",
+          "GC / 0 online / chizzydev250: Give me some time, I'll put you through.",
+          "YOUR ACCESSIBLE CHANNELS",
+          "Free Fire",
+          "FF"
+        ],
+        "screenshot_path": "C:\\Users\\HP\\sr-mobile\\reports\\real-device-chat-qa\\2026-07-13T08-22-20-579Z\\chat-tab.png"
+      }
+    },
+    {
+      "name": "chat_channel_deeplink",
+      "ok": true,
+      "duration_ms": 20949,
+      "observations": {
+        "channel": "chat_load_lab",
+        "rendered_text_count": 51,
+        "rendered_text_sample": [
+          "CL",
+          "Chat Load Lab",
+          "1 online / 19 channels",
+          "YOU",
+          "You",
+          "@michael_johnson 09:05",
+          "Real phone QA test",
+          "Reply",
+          "Thread",
+          "Pin",
+          "Save",
+          "Delete",
+          "&#128077;",
+          "GG",
+          "&#128293;",
+          "&#128079;",
+          "&#127942;",
+          "❤️",
+          "&#128514;",
+          "CL"
+        ],
+        "composer_visible": true,
+        "message_content_visible": true,
+        "screenshot_path": "C:\\Users\\HP\\sr-mobile\\reports\\real-device-chat-qa\\2026-07-13T08-22-20-579Z\\chat-channel.png"
+      }
+    }
+  ],
+  "log_summary": {
+    "fatal_count": 0,
+    "react_error_count": 103,
+    "sample": [
+      "07-13 09:23:50.675 D/WindowManager( 1813): Calling onTransitionReady info={id=6390 t=TO_FRONT f=0x0 trk=0 r=[0@Point(0, 0)] c=[{WCT{RemoteToken{e2e771d Task{3c5704f #5361 type=standard A=10210:com.skillsroom.mobile}}} m=TO_FRONT f=MOVE_TO_TOP leash=Surface(name=Task=5361#78188)/@0x92471c7 sb=Rect(0, 0 - 720, 1600) eb=Rect(0, 0 - 720, 1600) d=0},{WCT{RemoteToken{5d85da0 Task{7bcbbf5 #1 type=home}}} m=TO_BACK f=SHOW_WALLPAPER leash=Surface(name=Task=1#46)/@0xe9715d2 sb=Rect(0, 0 - 720, 1600) eb=Rect(0, 0 - 720, 1600) d=0}] noAni=[false] mk=[true]}, mToken=Token{464dbb7 TransitionRecord{a74b4fb id=6390 type=TO_FRONT flags=0x0}}",
+      "07-13 09:23:50.684 W/unknown:BridgelessReact( 8388): ReactHost{0}.ReactContext.onHostResume()",
+      "07-13 09:23:50.693 E/BufferQueueDebug( 1133): [b37aaf1 ActivityRecordInputSink com.skillsroom.mobile/.MainActivity#78268](this:0xb400007855b17a30,id:-1,api:0,p:-1,c:-1) id info cannot be read from 'b37aaf1 ActivityRecordInputSink com.skillsroom.mobile/.MainActivity#78268'",
+      "07-13 09:23:50.693 I/BufferQueueDebug( 1133): [b37aaf1 ActivityRecordInputSink com.skillsroom.mobile/.MainActivity#78268](this:0xb400007855b17a30,id:-1,api:0,p:-1,c:-1) BufferQueue core=(1133:/system/bin/surfaceflinger)",
+      "07-13 09:23:50.702 D/MiuiFullScreenTaskRepository( 2459): setFocusedTask taskId=5361, displayId=0, topActivity=ComponentInfo{com.skillsroom.mobile/com.skillsroom.mobile.MainActivity}",
+      "07-13 09:23:50.702 D/MiuiFullScreenTaskRepository( 2459): addOrUpdateFullScreenTaskInfo taskId=5361, topActivity=ComponentInfo{com.skillsroom.mobile/com.skillsroom.mobile.MainActivity}",
+      "07-13 09:23:50.710 E/LauncherAnimationRunner( 2470): onAnimationStart:   target=RemoteAnimationTargetCompat{taskId=5361, mode=0, isTranslucent=false, clipRect=Rect(0, 0 - 0, 0), position=Point(0, 0), sourceContainerBounds=Rect(0, 0 - 720, 1600), prefixOrderIndex=2, isNotInRecents=false, contentInsets=Rect(0, 0 - 0, 0), activityType=1, packageName=com.skillsroom.mobile, startBounds=Rect(0, 0 - 720, 1600), windowType=-1}",
+      "07-13 09:23:50.710 D/MiuiFreeformModeObserver( 2459): activityResumed() intent： Intent { cmp=com.skillsroom.mobile/.MainActivity (has extras) }",
+      "07-13 09:23:50.711 W/RecentsModel( 2470): getRunningTask   taskInfo=TaskInfo{userId=0 taskId=5361 displayId=0 isRunning=true baseIntent=Intent { flg=0x10000000 cmp=com.skillsroom.mobile/.MainActivity } baseActivity=ComponentInfo{com.skillsroom.mobile/com.skillsroom.mobile.MainActivity} topActivity=ComponentInfo{com.skillsroom.mobile/com.skillsroom.mobile.MainActivity} origActivity=null realActivity=ComponentInfo{com.skillsroom.mobile/com.skillsroom.mobile.MainActivity} numActivities=1 lastActiveTime=692630361 supportsSplitScreenMultiWindow=true supportsMultiWindow=true resizeMode=1 isResizeable=true minWidth=-1 minHeight=-1 defaultMinSize=200 token=WCT{android.window.IWindowContainerToken$Stub$Proxy@8b6c75f} topActivityType=1 pictureInPictureParams=null shouldDockBigOverlays=false launchIntoPipHostTaskId=-1 lastParentTaskIdBeforePip=-1 displayCutoutSafeInsets=null topActivityInfo=ActivityInfo{90c05ac com.skillsroom.mobile.MainActivity} launchCookies=[] positionInParent=Point(0, 0) parentTaskId=-1 isFocused=true isVisible=true isVisibleRequested=true isSleeping=false topActivityInSizeCompat=false topActivityEligibleForLetterboxEducation= false topActivityLetterboxed= false isFromDoubleTap= false topActivityLetterboxVerticalPosition= -1 topActivityLetterboxHorizontalPosition= -1 topActivityLetterboxWidth=-1 topActivityLetterboxHeight=-1 locusId=null displayAreaFeatureId=1 cameraCompatControlState=hidden mIsCastMode=false mTopActivityMediaSize=null mTopActivityRecordName=ActivityRecord{42f66d6 u0 com.skillsroom.mobile/.MainActivity t5361} mTopActivityOrientation=1 mTopActivityWindowIsNowVisible=false isTranslucent=false isEmbedded=false shouldBeVisible=true mBehindAppLockPkg=null mOriginatingUid=0}",
+      "07-13 09:23:50.711 W/RecentsModel( 2470): getTaskInfoIgnoreHomeAndFreeform   taskInfo=ComponentInfo{com.skillsroom.mobile/com.skillsroom.mobile.MainActivity}",
+      "07-13 09:23:50.714 D/RecentsImpl( 2470): mActivityStateObserver com.skillsroom.mobile.MainActivity",
+      "07-13 09:23:50.714 W/RecentsImpl( 2470): onResumed className=com.skillsroom.mobile.MainActivity   mIsInAnotherPro=false   isKeyguardLocked=false   mSecuritySpaceGuideShown=false",
+      "07-13 09:23:50.724 E/BufferQueueDebug( 1133): [com.skillsroom.mobile/com.skillsroom.mobile.MainActivity#78270](this:0xb40000785b554a30,id:-1,api:0,p:-1,c:-1) id info cannot be read from 'com.skillsroom.mobile/com.skillsroom.mobile.MainActivity#78270'",
+      "07-13 09:23:50.724 I/BufferQueueDebug( 1133): [com.skillsroom.mobile/com.skillsroom.mobile.MainActivity#78270](this:0xb40000785b554a30,id:-1,api:0,p:-1,c:-1) BufferQueue core=(1133:/system/bin/surfaceflinger)",
+      "07-13 09:23:50.753 W/WindowManager( 1813): Changing focus from null to Window{66c5166 u0 com.skillsroom.mobile/com.skillsroom.mobile.MainActivity} displayId=0 Callers=com.android.server.wm.RootWindowContainer.updateFocusedWindowLocked:541 com.android.server.wm.WindowManagerService.updateFocusedWindowLocked:6840 com.android.server.wm.WindowManagerService.relayoutWindow:2940 com.android.server.wm.Session.relayout:263 ",
+      "07-13 09:23:50.753 D/WindowManager( 1813): wms.Input focus has changed to Window{66c5166 u0 com.skillsroom.mobile/com.skillsroom.mobile.MainActivity} display=0 updateInputWindows = true",
+      "07-13 09:23:50.755 I/WindowManager( 1813): Relayout Window{66c5166 u0 com.skillsroom.mobile/com.skillsroom.mobile.MainActivity}: oldVis=4 newVis=0 focusMayChange = true requestedWidth = 720 requestedHeight = 1600 outFrames = ClientWindowFrames{frame=[0,0][720,1600] display=[0,0][720,1600] parentFrame=[0,0][0,0]} outSurfaceControl = Surface(name=com.skillsroom.mobile/com.skillsroom.mobile.MainActivity#78270)/@0x22e20a7",
+      "07-13 09:23:50.766 D/SurfaceComposerClient( 1813): Transaction::apply InputWindowCommands.focusRequests timestamp=623534141670779, windowName=66c5166 com.skillsroom.mobile/com.skillsroom.mobile.MainActivity",
+      "07-13 09:23:50.767 I/SurfaceFlinger( 1133): sf.setTransactionState focusRequest transactionId:7786776398087 frontWin:66c5166 com.skillsroom.mobile/com.skillsroom.mobile.MainActivity",
+      "07-13 09:23:50.770 D/SurfaceFlinger( 1133): Focus addInputWindowCommands timestamp=623534141670779, windowName=66c5166 com.skillsroom.mobile/com.skillsroom.mobile.MainActivity",
+      "07-13 09:23:50.771 D/SurfaceFlinger( 1133): Find Focus windowName=66c5166 com.skillsroom.mobile/com.skillsroom.mobile.MainActivity, notVisible=1",
+      "07-13 09:23:50.771 D/Layer   ( 1133): Focus: com.skillsroom.mobile/com.skillsroom.mobile.MainActivity#78270 isHiddenByPolicy s.flags&layer_state_t::eLayerHidden=1",
+      "07-13 09:23:50.772 D/SurfaceFlinger( 1133): updateWinowInfo=1, setFocusedWindow timestamp=623534141670779, windowName=66c5166 com.skillsroom.mobile/com.skillsroom.mobile.MainActivity",
+      "07-13 09:23:50.860 W/RecentsModel( 2470): getRunningTask   taskInfo=TaskInfo{userId=0 taskId=5361 displayId=0 isRunning=true baseIntent=Intent { flg=0x10000000 cmp=com.skillsroom.mobile/.MainActivity } baseActivity=ComponentInfo{com.skillsroom.mobile/com.skillsroom.mobile.MainActivity} topActivity=ComponentInfo{com.skillsroom.mobile/com.skillsroom.mobile.MainActivity} origActivity=null realActivity=ComponentInfo{com.skillsroom.mobile/com.skillsroom.mobile.MainActivity} numActivities=1 lastActiveTime=692630515 supportsSplitScreenMultiWindow=true supportsMultiWindow=true resizeMode=1 isResizeable=true minWidth=-1 minHeight=-1 defaultMinSize=200 token=WCT{android.window.IWindowContainerToken$Stub$Proxy@9f7bdf3} topActivityType=1 pictureInPictureParams=null shouldDockBigOverlays=false launchIntoPipHostTaskId=-1 lastParentTaskIdBeforePip=-1 displayCutoutSafeInsets=null topActivityInfo=ActivityInfo{74e1ab0 com.skillsroom.mobile.MainActivity} launchCookies=[] positionInParent=Point(0, 0) parentTaskId=-1 isFocused=true isVisible=true isVisibleRequested=true isSleeping=false topActivityInSizeCompat=false topActivityEligibleForLetterboxEducation= false topActivityLetterboxed= false isFromDoubleTap= false topActivityLetterboxVerticalPosition= -1 topActivityLetterboxHorizontalPosition= -1 topActivityLetterboxWidth=-1 topActivityLetterboxHeight=-1 locusId=null displayAreaFeatureId=1 cameraCompatControlState=hidden mIsCastMode=false mTopActivityMediaSize=null mTopActivityRecordName=ActivityRecord{42f66d6 u0 com.skillsroom.mobile/.MainActivity t5361} mTopActivityOrientation=1 mTopActivityWindowIsNowVisible=false isTranslucent=false isEmbedded=false shouldBeVisible=true mBehindAppLockPkg=null mOriginatingUid=0}",
+      "07-13 09:23:50.860 W/RecentsModel( 2470): getTaskInfoIgnoreHomeAndFreeform   taskInfo=ComponentInfo{com.skillsroom.mobile/com.skillsroom.mobile.MainActivity}",
+      "07-13 09:23:51.161 D/MI-SF   ( 1133): updateScene: module = 270 (Unknown), value = 0, pkg = com.skillsroom.mobile",
+      "07-13 09:23:51.217 W/WindowManager( 1813): finishDrawingWindow: Window{66c5166 u0 com.skillsroom.mobile/com.skillsroom.mobile.MainActivity} mDrawState=DRAW_PENDING",
+      "07-13 09:23:51.217 D/WindowManager( 1813): wms.finishDrawingLocked: mDrawState=COMMIT_DRAW_PENDING Window{66c5166 u0 com.skillsroom.mobile/com.skillsroom.mobile.MainActivity} in Surface(name=com.skillsroom.mobile/com.skillsroom.mobile.MainActivity#78270)/@0x3e554bb",
+      "07-13 09:23:51.245 W/WindowManager( 1813): real show surface com.skillsroom.mobile/com.skillsroom.mobile.MainActivity sc:Surface(name=com.skillsroom.mobile/com.skillsroom.mobile.MainActivity#78270)/@0x3e554bb",
+      "07-13 09:23:51.271 I/PowerHalWrapper( 1813): amsBoostNotify pid:2470,activity:com.miui.home.launcher.Launcher, package:com.miui.home, mProcessCreatePackcom.skillsroom.mobile ",
+      "07-13 09:23:51.288 I/ImeTracker( 1813): com.skillsroom.mobile:226d6767: onRequestHide at ORIGIN_SERVER_HIDE_INPUT reason HIDE_UNSPECIFIED_WINDOW",
+      "07-13 09:23:51.288 I/ImeTracker( 1813): com.skillsroom.mobile:226d6767: onCancelled at PHASE_SERVER_SHOULD_HIDE",
+      "07-13 09:23:51.297 D/MI-SF   ( 1133): updateScene: module = 270 (Unknown), value = 0, pkg = com.skillsroom.mobile",
+      "07-13 09:23:51.322 I/GoogleInputMethodService( 4463): GoogleInputMethodService.onStartInput():1446 onStartInput(EditorInfo{EditorInfo{packageName=com.skillsroom.mobile, inputType=0, inputTypeString=NULL, enableLearning=false, autoCorrection=false, autoComplete=false, imeOptions=0, privateImeOptions=null, actionName=UNSPECIFIED, actionLabel=null, initialSelStart=-1, initialSelEnd=-1, initialCapsMode=0, label=null, fieldId=0, fieldName=null, extras=Bundle[mParcelledData.dataSize=72], hintText=null, hintLocales=[]}}, false)",
+      "07-13 09:23:51.337 W/PackageConfigPersister( 1813): App-specific configuration not found for packageName: com.skillsroom.mobile and userId: 0",
+      "07-13 09:23:51.512 D/WindowManager( 1813): setParent old=ActivityRecord{42f66d6 u0 com.skillsroom.mobile/.MainActivity t5361},new=null,this window=Window{a26201d u0 SnapshotStartingWindow for taskId=5361},callers=com.android.server.wm.WindowContainer.removeChild:831 com.android.server.wm.ActivityRecord.removeChild:5163 com.android.server.wm.ActivityRecord.removeChild:458 com.android.server.wm.WindowContainer.removeImmediately:889 com.android.server.wm.WindowState.removeImmediately:2490 com.android.server.wm.WindowState.destroySurface:3581 ",
+      "07-13 09:23:51.602 I/adbd    (21521): adbd service requested 'shell,v2:export ANDROID_LOG_TAGS=''; exec logcat '-d' '-v' 'time''",
+      "07-13 09:23:51.647 E/FeatureFlagsImplExport( 9299): android.os.flagging.AconfigStorageReadException: ERROR_PACKAGE_NOT_FOUND: package com.android.libcore cannot be found on the device",
+      "07-13 09:23:51.780 D/SurfaceFlinger( 1133): [SF client] NEW(0xb4000078559c8900) for (8388:com.skillsroom.mobile)",
+      "07-13 09:23:51.785 I/ForceDarkHelperStubImpl( 8388): setViewRootImplForceDark: false for com.skillsroom.mobile.MainActivity@a2ad8d1, reason: DarkModeEnabled"
+    ]
+  },
+  "memory_summary": {
+    "total_pss_kb": 372869,
+    "total_rss_kb": 305500
+  },
+  "frame_summary": {
+    "total_frames": 250,
+    "janky_frames": 35,
+    "p50_ms": 15,
+    "p90_ms": 69,
+    "p95_ms": 200,
+    "p99_ms": 650
+  },
+  "artifacts": {
+    "dir": "C:\\Users\\HP\\sr-mobile\\reports\\real-device-chat-qa\\2026-07-13T08-22-20-579Z",
+    "logcat": "C:\\Users\\HP\\sr-mobile\\reports\\real-device-chat-qa\\2026-07-13T08-22-20-579Z\\logcat.txt"
+  },
+  "ok": true
+}

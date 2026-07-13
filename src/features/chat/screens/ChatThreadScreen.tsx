@@ -1,4 +1,6 @@
 ﻿import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { FlashList } from "@shopify/flash-list";
+import type { FlashListRef, ListRenderItemInfo } from "@shopify/flash-list";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
@@ -16,7 +18,6 @@ import {
 } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  FlatList,
   Image,
   Linking,
   Modal,
@@ -27,7 +28,6 @@ import {
   TextInput,
   View
 } from "react-native";
-import type { ListRenderItemInfo, ViewToken } from "react-native";
 import {
   absoluteChatMediaUrl,
   bookmarkChatMessage,
@@ -242,11 +242,39 @@ function replaceCachedMessage(messages: ChatMessage[], message: ChatMessage) {
   return messages.map((item) => item.id === message.id ? { ...item, ...message } : item);
 }
 
+function removeCachedMessage(messages: ChatMessage[], message: Pick<ChatMessage, "id" | "client_message_id">) {
+  return messages.filter((item) => item.id !== message.id && (!message.client_message_id || item.client_message_id !== message.client_message_id));
+}
+
 function needsMessageDetailHydration(message: ChatMessage) {
   if (message.view !== "list") return false;
   if ((message.attachments?.length ?? 0) > 0 || message.poll) return false;
   return Boolean(message.has_attachments || message.has_poll);
 }
+
+function getMessageItemType(message: ChatMessage) {
+  if (message.status === "deleted" || message.deleted_at) return "deleted";
+  if (message.message_kind === "system") return "system";
+  if ((message.attachments?.length ?? 0) > 0 || message.has_attachments) return "attachment";
+  if (message.poll || message.has_poll) return "poll";
+  if (message.reply_to_message_id || message.reply_to_body) return "reply";
+  return "text";
+}
+
+type SendDraft = {
+  body: string;
+  attachmentIds: string[];
+  attachments: ChatAttachment[];
+  replyTo: ChatMessage | null;
+  clientMessageId: string;
+  optimisticId: string;
+  createdAt: string;
+};
+
+type SendContext = {
+  previousMessages?: ChatMessagesResponse;
+  draft: SendDraft;
+};
 
 export function ChatThreadScreen() {
   const { channelId } = useLocalSearchParams<{ channelId?: string }>();
@@ -254,10 +282,11 @@ export function ChatThreadScreen() {
   const queryClient = useQueryClient();
   const currentUser = useAuthStore((state) => state.user);
   const currentUserId = currentUser?.id;
-  const listRef = useRef<FlatList<ChatMessage>>(null);
+  const listRef = useRef<FlashListRef<ChatMessage>>(null);
   const viewabilityConfigRef = useRef({ itemVisiblePercentThreshold: 35, minimumViewTime: 120 });
   const hydratedMessageIdsRef = useRef(new Set<string>());
   const hydratingMessageIdsRef = useRef(new Set<string>());
+  const pendingScrollToLatestRef = useRef(false);
   const [body, setBody] = useState("");
   const [notice, setNotice] = useState<{ tone: "error" | "success" | "info"; message: string } | null>(null);
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
@@ -333,7 +362,6 @@ export function ChatThreadScreen() {
   const title = titleFor(channel);
   const newestMessages = useMemo(() => sortMessages(messagesQuery.data?.messages ?? []), [messagesQuery.data?.messages]);
   const messages = useMemo(() => mergeMessagePages([...olderMessages, ...newestMessages]), [newestMessages, olderMessages]);
-  const listMessages = useMemo(() => [...messages].reverse(), [messages]);
   const pinnedMessages = useMemo(() => {
     const fromResponse = messagesQuery.data?.pinned_messages ?? [];
     return fromResponse.filter(Boolean) as ChatMessage[];
@@ -345,6 +373,18 @@ export function ChatThreadScreen() {
   const summary = channel?.channel_type === "dm"
     ? "Direct message"
     : `${onlineCount} online / ${channelsQuery.data?.length ?? "?"} channels`;
+
+  const scrollToNewest = useCallback((animated = true) => {
+    const run = () => {
+      try {
+        listRef.current?.scrollToEnd({ animated });
+      } catch {
+        // The list can still be measuring while the keyboard animates in.
+      }
+    };
+    requestAnimationFrame(run);
+    setTimeout(run, 180);
+  }, []);
 
   useEffect(() => {
     setOlderMessages([]);
@@ -371,6 +411,12 @@ export function ChatThreadScreen() {
   }, [lastMessageId, queryClient, target]);
 
   useEffect(() => {
+    if (!lastMessageId || !pendingScrollToLatestRef.current) return;
+    pendingScrollToLatestRef.current = false;
+    scrollToNewest(true);
+  }, [lastMessageId, scrollToNewest]);
+
+  useEffect(() => {
     if (!target) return;
     void sendChatHeartbeat(target).catch(() => undefined);
     const handle = setInterval(() => {
@@ -392,25 +438,91 @@ export function ChatThreadScreen() {
     return () => clearTimeout(handle);
   }, [body, target]);
 
-  const sendMutation = useMutation({
-    mutationFn: () => {
-      const text = body.trim();
-      const attachmentIds = pendingAttachments.filter((attachment) => attachment.state === "ready" && attachment.attachment).map((attachment) => attachment.attachment!.id);
-      if (!text && attachmentIds.length === 0) throw new Error("Write a message or add an attachment before sending.");
-      if (pendingAttachments.some((attachment) => attachment.state === "uploading")) throw new Error("Wait for attachments to finish uploading.");
-      return sendChatMessage(target, { body: text, client_message_id: `mobile:${Date.now()}`, reply_to_message_id: replyTo?.id, attachment_ids: attachmentIds });
-    },
-    onSuccess: (data) => {
+  const sendMutation = useMutation<{ channel: ChatChannel; message: ChatMessage }, Error, SendDraft, SendContext>({
+    mutationFn: (draft) =>
+      sendChatMessage(target, {
+        body: draft.body,
+        client_message_id: draft.clientMessageId,
+        reply_to_message_id: draft.replyTo?.id,
+        attachment_ids: draft.attachmentIds
+      }),
+    onMutate: async (draft) => {
+      pendingScrollToLatestRef.current = true;
+      await queryClient.cancelQueries({ queryKey: ["chat", "messages", target] });
+      const previousMessages = queryClient.getQueryData<ChatMessagesResponse>(["chat", "messages", target]);
+      const userRecord = currentUser as { id?: string; username?: string | null; display_name?: string | null; displayName?: string | null; email?: string | null } | null;
+      const senderLabel = userRecord?.display_name ?? userRecord?.displayName ?? userRecord?.username ?? userRecord?.email ?? "You";
+      const optimisticMessage: ChatMessage = {
+        id: draft.optimisticId,
+        channel_id: channel?.id ?? target,
+        sender_user_id: currentUserId ?? null,
+        message_kind: "user",
+        status: "visible",
+        body: draft.body,
+        client_message_id: draft.clientMessageId,
+        reply_to_message_id: draft.replyTo?.id ?? null,
+        reply_to_body: draft.replyTo?.body ? draft.replyTo.body.slice(0, 180) : null,
+        reply_to_sender_label: draft.replyTo?.sender_label ?? draft.replyTo?.sender_display_name ?? draft.replyTo?.sender_username ?? null,
+        reactions: [],
+        attachments: draft.attachments.map((attachment) => ({ ...attachment, message_id: draft.optimisticId })),
+        created_at: draft.createdAt,
+        updated_at: draft.createdAt,
+        sender_username: userRecord?.username ?? null,
+        sender_display_name: userRecord?.display_name ?? userRecord?.displayName ?? null,
+        sender_label: senderLabel,
+        view: "full",
+        attachment_count: draft.attachments.length,
+        has_attachments: draft.attachments.length > 0,
+        has_poll: false,
+        optimistic: true
+      };
+
       setBody("");
       setReplyTo(null);
       setPendingAttachments([]);
       setNotice(null);
       void setChatTyping(target, false).catch(() => undefined);
       queryClient.setQueryData<ChatMessagesResponse>(["chat", "messages", target], (current) =>
-        current ? { ...current, messages: mergeCachedMessage(current.messages, data.message) } : current
+        current ? { ...current, messages: mergeCachedMessage(current.messages, optimisticMessage) } : current
       );
+      scrollToNewest(false);
+      return { previousMessages, draft };
     },
-    onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "Could not send message.") })
+    onSuccess: (data, draft) => {
+      setNotice(null);
+      void setChatTyping(target, false).catch(() => undefined);
+      queryClient.setQueryData<ChatMessagesResponse>(["chat", "messages", target], (current) =>
+        current
+          ? {
+              ...current,
+              messages: mergeCachedMessage(
+                removeCachedMessage(current.messages, { id: draft.optimisticId, client_message_id: draft.clientMessageId }),
+                data.message
+              )
+            }
+          : current
+      );
+      pendingScrollToLatestRef.current = true;
+      scrollToNewest(true);
+    },
+    onError: (error, draft, context) => {
+      if (context?.previousMessages) {
+        queryClient.setQueryData<ChatMessagesResponse>(["chat", "messages", target], context.previousMessages);
+      } else {
+        queryClient.setQueryData<ChatMessagesResponse>(["chat", "messages", target], (current) =>
+          current ? { ...current, messages: removeCachedMessage(current.messages, { id: draft.optimisticId, client_message_id: draft.clientMessageId }) } : current
+        );
+      }
+      setBody((current) => current || draft.body);
+      setReplyTo((current) => current ?? draft.replyTo);
+      setPendingAttachments((current) => current.length ? current : draft.attachments.map((attachment) => ({
+        localId: `restored:${attachment.id}`,
+        name: String(attachment.original_name ?? "attachment"),
+        attachment,
+        state: "ready" as const
+      })));
+      setNotice({ tone: "error", message: plainApiError(error, "Could not send message.") });
+    }
   });
 
   const uploadMutation = useMutation({
@@ -504,6 +616,32 @@ export function ChatThreadScreen() {
     uploadMutation.mutate({ ...input, localId });
   }
 
+  const handleSendMessage = useCallback(() => {
+    const text = body.trim();
+    const readyAttachments = pendingAttachments
+      .filter((attachment) => attachment.state === "ready" && attachment.attachment)
+      .map((attachment) => attachment.attachment!);
+    if (!text && readyAttachments.length === 0) {
+      setNotice({ tone: "error", message: "Write a message or add an attachment before sending." });
+      return;
+    }
+    if (pendingAttachments.some((attachment) => attachment.state === "uploading")) {
+      setNotice({ tone: "error", message: "Wait for attachments to finish uploading." });
+      return;
+    }
+
+    const stamp = `${Date.now()}:${Math.random().toString(16).slice(2)}`;
+    sendMutation.mutate({
+      body: text,
+      attachmentIds: readyAttachments.map((attachment) => attachment.id),
+      attachments: readyAttachments,
+      replyTo,
+      clientMessageId: `mobile:${stamp}`,
+      optimisticId: `mobile-pending:${stamp}`,
+      createdAt: new Date().toISOString()
+    });
+  }, [body, pendingAttachments, replyTo, sendMutation]);
+
   async function pickPhoto() {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
@@ -580,11 +718,12 @@ export function ChatThreadScreen() {
     }
   }, [queryClient, target]);
 
-  const handleViewableItemsChanged = useCallback(({ viewableItems }: { viewableItems: ViewToken<ChatMessage>[] }) => {
+  const handleViewableItemsChanged = useCallback(({ viewableItems }: { viewableItems: Array<{ item?: ChatMessage | null }> }) => {
     viewableItems.forEach((entry) => {
       if (entry.item) void hydrateMessageDetail(entry.item);
     });
   }, [hydrateMessageDetail]);
+  const keyExtractor = useCallback((message: ChatMessage) => message.id, []);
   const handleReactMessage = useCallback((messageId: string, reaction: string) => {
     reactMessage({ messageId, reaction });
   }, [reactMessage]);
@@ -658,26 +797,29 @@ export function ChatThreadScreen() {
         ) : null}
         {notice ? <FormNotice tone={notice.tone} message={notice.message} /> : null}
 
-        <FlatList
+        <FlashList
           ref={listRef}
           style={styles.messages}
-          contentContainerStyle={[styles.messageContent, !listMessages.length && styles.emptyMessageContent]}
-          data={listMessages}
+          contentContainerStyle={[styles.messageContent, !messages.length && styles.emptyMessageContent]}
+          data={messages}
           renderItem={renderMessage}
-          keyExtractor={(message) => message.id}
+          keyExtractor={keyExtractor}
           extraData={`${currentUserId ?? ""}:${reactingMessageId ?? ""}:${pollVoteMessageId ?? ""}`}
-          inverted
           ItemSeparatorComponent={MessageSeparator}
           keyboardShouldPersistTaps="handled"
-          maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
-          maxToRenderPerBatch={8}
-          updateCellsBatchingPeriod={50}
-          initialNumToRender={14}
-          windowSize={9}
-          removeClippedSubviews
-          onEndReached={() => void loadOlderMessages()}
-          onEndReachedThreshold={0.35}
-          ListFooterComponent={messages.length ? (
+          drawDistance={650}
+          maxItemsInRecyclePool={48}
+          getItemType={getMessageItemType}
+          maintainVisibleContentPosition={{
+            autoscrollToBottomThreshold: 0.25,
+            animateAutoScrollToBottom: true,
+            startRenderingFromBottom: true
+          }}
+          onStartReached={() => void loadOlderMessages()}
+          onStartReachedThreshold={0.35}
+          onViewableItemsChanged={handleViewableItemsChanged}
+          viewabilityConfig={viewabilityConfigRef.current}
+          ListHeaderComponent={messages.length ? (
             <OlderMessagesFooter
               loading={olderLoading}
               error={olderError}
@@ -713,7 +855,7 @@ export function ChatThreadScreen() {
           scheduleLoading={scheduleMutation.isPending}
           onCreatePoll={(input) => pollMutation.mutate(input)}
           onSchedule={(input) => scheduleMutation.mutate(input)}
-          onSend={() => sendMutation.mutate()}
+          onSend={handleSendMessage}
         />
       </View>
 

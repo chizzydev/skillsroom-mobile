@@ -1,0 +1,101 @@
+{
+  "run_id": "2026-07-13T07-49-05-072Z",
+  "started_at": "2026-07-13T07:50:21.667Z",
+  "package_name": "com.skillsroom.mobile",
+  "device": "TKJRNFCMIR6XXKO7",
+  "device_meta": {
+    "model": "23106RN0DA",
+    "android": "14",
+    "screen_size": "Physical size: 720x1600",
+    "battery": {
+      "level": 78,
+      "powered_usb": true,
+      "status": 2
+    },
+    "package": {
+      "version_name": "0.1.0",
+      "version_code": 1,
+      "debuggable": true,
+      "last_update_time": "2026-07-13 08:39:55"
+    }
+  },
+  "steps": [
+    {
+      "name": "launch_and_render",
+      "ok": false,
+      "duration_ms": 45016,
+      "observations": {},
+      "note": "launch_and_render timed out after 45000ms"
+    },
+    {
+      "name": "background_foreground",
+      "ok": false,
+      "duration_ms": 25012,
+      "observations": {},
+      "note": "background_foreground timed out after 25000ms"
+    }
+  ],
+  "log_summary": {
+    "fatal_count": 0,
+    "react_error_count": 44,
+    "sample": [
+      "07-13 08:50:18.283 D/DigestGenerator( 3978): digest=============exp_nofocuswindowtimeoutcom.skillsroom.mobile",
+      "07-13 08:50:18.332 W/DatabaseUtils( 3978): Begin to store GeneralExceptionEvent!",
+      "07-13 08:50:18.423 I/DialerAndroidAutoStatusLookupImpl( 8509): com.android.dialer.androidautostatuslookup.impl.AndroidAutoStatusLookupImpl.awaitCallbackWithTimeout:133 liveData timeout exception.",
+      "07-13 08:50:18.515 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10288, CallingPid=19459",
+      "07-13 08:50:18.515 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10279, CallingPid=443",
+      "07-13 08:50:18.664 W/MQSEventManager( 3978): Method in addExceptionCommetAction, actionCommand is null!",
+      "07-13 08:50:18.825 W/WindowManager( 1813): finishDrawingWindow: Window{164b3c7 u0 com.skillsroom.mobile/com.skillsroom.mobile.MainActivity} mDrawState=DRAW_PENDING",
+      "07-13 08:50:18.825 D/WindowManager( 1813): wms.finishDrawingLocked: mDrawState=COMMIT_DRAW_PENDING Window{164b3c7 u0 com.skillsroom.mobile/com.skillsroom.mobile.MainActivity} in Surface(name=com.skillsroom.mobile/com.skillsroom.mobile.MainActivity#77720)/@0xcd4faf6",
+      "07-13 08:50:19.017 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10288, CallingPid=19459",
+      "07-13 08:50:19.018 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10279, CallingPid=443",
+      "07-13 08:50:19.034 E/BufferQueueDebug( 1133): [Surface(name=164b3c7 com.skillsroom.mobile/com.skillsroom.mobile.MainActivity#77719)/@0xb87b7e2 - animation-leash of starting_reveal#77723](this:0xb400007855ab6a30,id:-1,api:0,p:-1,c:-1) id info cannot be read from 'Surface(name=164b3c7 com.skillsroom.mobile/com.skillsroom.mobile.MainActivity#77719)/@0xb87b7e2 - animation-leash of starting_reveal#77723'",
+      "07-13 08:50:19.035 I/BufferQueueDebug( 1133): [Surface(name=164b3c7 com.skillsroom.mobile/com.skillsroom.mobile.MainActivity#77719)/@0xb87b7e2 - animation-leash of starting_reveal#77723](this:0xb400007855ab6a30,id:-1,api:0,p:-1,c:-1) BufferQueue core=(1133:/system/bin/surfaceflinger)",
+      "07-13 08:50:19.120 W/WindowManager( 1813): real show surface com.skillsroom.mobile/com.skillsroom.mobile.MainActivity sc:Surface(name=com.skillsroom.mobile/com.skillsroom.mobile.MainActivity#77720)/@0xcd4faf6",
+      "07-13 08:50:19.135 W/MemoryUsageCapture( 8719): Error reading dmabuf proc dmabuf_rss [CONTEXT ratelimit_period=\"1 MINUTES\" ]",
+      "07-13 08:50:19.135 W/MemoryUsageCapture( 8719): java.io.FileNotFoundException: /proc/8719/dmabuf_rss: open failed: ENOENT (No such file or directory)",
+      "07-13 08:50:19.135 W/MemoryUsageCapture( 8719): Caused by: android.system.ErrnoException: open failed: ENOENT (No such file or directory)",
+      "07-13 08:50:19.294 I/ActivityTaskManager( 1813): Displayed com.skillsroom.mobile/.MainActivity for user 0: +12s306ms",
+      "07-13 08:50:19.519 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10288, CallingPid=19459",
+      "07-13 08:50:19.520 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10279, CallingPid=443",
+      "07-13 08:50:19.542 I/PowerHalWrapper( 1813): amsBoostNotify pid:2470,activity:com.miui.home.launcher.Launcher, package:com.miui.home, mProcessCreatePackcom.skillsroom.mobile ",
+      "07-13 08:50:19.733 D/CoreBackPreview( 1813): Window{26d2e1a u0 Splash Screen com.skillsroom.mobile}: Setting back callback null",
+      "07-13 08:50:19.742 W/ActivityManager( 1813): android.os.DeadObjectException",
+      "07-13 08:50:19.765 W/InputManager-JNI( 1813): Input channel object '26d2e1a Splash Screen com.skillsroom.mobile (client)' was disposed without first being removed with the input manager!",
+      "07-13 08:50:19.773 E/BufferQueueDebug( 1133): [Surface(name=26d2e1a Splash Screen com.skillsroom.mobile#77713)/@0x8befd6f - animation-leash of window_animation#77724](this:0xb400007855b0ba30,id:-1,api:0,p:-1,c:-1) id info cannot be read from 'Surface(name=26d2e1a Splash Screen com.skillsroom.mobile#77713)/@0x8befd6f - animation-leash of window_animation#77724'",
+      "07-13 08:50:19.773 I/BufferQueueDebug( 1133): [Surface(name=26d2e1a Splash Screen com.skillsroom.mobile#77713)/@0x8befd6f - animation-leash of window_animation#77724](this:0xb400007855b0ba30,id:-1,api:0,p:-1,c:-1) BufferQueue core=(1133:/system/bin/surfaceflinger)",
+      "07-13 08:50:19.777 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10283, CallingPid=7279",
+      "07-13 08:50:19.847 D/MiSightJni( 1813): MiSight: Java_com_miui_misight_MiSight_nativeSendEvent enter called. '{\"PackageName\":\"com.skillsroom.mobile\",\"ActivityName\":\"com.skillsroom.mobile.MainActivity\",\"Duration\":12101}'",
+      "07-13 08:50:19.908 E/ProcessManager( 1813): error write exception log",
+      "07-13 08:50:20.016 D/WindowManager( 1813): setParent old=ActivityRecord{9aa1570 u0 com.skillsroom.mobile/.MainActivity t5354},new=null,this window=Window{26d2e1a u0 Splash Screen com.skillsroom.mobile},callers=com.android.server.wm.WindowContainer.removeChild:831 com.android.server.wm.ActivityRecord.removeChild:5163 com.android.server.wm.ActivityRecord.removeChild:458 com.android.server.wm.WindowContainer.removeImmediately:889 com.android.server.wm.WindowState.removeImmediately:2490 com.android.server.wm.WindowState.destroySurface:3581 ",
+      "07-13 08:50:20.021 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10288, CallingPid=19459",
+      "07-13 08:50:20.023 D/ActivityManager( 1813): getProcessesInErrorState callingUid=10279, CallingPid=443",
+      "07-13 08:50:20.040 I/BufferQueueDebug( 1133): [Surface(name=26d2e1a Splash Screen com.skillsroom.mobile#77713)/@0x8befd6f - animation-leash of window_animation#77724](this:0xb400007855b0ba30,id:-1,api:0,p:-1,c:1133) onDestructor()",
+      "07-13 08:50:20.041 I/BufferQueueDebug( 1133): [26d2e1a Splash Screen com.skillsroom.mobile#77713](this:0xb40000785b433a30,id:-1,api:0,p:-1,c:1133) onDestructor()",
+      "07-13 08:50:20.152 D/DigestGenerator( 3978): digest=============exp_actresumetimeoutcom.skillsroom.mobile",
+      "07-13 08:50:20.180 W/DatabaseUtils( 3978): Begin to store GeneralExceptionEvent!",
+      "07-13 08:50:20.205 D/SurfaceFlinger( 1133): [SF client] NEW(0xb40000786c1d6d00) for (8082:com.skillsroom.mobile)",
+      "07-13 08:50:20.258 W/MQSEventManager( 3978): Method in addExceptionCommetAction, actionCommand is null!",
+      "07-13 08:50:20.268 I/ForceDarkHelperStubImpl( 8082): setViewRootImplForceDark: false for com.skillsroom.mobile.MainActivity@a2ad8d1, reason: DarkModeEnabled",
+      "07-13 08:50:20.356 E/FbnsAIDLClientManager( 5938): Fbns AIDL request got RemoteException",
+      "07-13 08:50:20.356 E/FbnsAIDLClientManager( 5938): android.os.RemoteException: AIDLService is not bound"
+    ]
+  },
+  "memory_summary": {
+    "total_pss_kb": 101921,
+    "total_rss_kb": 145324
+  },
+  "frame_summary": {
+    "total_frames": 2,
+    "janky_frames": 2,
+    "p50_ms": 4950,
+    "p90_ms": 4950,
+    "p95_ms": 4950,
+    "p99_ms": 4950
+  },
+  "artifacts": {
+    "dir": "C:\\Users\\HP\\sr-mobile\\reports\\real-device-chat-qa\\2026-07-13T07-49-05-072Z",
+    "logcat": "C:\\Users\\HP\\sr-mobile\\reports\\real-device-chat-qa\\2026-07-13T07-49-05-072Z\\logcat.txt"
+  },
+  "ok": false
+}

@@ -1,0 +1,197 @@
+{
+  "run_id": "2026-07-13T09-03-10-340Z",
+  "started_at": "2026-07-13T09:04:44.044Z",
+  "package_name": "com.skillsroom.mobile",
+  "device": "TKJRNFCMIR6XXKO7",
+  "device_meta": {
+    "model": "23106RN0DA",
+    "android": "14",
+    "screen_size": "Physical size: 720x1600",
+    "battery": {
+      "level": 81,
+      "powered_usb": true,
+      "status": 2
+    },
+    "package": {
+      "version_name": "0.1.0",
+      "version_code": 1,
+      "debuggable": true,
+      "last_update_time": "2026-07-13 08:39:55"
+    }
+  },
+  "steps": [
+    {
+      "name": "launch_and_render",
+      "ok": false,
+      "duration_ms": 27054,
+      "observations": {
+        "rendered_text_count": 34,
+        "rendered_text_sample": [
+          "Log 2 of 7",
+          "Uncaught Error",
+          "Cannot find native module 'ExpoClipboard'",
+          "Call Stack",
+          "requireNativeModule",
+          "C:\\Users\\HP\\sr-mobile\\node_modules\\expo-modules-core\\src\\requireNativeModule.ts",
+          "&lt;global&gt;",
+          "C:\\Users\\HP\\sr-mobile\\node_modules\\expo-clipboard\\build\\ExpoClipboard.js",
+          "loadModuleImplementation",
+          "C:\\Users\\HP\\sr-mobile\\node_modules\\expo\\node_modules\\@expo\\cli\\build\\metro-require\\require.js",
+          "guardedLoadModule",
+          "C:\\Users\\HP\\sr-mobile\\node_modules\\expo\\node_modules\\@expo\\cli\\build\\metro-require\\require.js"
+        ],
+        "redbox_detected": true,
+        "screenshot_path": "C:\\Users\\HP\\sr-mobile\\reports\\real-device-chat-qa\\2026-07-13T09-03-10-340Z\\launch.png"
+      },
+      "note": "React Native redbox was visible."
+    },
+    {
+      "name": "background_foreground",
+      "ok": true,
+      "duration_ms": 28406,
+      "observations": {
+        "rendered_text_count": 34,
+        "rendered_text_sample": [
+          "Log 2 of 7",
+          "Uncaught Error",
+          "Cannot find native module 'ExpoClipboard'",
+          "Call Stack",
+          "requireNativeModule",
+          "C:\\Users\\HP\\sr-mobile\\node_modules\\expo-modules-core\\src\\requireNativeModule.ts",
+          "&lt;global&gt;",
+          "C:\\Users\\HP\\sr-mobile\\node_modules\\expo-clipboard\\build\\ExpoClipboard.js",
+          "loadModuleImplementation",
+          "C:\\Users\\HP\\sr-mobile\\node_modules\\expo\\node_modules\\@expo\\cli\\build\\metro-require\\require.js",
+          "guardedLoadModule",
+          "C:\\Users\\HP\\sr-mobile\\node_modules\\expo\\node_modules\\@expo\\cli\\build\\metro-require\\require.js"
+        ]
+      }
+    },
+    {
+      "name": "chat_tab_deeplink",
+      "ok": false,
+      "duration_ms": 15435,
+      "observations": {
+        "rendered_text_count": 34,
+        "rendered_text_sample": [
+          "Log 2 of 7",
+          "Uncaught Error",
+          "Cannot find native module 'ExpoClipboard'",
+          "Call Stack",
+          "requireNativeModule",
+          "C:\\Users\\HP\\sr-mobile\\node_modules\\expo-modules-core\\src\\requireNativeModule.ts",
+          "&lt;global&gt;",
+          "C:\\Users\\HP\\sr-mobile\\node_modules\\expo-clipboard\\build\\ExpoClipboard.js",
+          "loadModuleImplementation",
+          "C:\\Users\\HP\\sr-mobile\\node_modules\\expo\\node_modules\\@expo\\cli\\build\\metro-require\\require.js",
+          "guardedLoadModule",
+          "C:\\Users\\HP\\sr-mobile\\node_modules\\expo\\node_modules\\@expo\\cli\\build\\metro-require\\require.js",
+          "metroRequire",
+          "C:\\Users\\HP\\sr-mobile\\node_modules\\expo\\node_modules\\@expo\\cli\\build\\metro-require\\require.js",
+          "&lt;global&gt;",
+          "C:\\Users\\HP\\sr-mobile\\node_modules\\expo-clipboard\\build\\Clipboard.js"
+        ],
+        "screenshot_path": "C:\\Users\\HP\\sr-mobile\\reports\\real-device-chat-qa\\2026-07-13T09-03-10-340Z\\chat-tab.png"
+      },
+      "note": "Chat tab did not render expected channel/DM shell."
+    },
+    {
+      "name": "chat_channel_deeplink",
+      "ok": false,
+      "duration_ms": 20867,
+      "observations": {
+        "channel": "chat_load_lab",
+        "rendered_text_count": 34,
+        "rendered_text_sample": [
+          "Log 2 of 7",
+          "Uncaught Error",
+          "Cannot find native module 'ExpoClipboard'",
+          "Call Stack",
+          "requireNativeModule",
+          "C:\\Users\\HP\\sr-mobile\\node_modules\\expo-modules-core\\src\\requireNativeModule.ts",
+          "&lt;global&gt;",
+          "C:\\Users\\HP\\sr-mobile\\node_modules\\expo-clipboard\\build\\ExpoClipboard.js",
+          "loadModuleImplementation",
+          "C:\\Users\\HP\\sr-mobile\\node_modules\\expo\\node_modules\\@expo\\cli\\build\\metro-require\\require.js",
+          "guardedLoadModule",
+          "C:\\Users\\HP\\sr-mobile\\node_modules\\expo\\node_modules\\@expo\\cli\\build\\metro-require\\require.js",
+          "metroRequire",
+          "C:\\Users\\HP\\sr-mobile\\node_modules\\expo\\node_modules\\@expo\\cli\\build\\metro-require\\require.js",
+          "&lt;global&gt;",
+          "C:\\Users\\HP\\sr-mobile\\node_modules\\expo-clipboard\\build\\Clipboard.js",
+          "loadModuleImplementation",
+          "C:\\Users\\HP\\sr-mobile\\node_modules\\expo\\node_modules\\@expo\\cli\\build\\metro-require\\require.js",
+          "guardedLoadModule",
+          "C:\\Users\\HP\\sr-mobile\\node_modules\\expo\\node_modules\\@expo\\cli\\build\\metro-require\\require.js"
+        ],
+        "composer_visible": false,
+        "message_content_visible": true,
+        "screenshot_path": "C:\\Users\\HP\\sr-mobile\\reports\\real-device-chat-qa\\2026-07-13T09-03-10-340Z\\chat-channel.png"
+      },
+      "note": "Chat channel did not show both message content and composer."
+    }
+  ],
+  "log_summary": {
+    "fatal_count": 0,
+    "react_error_count": 117,
+    "sample": [
+      "07-13 10:04:24.121 D/PerfShielderService( 1813): com.skillsroom.mobile|com.skillsroom.mobile/com.skillsroom.mobile.MainActivity|734|625954611708078|445|2|19",
+      "07-13 10:04:24.122 W/MiuiPerfServiceClient( 3978): interceptAndQueuing:4243|com.skillsroom.mobile|734|445|625954611708078|Slow handle animation|19",
+      "07-13 10:04:24.127 I/BufferQueueProducer( 1133): [com.skillsroom.mobile/com.skillsroom.mobile.MainActivity#78761](this:0xb4000078559a8a30,id:-1,api:0,p:-1,c:1133) queueBuffer: fps=1.40 dur=13597.42 max=12882.56 min=15.24",
+      "07-13 10:04:24.159 W/unknown:ReactNative( 4243): StatusBarModule: Ignored status bar change, current activity is edge-to-edge.",
+      "07-13 10:04:24.306 D/WindowManager( 1813): setParent old=Window{6f2ffe5 u0 com.skillsroom.mobile/com.skillsroom.mobile.MainActivity},new=null,this window=Window{2da5859 u0 PopupWindow:85a29f4},callers=com.android.server.wm.WindowContainer.removeChild:831 com.android.server.wm.WindowContainer.removeImmediately:889 com.android.server.wm.WindowState.removeImmediately:2490 com.android.server.wm.WindowState.removeIfPossible:2662 com.android.server.wm.WindowManagerService.removeWindow:2412 com.android.server.wm.Session.remove:245 ",
+      "07-13 10:04:24.748 D/SurfaceFlinger( 1133): [SF client] REMOVE (0xb400007898ee9c80) for (4243:com.skillsroom.mobile)",
+      "07-13 10:04:24.924 I/libPowerHal( 1059): [perfNotifyAppState] pack:com.skillsroom.mobile, act:com.skillsroom.mobile.MainActivity, state:5, pid:4243, uid:10210, fps:60",
+      "07-13 10:04:24.926 I/UxUtility( 1059): notifyForegroundApp pack:com.skillsroom.mobile, uid:10210",
+      "07-13 10:04:25.625 D/nativeloader( 5650): Extending system_exposed_libraries: libapuwareapusys.mtk.so:libapuwareapusys_v2.mtk.so:libapuwarexrp.mtk.so:libapuwarexrp_v2.mtk.so:libapuwareutils.mtk.so:libapuwareutils_v2.mtk.so:libapuwarehmp.mtk.so:libmcv_runtime_usdk.mtk.so:libneuron_graph_delegate.mtk.so:libneuronusdk_adapter.mtk.so:libtflite_mtk.mtk.so:libarmnn_ndk.mtk.so:libcmdl_ndk.mtk.so:libnir_neon_driver_ndk.mtk.so:libmvpu_runtime.mtk.so:libmvpu_runtime_pub.mtk.so:libmvpu_engine_pub.mtk.so:libmvpu_pattern_pub.mtk.so:libmvpuop_mtk_cv.mtk.so:libmvpuop_mtk_nn.mtk.so:libmvpu_runtime_25.mtk.so:libmvpu_runtime_25_pub.mtk.so:libmvpu_engine_25_pub.mtk.so:libmvpu_pattern_25_pub.mtk.so:libmvpuop25_mtk_cv.mtk.so:libmvpuop25_mtk_nn.mtk.so:libmvpu_config.mtk.so:libteeservice_client.trustonic.so:libmisys_jni.xiaomi.so",
+      "07-13 10:04:25.642 D/nativeloader( 5650): Extending system_exposed_libraries: libapuwareapusys.mtk.so:libapuwareapusys_v2.mtk.so:libapuwarexrp.mtk.so:libapuwarexrp_v2.mtk.so:libapuwareutils.mtk.so:libapuwareutils_v2.mtk.so:libapuwarehmp.mtk.so:libmcv_runtime_usdk.mtk.so:libneuron_graph_delegate.mtk.so:libneuronusdk_adapter.mtk.so:libtflite_mtk.mtk.so:libarmnn_ndk.mtk.so:libcmdl_ndk.mtk.so:libnir_neon_driver_ndk.mtk.so:libmvpu_runtime.mtk.so:libmvpu_runtime_pub.mtk.so:libmvpu_engine_pub.mtk.so:libmvpu_pattern_pub.mtk.so:libmvpuop_mtk_cv.mtk.so:libmvpuop_mtk_nn.mtk.so:libmvpu_runtime_25.mtk.so:libmvpu_runtime_25_pub.mtk.so:libmvpu_engine_25_pub.mtk.so:libmvpu_pattern_25_pub.mtk.so:libmvpuop25_mtk_cv.mtk.so:libmvpuop25_mtk_nn.mtk.so:libmvpu_config.mtk.so:libteeservice_client.trustonic.so:libmisys_jni.xiaomi.so",
+      "07-13 10:04:25.655 D/nativeloader( 5650): Extending system_exposed_libraries: libapuwareapusys.mtk.so:libapuwareapusys_v2.mtk.so:libapuwarexrp.mtk.so:libapuwarexrp_v2.mtk.so:libapuwareutils.mtk.so:libapuwareutils_v2.mtk.so:libapuwarehmp.mtk.so:libmcv_runtime_usdk.mtk.so:libneuron_graph_delegate.mtk.so:libneuronusdk_adapter.mtk.so:libtflite_mtk.mtk.so:libarmnn_ndk.mtk.so:libcmdl_ndk.mtk.so:libnir_neon_driver_ndk.mtk.so:libmvpu_runtime.mtk.so:libmvpu_runtime_pub.mtk.so:libmvpu_engine_pub.mtk.so:libmvpu_pattern_pub.mtk.so:libmvpuop_mtk_cv.mtk.so:libmvpuop_mtk_nn.mtk.so:libmvpu_runtime_25.mtk.so:libmvpu_runtime_25_pub.mtk.so:libmvpu_engine_25_pub.mtk.so:libmvpu_pattern_25_pub.mtk.so:libmvpuop25_mtk_cv.mtk.so:libmvpuop25_mtk_nn.mtk.so:libmvpu_config.mtk.so:libteeservice_client.trustonic.so:libmisys_jni.xiaomi.so",
+      "07-13 10:04:25.849 D/PerfShielderService( 1813): com.skillsroom.mobile|com.skillsroom.mobile/com.skillsroom.mobile.MainActivity|644|625968119395463|99|2|30",
+      "07-13 10:04:25.850 W/MiuiPerfServiceClient( 3978): interceptAndQueuing:4243|com.skillsroom.mobile|644|99|625968119395463|Slow handle animation|30",
+      "07-13 10:04:25.858 I/BufferQueueProducer( 1133): [com.skillsroom.mobile/com.skillsroom.mobile.MainActivity#78761](this:0xb4000078559a8a30,id:-1,api:0,p:-1,c:1133) queueBuffer: fps=17.91 dur=1730.56 max=1082.83 min=14.34",
+      "07-13 10:04:26.689 D/nativeloader( 5698): Extending system_exposed_libraries: libapuwareapusys.mtk.so:libapuwareapusys_v2.mtk.so:libapuwarexrp.mtk.so:libapuwarexrp_v2.mtk.so:libapuwareutils.mtk.so:libapuwareutils_v2.mtk.so:libapuwarehmp.mtk.so:libmcv_runtime_usdk.mtk.so:libneuron_graph_delegate.mtk.so:libneuronusdk_adapter.mtk.so:libtflite_mtk.mtk.so:libarmnn_ndk.mtk.so:libcmdl_ndk.mtk.so:libnir_neon_driver_ndk.mtk.so:libmvpu_runtime.mtk.so:libmvpu_runtime_pub.mtk.so:libmvpu_engine_pub.mtk.so:libmvpu_pattern_pub.mtk.so:libmvpuop_mtk_cv.mtk.so:libmvpuop_mtk_nn.mtk.so:libmvpu_runtime_25.mtk.so:libmvpu_runtime_25_pub.mtk.so:libmvpu_engine_25_pub.mtk.so:libmvpu_pattern_25_pub.mtk.so:libmvpuop25_mtk_cv.mtk.so:libmvpuop25_mtk_nn.mtk.so:libmvpu_config.mtk.so:libteeservice_client.trustonic.so:libmisys_jni.xiaomi.so",
+      "07-13 10:04:26.736 D/nativeloader( 5701): Extending system_exposed_libraries: libapuwareapusys.mtk.so:libapuwareapusys_v2.mtk.so:libapuwarexrp.mtk.so:libapuwarexrp_v2.mtk.so:libapuwareutils.mtk.so:libapuwareutils_v2.mtk.so:libapuwarehmp.mtk.so:libmcv_runtime_usdk.mtk.so:libneuron_graph_delegate.mtk.so:libneuronusdk_adapter.mtk.so:libtflite_mtk.mtk.so:libarmnn_ndk.mtk.so:libcmdl_ndk.mtk.so:libnir_neon_driver_ndk.mtk.so:libmvpu_runtime.mtk.so:libmvpu_runtime_pub.mtk.so:libmvpu_engine_pub.mtk.so:libmvpu_pattern_pub.mtk.so:libmvpuop_mtk_cv.mtk.so:libmvpuop_mtk_nn.mtk.so:libmvpu_runtime_25.mtk.so:libmvpu_runtime_25_pub.mtk.so:libmvpu_engine_25_pub.mtk.so:libmvpu_pattern_25_pub.mtk.so:libmvpuop25_mtk_cv.mtk.so:libmvpuop25_mtk_nn.mtk.so:libmvpu_config.mtk.so:libteeservice_client.trustonic.so:libmisys_jni.xiaomi.so",
+      "07-13 10:04:27.924 I/libPowerHal( 1059): [perfNotifyAppState] pack:com.skillsroom.mobile, act:com.skillsroom.mobile.MainActivity, state:5, pid:4243, uid:10210, fps:-1",
+      "07-13 10:04:27.931 I/UxUtility( 1059): notifyForegroundApp pack:com.skillsroom.mobile, uid:10210",
+      "07-13 10:04:29.111 I/BufferQueueProducer( 1133): [com.skillsroom.mobile/com.skillsroom.mobile.MainActivity#78761](this:0xb4000078559a8a30,id:-1,api:0,p:-1,c:1133) queueBuffer: fps=5.23 dur=3251.39 max=2984.37 min=16.24",
+      "07-13 10:04:30.258 I/BufferQueueProducer( 1133): [com.skillsroom.mobile/com.skillsroom.mobile.MainActivity#78761](this:0xb4000078559a8a30,id:-1,api:0,p:-1,c:1133) queueBuffer: fps=1.74 dur=1148.60 max=981.40 min=167.20",
+      "07-13 10:04:30.925 I/libPowerHal( 1059): [perfNotifyAppState] pack:com.skillsroom.mobile, act:com.skillsroom.mobile.MainActivity, state:5, pid:4243, uid:10210, fps:90",
+      "07-13 10:04:30.930 I/UxUtility( 1059): notifyForegroundApp pack:com.skillsroom.mobile, uid:10210",
+      "07-13 10:04:31.322 D/PerfShielderService( 1813): com.skillsroom.mobile|com.skillsroom.mobile/com.skillsroom.mobile.MainActivity|1883|625973722978540|997|2|9",
+      "07-13 10:04:31.324 I/BufferQueueProducer( 1133): [com.skillsroom.mobile/com.skillsroom.mobile.MainActivity#78761](this:0xb4000078559a8a30,id:-1,api:0,p:-1,c:1133) queueBuffer: fps=14.07 dur=1065.77 max=483.18 min=16.10",
+      "07-13 10:04:31.325 D/PerfShielderService( 1813): com.skillsroom.mobile|com.skillsroom.mobile/com.skillsroom.mobile.MainActivity|521|625974327221925|488|5|3",
+      "07-13 10:04:31.325 W/MiuiPerfServiceClient( 3978): interceptAndQueuing:4243|com.skillsroom.mobile|1883|997|625973722978540|Slow handle animation|9",
+      "07-13 10:04:31.327 W/MiuiPerfServiceClient( 3978): interceptAndQueuing:4243|com.skillsroom.mobile|521|488|625974327221925|Slow issue draw commands|3",
+      "07-13 10:04:31.499 I/AppsFilter( 1813): interaction: PackageSetting{98b1fe9 com.skillsroom.mobile/10210} -> PackageSetting{6848eef com.facebook.appmanager/10131} BLOCKED",
+      "07-13 10:04:31.924 I/libPowerHal( 1059): [perfNotifyAppState] pack:com.skillsroom.mobile, act:com.skillsroom.mobile.MainActivity, state:5, pid:4243, uid:10210, fps:60",
+      "07-13 10:04:31.926 I/UxUtility( 1059): notifyForegroundApp pack:com.skillsroom.mobile, uid:10210",
+      "07-13 10:04:32.925 I/libPowerHal( 1059): [perfNotifyAppState] pack:com.skillsroom.mobile, act:com.skillsroom.mobile.MainActivity, state:5, pid:4243, uid:10210, fps:-1",
+      "07-13 10:04:32.927 I/UxUtility( 1059): notifyForegroundApp pack:com.skillsroom.mobile, uid:10210",
+      "07-13 10:04:37.579 D/nativeloader( 6080): Extending system_exposed_libraries: libapuwareapusys.mtk.so:libapuwareapusys_v2.mtk.so:libapuwarexrp.mtk.so:libapuwarexrp_v2.mtk.so:libapuwareutils.mtk.so:libapuwareutils_v2.mtk.so:libapuwarehmp.mtk.so:libmcv_runtime_usdk.mtk.so:libneuron_graph_delegate.mtk.so:libneuronusdk_adapter.mtk.so:libtflite_mtk.mtk.so:libarmnn_ndk.mtk.so:libcmdl_ndk.mtk.so:libnir_neon_driver_ndk.mtk.so:libmvpu_runtime.mtk.so:libmvpu_runtime_pub.mtk.so:libmvpu_engine_pub.mtk.so:libmvpu_pattern_pub.mtk.so:libmvpuop_mtk_cv.mtk.so:libmvpuop_mtk_nn.mtk.so:libmvpu_runtime_25.mtk.so:libmvpu_runtime_25_pub.mtk.so:libmvpu_engine_25_pub.mtk.so:libmvpu_pattern_25_pub.mtk.so:libmvpuop25_mtk_cv.mtk.so:libmvpuop25_mtk_nn.mtk.so:libmvpu_config.mtk.so:libteeservice_client.trustonic.so:libmisys_jni.xiaomi.so",
+      "07-13 10:04:39.095 E/FeatureFlagsImplExport( 6080): android.os.flagging.AconfigStorageReadException: ERROR_PACKAGE_NOT_FOUND: package com.android.libcore cannot be found on the device",
+      "07-13 10:04:39.198 D/AndroidRuntime( 6092): >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<",
+      "07-13 10:04:39.245 I/AndroidRuntime( 6092): Using default boot image",
+      "07-13 10:04:39.245 I/AndroidRuntime( 6092): Leaving lock profiling enabled",
+      "07-13 10:04:39.867 D/AndroidRuntime( 6092): Calling main entry com.android.commands.uiautomator.Launcher",
+      "07-13 10:04:41.631 D/AndroidRuntime( 6092): Shutting down VM",
+      "07-13 10:04:43.729 I/adbd    (21521): adbd service requested 'shell,v2:export ANDROID_LOG_TAGS=''; exec logcat '-d' '-v' 'time''"
+    ]
+  },
+  "memory_summary": {
+    "total_pss_kb": 391532,
+    "total_rss_kb": 226876
+  },
+  "frame_summary": {
+    "total_frames": 487,
+    "janky_frames": 55,
+    "p50_ms": 16,
+    "p90_ms": 42,
+    "p95_ms": 200,
+    "p99_ms": 700
+  },
+  "artifacts": {
+    "dir": "C:\\Users\\HP\\sr-mobile\\reports\\real-device-chat-qa\\2026-07-13T09-03-10-340Z",
+    "logcat": "C:\\Users\\HP\\sr-mobile\\reports\\real-device-chat-qa\\2026-07-13T09-03-10-340Z\\logcat.txt"
+  },
+  "ok": false
+}
