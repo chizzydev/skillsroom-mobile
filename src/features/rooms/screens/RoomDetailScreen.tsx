@@ -673,6 +673,9 @@ export function RoomDetailScreen() {
           <Text style={styles.sectionTitle}>Entry confirmation</Text>
           {activeSectionNotice ? <FormNotice tone={activeSectionNotice.tone} message={activeSectionNotice.message} /> : null}
           {needsOwnEntry ? <FormNotice tone="info" message={`Next step: confirm your ${money(room?.entry_amount_minor, room?.currency)} entry with Skillsroom Balance or transfer proof.`} /> : null}
+          {needsOwnEntry || ownEntrySubmitted || ownEntryApproved ? (
+            <FormNotice tone="info" message="Add your payout account on Profile before result review so approved winnings can be paid quickly." />
+          ) : null}
           {ownEntrySubmitted && !ownEntryApproved ? (
             <FormNotice tone="success" message="Your transfer proof is under review. You do not need to submit again unless Skillsroom asks for a correction." />
           ) : null}
