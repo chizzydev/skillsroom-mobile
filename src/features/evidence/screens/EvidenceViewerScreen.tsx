@@ -124,7 +124,10 @@ export function EvidenceViewerScreen() {
   const [contentType, setContentType] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const needsAuth = useMemo(() => Boolean(url?.startsWith(env.apiBaseUrl)), [url]);
+  const needsAuth = useMemo(
+    () => Boolean(url?.startsWith(env.apiBaseUrl) || url?.startsWith(`${env.webAppUrl}/api/evidence-files/`)),
+    [url]
+  );
 
   useEffect(() => {
     let active = true;

@@ -21,7 +21,7 @@ export function evidenceApiUrl(value?: string | null) {
   if (!trimmed) return null;
 
   const fileName = evidenceFileName(trimmed);
-  if (fileName) return `${env.apiBaseUrl}/evidence/files/${encodeURIComponent(fileName)}`;
+  if (fileName) return `${env.webAppUrl}/api/evidence-files/${encodeURIComponent(fileName)}`;
 
   if (/^https?:\/\//i.test(trimmed)) return trimmed;
   return `${env.webAppUrl}${trimmed.startsWith("/") ? trimmed : `/${trimmed}`}`;
