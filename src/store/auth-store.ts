@@ -2,7 +2,7 @@ import { create } from "zustand";
 import type { AuthUser } from "../types/api";
 import * as authApi from "../api/auth";
 import { ApiError, setAuthFailureHandler } from "../api/client";
-import { clearStoredTokens, getStoredTokens } from "../api/session";
+import { clearStoredTokens, getStoredTokens, getStoredUser, setStoredUser } from "../api/session";
 import { unregisterCurrentPushDevice } from "../features/notifications/pushRegistration";
 import { queryClient } from "../providers/query-client";
 
@@ -16,9 +16,58 @@ type AuthState = {
   signInWithGoogle: (idToken: string) => Promise<void>;
   signUp: (input: { email: string; username: string; password: string; password_confirm: string }) => Promise<{ signedIn: boolean }>;
   signOut: () => Promise<void>;
+  updateUserIdentity: (identity: Partial<Pick<AuthUser, "username" | "display_name" | "email" | "role" | "status">>) => void;
 };
 
-export const useAuthStore = create<AuthState>((set) => ({
+function cleanIdentityValue(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function mergeIdentity(user: AuthUser | null, identity: Partial<Pick<AuthUser, "username" | "display_name" | "email" | "role" | "status">>) {
+  if (!user) return user;
+  const next: AuthUser = { ...user };
+  let changed = false;
+  const username = cleanIdentityValue(identity.username);
+  const displayName = cleanIdentityValue(identity.display_name);
+  const email = cleanIdentityValue(identity.email);
+  if (username && username !== user.username) {
+    next.username = username;
+    changed = true;
+  }
+  if (displayName && displayName !== user.display_name) {
+    next.display_name = displayName;
+    changed = true;
+  }
+  if (email && email !== user.email) {
+    next.email = email;
+    changed = true;
+  }
+  if (identity.role && identity.role !== user.role) {
+    next.role = identity.role;
+    changed = true;
+  }
+  if (identity.status && identity.status !== user.status) {
+    next.status = identity.status;
+    changed = true;
+  }
+  return changed ? next : user;
+}
+
+function preferCachedIdentity(user: AuthUser, cached: AuthUser | null) {
+  if (!cached || cached.id !== user.id) return user;
+  return {
+    ...user,
+    username: cleanIdentityValue(cached.username) ?? user.username,
+    display_name: cleanIdentityValue(cached.display_name) ?? user.display_name
+  };
+}
+
+function setSignedInUser(set: (state: Partial<AuthState>) => void, user: AuthUser) {
+  set({ user, isSignedIn: true, bootstrapError: null });
+  void setStoredUser(user);
+}
+
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isBootstrapping: true,
   isSignedIn: false,
@@ -33,8 +82,14 @@ export const useAuthStore = create<AuthState>((set) => ({
         return;
       }
 
-      const user = await authApi.me();
+      const cachedUser = await getStoredUser();
+      if (cachedUser) {
+        set({ user: cachedUser, isSignedIn: true, isBootstrapping: true });
+      }
+
+      const user = preferCachedIdentity(await authApi.me(), cachedUser);
       set({ user, isSignedIn: true, isBootstrapping: false });
+      void setStoredUser(user);
     } catch (error) {
       if (error instanceof ApiError && error.status === 0) {
         set({
@@ -55,13 +110,13 @@ export const useAuthStore = create<AuthState>((set) => ({
   signIn: async (identifier, password) => {
     const session = await authApi.login(identifier, password);
     const user = session.user ?? (await authApi.me());
-    set({ user, isSignedIn: true, bootstrapError: null });
+    setSignedInUser(set, user);
   },
 
   signInWithGoogle: async (idToken) => {
     const session = await authApi.googleLogin(idToken);
     const user = session.user ?? (await authApi.me());
-    set({ user, isSignedIn: true, bootstrapError: null });
+    setSignedInUser(set, user);
   },
 
   signUp: async (input) => {
@@ -74,7 +129,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
 
     const user = session.user ?? (await authApi.me());
-    set({ user, isSignedIn: true, bootstrapError: null });
+    setSignedInUser(set, user);
     return { signedIn: true };
   },
 
@@ -87,6 +142,14 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
     queryClient.clear();
     set({ user: null, isSignedIn: false, bootstrapError: null });
+  },
+
+  updateUserIdentity: (identity) => {
+    const current = get().user;
+    const user = mergeIdentity(current, identity);
+    if (!user || user === current) return;
+    set({ user });
+    void setStoredUser(user);
   }
 }));
 

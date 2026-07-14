@@ -1,8 +1,8 @@
 import type { MyCommunityClanResponse, MyReferralProgramResponse, PlayerTrustSummary, ProfileOverview } from "../types/api";
 import { apiRequest } from "./client";
 
-export async function profileOverview() {
-  const summary = await apiRequest<ProfileOverview>("/profiles/me?view=summary");
+async function profileWithSections(path: string) {
+  const summary = await apiRequest<ProfileOverview>(path);
   const [gameAccountsResult, payoutProfileResult] = await Promise.allSettled([
     profileGameAccounts(),
     profilePayoutProfile()
@@ -18,6 +18,14 @@ export async function profileOverview() {
     game_accounts: gameAccountsResult.status === "fulfilled" ? gameAccountsResult.value : fallbackPrimaryAccount,
     payout_profile: payoutProfileResult.status === "fulfilled" ? payoutProfileResult.value : summary.payout_profile ?? null
   };
+}
+
+export async function profileOverview() {
+  return profileWithSections("/profiles/me?view=summary");
+}
+
+export async function profileDetails() {
+  return profileWithSections("/profiles/me");
 }
 
 export async function profileTrustSummary(userId: string) {

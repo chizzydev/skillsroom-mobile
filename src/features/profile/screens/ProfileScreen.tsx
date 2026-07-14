@@ -1,13 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { BadgeCheck, Banknote, BriefcaseBusiness, Copy, Gamepad2, Link as LinkIcon, Radio, ShieldCheck } from "lucide-react-native";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ImageBackground, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import * as AuthSession from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
 import { canAccessAdmin, roleLabel } from "../../../api/admin";
 import { plainApiError } from "../../../api/errors";
-import { myCommunityClan, myReferralProgram, profileOverview, profileTrustSummary, saveGameAccount, savePayoutProfile, saveProfile } from "../../../api/profile";
+import { myCommunityClan, myReferralProgram, profileDetails, profileTrustSummary, saveGameAccount, savePayoutProfile, saveProfile } from "../../../api/profile";
 import { getGames } from "../../../api/rooms";
 import { completeStreamingOauth, listStreamingAccounts, saveManualStreamingAccount, startStreamingOauth, syncStreamingAccount } from "../../../api/streaming";
 import { AppScreen } from "../../../components/screen/AppScreen";
@@ -80,9 +80,10 @@ function trustTone(trust?: PlayerTrustSummary | null) {
 export function ProfileScreen() {
   const user = useAuthStore((state) => state.user);
   const signOut = useAuthStore((state) => state.signOut);
+  const updateUserIdentity = useAuthStore((state) => state.updateUserIdentity);
   const queryClient = useQueryClient();
 
-  const profileQuery = useQuery({ queryKey: ["profile"], queryFn: profileOverview });
+  const profileQuery = useQuery({ queryKey: ["profile"], queryFn: profileDetails });
   const gamesQuery = useQuery({ queryKey: ["games"], queryFn: getGames });
   const streamsQuery = useQuery({ queryKey: ["streaming-accounts"], queryFn: listStreamingAccounts });
   const trustQuery = useQuery({
@@ -94,6 +95,18 @@ export function ProfileScreen() {
   const referralQuery = useQuery({ queryKey: ["my-referral-program"], queryFn: myReferralProgram });
 
   const profile = profileQuery.data?.profile;
+  const profileUsername = profile?.username;
+  const profileDisplayName = profile?.display_name;
+  const profileRegion = profile?.region;
+  const profileCity = profile?.city;
+  const profileCampus = profile?.campus;
+  const profileTimezone = profile?.timezone;
+  const profileBio = profile?.bio;
+  const profileVisibility = profile?.visibility as Visibility | undefined;
+  const profileAgeConfirmedAt = profile?.age_confirmed_at;
+  const userDisplayName = user?.display_name;
+  const userUsername = user?.username;
+  const userEmail = user?.email;
   const gameAccounts = profileQuery.data?.game_accounts ?? [];
   const payoutProfile = profileQuery.data?.payout_profile;
   const completion = profileQuery.data?.completion;
@@ -124,6 +137,7 @@ export function ProfileScreen() {
   const [bio, setBio] = useState("");
   const [visibility, setVisibility] = useState<Visibility>("room_participants");
   const [ageConfirmed, setAgeConfirmed] = useState(false);
+  const hydratedProfileForm = useRef(false);
 
   const [gameSlug, setGameSlug] = useState(defaultGameSlug);
   const [gameHandle, setGameHandle] = useState("");
@@ -143,16 +157,45 @@ export function ProfileScreen() {
   const [oauthProvider, setOauthProvider] = useState<StreamProvider | null>(null);
 
   useEffect(() => {
-    setDisplayName(asText(profile?.display_name, user?.display_name ?? ""));
-    setUsername(asText(profile?.username, user?.email?.split("@")[0]?.replace(/[^A-Za-z0-9_]/g, "").slice(0, 24) ?? ""));
-    setRegion(asText(profile?.region, "NG"));
-    setCity(asText(profile?.city));
-    setCampus(asText(profile?.campus));
-    setTimezone(asText(profile?.timezone, "Africa/Lagos"));
-    setBio(asText(profile?.bio));
-    setVisibility((profile?.visibility as Visibility) ?? "room_participants");
-    setAgeConfirmed(Boolean(profile?.age_confirmed_at));
-  }, [profile, user]);
+    if (profileUsername || profileDisplayName) {
+      updateUserIdentity({
+        username: profileUsername,
+        display_name: profileDisplayName
+      });
+    }
+    setDisplayName(asText(profileDisplayName, userDisplayName ?? ""));
+    setUsername(asText(profileUsername, userUsername ?? userEmail?.split("@")[0]?.replace(/[^A-Za-z0-9_]/g, "").slice(0, 24) ?? ""));
+    setRegion(asText(profileRegion, "NG"));
+    setCity(asText(profileCity));
+    setCampus(asText(profileCampus));
+    setTimezone(asText(profileTimezone, "Africa/Lagos"));
+    if (typeof profileBio === "string") {
+      setBio(profileBio);
+    } else if (!hydratedProfileForm.current) {
+      setBio("");
+    }
+    setVisibility(profileVisibility ?? "room_participants");
+    if (profileAgeConfirmedAt !== undefined) {
+      setAgeConfirmed(Boolean(profileAgeConfirmedAt));
+    } else if (!hydratedProfileForm.current) {
+      setAgeConfirmed(false);
+    }
+    hydratedProfileForm.current = true;
+  }, [
+    profileAgeConfirmedAt,
+    profileBio,
+    profileCampus,
+    profileCity,
+    profileDisplayName,
+    profileRegion,
+    profileTimezone,
+    profileUsername,
+    profileVisibility,
+    updateUserIdentity,
+    userDisplayName,
+    userEmail,
+    userUsername
+  ]);
 
   useEffect(() => {
     setGameSlug(defaultGameSlug);
@@ -196,7 +239,8 @@ export function ProfileScreen() {
       if (!/^[A-Za-z0-9_]{3,24}$/.test(cleanUsername)) {
         throw new Error("Use 3 to 24 letters, numbers, or underscores for your username.");
       }
-      if (!ageConfirmed) throw new Error("Confirm you are old enough to use Skillsroom.");
+      const confirmedAge = ageConfirmed || Boolean(profile?.age_confirmed_at);
+      if (!confirmedAge) throw new Error("Confirm you are old enough to use Skillsroom.");
       return saveProfile({
         username: cleanUsername,
         display_name: displayName.trim() || undefined,
@@ -204,12 +248,31 @@ export function ProfileScreen() {
         city: city.trim() || undefined,
         campus: campus.trim() || undefined,
         timezone: timezone.trim() || "Africa/Lagos",
-        bio: bio.trim() || undefined,
+        bio: bio.trim(),
         visibility,
-        age_confirmed: ageConfirmed
+        age_confirmed: confirmedAge
       });
     },
-    onSuccess: async () => {
+    onSuccess: async (savedProfile) => {
+      const savedBio = bio.trim();
+      setBio(savedBio);
+      setAgeConfirmed(true);
+      updateUserIdentity({
+        username: savedProfile?.username ?? username.trim(),
+        display_name: savedProfile?.display_name ?? displayName.trim()
+      });
+      queryClient.setQueryData<typeof profileQuery.data>(["profile"], (current) => ({
+        ...current,
+        game_accounts: current?.game_accounts ?? [],
+        payout_profile: current?.payout_profile ?? null,
+        profile: {
+          ...current?.profile,
+          ...savedProfile,
+          bio: typeof savedProfile?.bio === "string" ? savedProfile.bio : savedBio,
+          visibility,
+          age_confirmed_at: savedProfile?.age_confirmed_at ?? current?.profile?.age_confirmed_at ?? new Date().toISOString()
+        }
+      }));
       setProfileNotice({ tone: "success", message: "Profile details saved." });
       await refreshProfile();
     },
@@ -437,12 +500,12 @@ export function ProfileScreen() {
         <Text style={styles.copy}>Your in-game handles are what players use to find you during rooms and tournaments.</Text>
         {gameAccounts.length ? (
           <View style={styles.cardList}>
-            {gameAccounts.slice(0, 4).map((account) => <GameAccountRow key={account.id ?? `${account.handle}-${account.game_id}`} account={account} games={games} />)}
+            {gameAccounts.map((account) => <GameAccountRow key={account.id ?? `${account.handle}-${account.game_id}`} account={account} games={games} />)}
           </View>
         ) : (
           <FormNotice tone="info" message="Add the exact in-game name opponents will use to find you." />
         )}
-        <SegmentedControl values={games.map((game) => game.slug).slice(0, 4)} selected={gameSlug} labelFor={(slug) => games.find((game) => game.slug === slug)?.name ?? slug} onSelect={setGameSlug} />
+        <SegmentedControl values={games.map((game) => game.slug)} selected={gameSlug} labelFor={(slug) => games.find((game) => game.slug === slug)?.name ?? slug} onSelect={setGameSlug} />
         <View style={styles.formGrid}>
           <TextInput value={gameHandle} onChangeText={setGameHandle} placeholder="In-game handle" placeholderTextColor={colors.faint} style={styles.input} />
           <TextInput value={externalUid} onChangeText={setExternalUid} placeholder="External player ID or UID" placeholderTextColor={colors.faint} style={styles.input} />

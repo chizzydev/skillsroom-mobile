@@ -14,7 +14,7 @@ import {
 } from "../../../api/admin";
 import { ApiError } from "../../../api/client";
 import { plainApiError } from "../../../api/errors";
-import { env } from "../../../config/env";
+import { openableEvidenceUrl } from "../../../config/evidence-links";
 import { AppScreen } from "../../../components/screen/AppScreen";
 import { AppButton } from "../../../components/ui/AppButton";
 import { Badge } from "../../../components/ui/Badge";
@@ -27,6 +27,7 @@ import { useAuthStore } from "../../../store/auth-store";
 import type { ManualFundingSubmission } from "../../../types/api";
 
 type Notice = { tone: "error" | "success" | "info"; message: string } | null;
+type NoticeTarget = "queue" | "security" | "decision";
 type Tone = "cyan" | "green" | "amber" | "red";
 
 function money(currency = "NGN", minor = 0) {
@@ -52,13 +53,6 @@ function shortId(value?: string | null) {
   return `${value.slice(0, 8)}...${value.slice(-5)}`;
 }
 
-function proofUrl(value?: string | null) {
-  if (!value) return null;
-  if (value.startsWith("http://") || value.startsWith("https://")) return value;
-  if (value.startsWith("/")) return `${env.apiBaseUrl}${value}`;
-  return value;
-}
-
 function countStatus(rows: ManualFundingSubmission[], status: string) {
   return rows.filter((row) => row.status === status).length;
 }
@@ -72,6 +66,7 @@ export function AdminFundingScreen() {
   const [stepUpToken, setStepUpToken] = useState<string | null>(null);
   const [stepUpExpiresAt, setStepUpExpiresAt] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice>(null);
+  const [targetNotice, setTargetNotice] = useState<{ target: NoticeTarget; notice: NonNullable<Notice> } | null>(null);
   const canAdmin = canAccessAdmin(user);
   const canFunding = canUseAdminSection(user, "funding");
   const lanes = useMemo(() => adminLanesFor(user), [user]);
@@ -88,6 +83,11 @@ export function AdminFundingScreen() {
   const hasSubmissionId = Boolean(selectedId.trim());
   const hasFundingUnlock = Boolean(stepUpToken);
   const canReview = hasSubmissionId && hasFundingUnlock;
+  const notify = (target: NoticeTarget, nextNotice: NonNullable<Notice>) => {
+    setNotice(nextNotice);
+    setTargetNotice({ target, notice: nextNotice });
+  };
+  const noticeFor = (target: NoticeTarget) => targetNotice?.target === target ? targetNotice.notice : null;
 
   const stepUpMutation = useMutation({
     mutationFn: () => {
@@ -98,12 +98,12 @@ export function AdminFundingScreen() {
       setStepUpToken(result.step_up_token);
       setStepUpExpiresAt(result.expires_at ?? null);
       setPassword("");
-      setNotice({ tone: "success", message: "Sensitive funding actions are unlocked for this session." });
+      notify("security", { tone: "success", message: "Sensitive funding actions are unlocked for this session." });
     },
     onError: (error) => {
       setStepUpToken(null);
       setStepUpExpiresAt(null);
-      setNotice({ tone: "error", message: plainApiError(error, "Sensitive actions could not be unlocked.") });
+      notify("security", { tone: "error", message: plainApiError(error, "Sensitive actions could not be unlocked.") });
     }
   });
 
@@ -118,7 +118,7 @@ export function AdminFundingScreen() {
       });
     },
     onSuccess: async (_, decision) => {
-      setNotice({ tone: "success", message: decision === "approve" ? "Funding submission approved." : "Funding submission rejected." });
+      notify("decision", { tone: "success", message: decision === "approve" ? "Funding submission approved." : "Funding submission rejected." });
       setSelectedId("");
       setNote("");
       await queryClient.invalidateQueries({ queryKey: ["admin", "funding"] });
@@ -129,7 +129,7 @@ export function AdminFundingScreen() {
         setStepUpToken(null);
         setStepUpExpiresAt(null);
       }
-      setNotice({ tone: "error", message: plainApiError(error, "The funding review could not be completed.") });
+      notify("decision", { tone: "error", message: plainApiError(error, "The funding review could not be completed.") });
     }
   });
 
@@ -204,7 +204,7 @@ export function AdminFundingScreen() {
         <Badge tone="green">On</Badge>
       </View>
 
-      {notice ? <FormNotice tone={notice.tone} message={notice.message} /> : null}
+      {notice && !targetNotice ? <FormNotice tone={notice.tone} message={notice.message} /> : null}
 
       {fundingQuery.isError ? (
         <FeedbackState
@@ -229,6 +229,7 @@ export function AdminFundingScreen() {
           title="Submitted transfers"
           detail="Check the bank record and proof first, then tap a transfer to copy its submission ID into the review panel for approval or rejection."
         />
+        {noticeFor("queue") ? <FormNotice tone={noticeFor("queue")!.tone} message={noticeFor("queue")!.message} /> : null}
         {fundingQuery.isLoading ? <Text style={styles.copy}>Loading funding queue...</Text> : null}
         {!fundingQuery.isLoading && !submissions.length ? (
           <EmptyState title="Funding queue is clear" body="No manual funding submissions are waiting for approval." />
@@ -240,7 +241,7 @@ export function AdminFundingScreen() {
             submission={submission}
             onSelect={() => setSelectedId(submission.id)}
             onOpenProof={(url) => {
-              void Linking.openURL(url).catch(() => setNotice({ tone: "error", message: "The proof link could not be opened." }));
+              void Linking.openURL(url).catch(() => notify("queue", { tone: "error", message: "The proof link could not be opened." }));
             }}
           />
         ))}
@@ -260,13 +261,14 @@ export function AdminFundingScreen() {
             </Text>
           </View>
         </View>
+        {noticeFor("security") ? <FormNotice tone={noticeFor("security")!.tone} message={noticeFor("security")!.message} /> : null}
         {stepUpToken ? (
           <AppButton
             variant="secondary"
             onPress={() => {
               setStepUpToken(null);
               setStepUpExpiresAt(null);
-              setNotice({ tone: "info", message: "Sensitive funding actions are locked again." });
+              notify("security", { tone: "info", message: "Sensitive funding actions are locked again." });
             }}
           >
             Lock sensitive actions
@@ -289,6 +291,7 @@ export function AdminFundingScreen() {
 
       <SurfaceCard>
         <SectionHeader eyebrow="Decision" title="Approve or reject funding" detail="Approvals create balanced ledger entries into platform cash and match escrow." />
+        {noticeFor("decision") ? <FormNotice tone={noticeFor("decision")!.tone} message={noticeFor("decision")!.message} /> : null}
         {selectedSubmission ? (
           <View style={styles.selectedPanel}>
             <Badge tone="amber">Selected</Badge>
@@ -402,7 +405,7 @@ function FundingSubmissionCard({
   onSelect: () => void;
   onOpenProof: (url: string) => void;
 }) {
-  const url = proofUrl(submission.proof_url);
+  const url = openableEvidenceUrl(submission.proof_url);
   return (
     <Pressable onPress={onSelect} style={[styles.submissionCard, selected && styles.submissionCardActive]}>
       <View style={styles.submissionTop}>

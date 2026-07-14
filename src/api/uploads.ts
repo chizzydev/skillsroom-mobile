@@ -80,7 +80,8 @@ export async function uploadEvidenceFile(input: {
     headers: {
       Accept: "application/json",
       Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/octet-stream"
+      "Content-Type": "application/octet-stream",
+      "X-Skillsroom-Client": "mobile"
     }
   });
 

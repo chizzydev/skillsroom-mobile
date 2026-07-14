@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { Bell, ChevronRight, ExternalLink, MessageCircle, Plus, ShieldCheck, Swords, Trophy, Wallet } from "lucide-react-native";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { listChannels, listDmRequests } from "../../../api/chat";
 import { listNotifications } from "../../../api/notifications";
@@ -63,6 +63,7 @@ function userGreetingName(user: ReturnType<typeof useAuthStore.getState>["user"]
 
 export function HomeScreen() {
   const user = useAuthStore((state) => state.user);
+  const updateUserIdentity = useAuthStore((state) => state.updateUserIdentity);
   const roomsQuery = useQuery({ queryKey: ["home", "rooms"], queryFn: () => listRooms() });
   const profileQuery = useQuery({ queryKey: ["home", "profile"], queryFn: profileOverview });
   const walletQuery = useQuery({ queryKey: ["home", "wallet"], queryFn: walletOverview });
@@ -86,6 +87,15 @@ export function HomeScreen() {
   const missingProfileItems = profile?.completion?.missing?.length ?? 0;
   const readinessCopy = missingProfileItems === 0 ? "Ready for rooms, prizes, and tournaments." : `${missingProfileItems} setup item${missingProfileItems === 1 ? "" : "s"} left.`;
   const tournaments = tournamentsQuery.data ?? [];
+
+  useEffect(() => {
+    const identity = profile?.profile ?? profile?.user;
+    if (!identity?.username && !identity?.display_name) return;
+    updateUserIdentity({
+      username: identity.username,
+      display_name: identity.display_name
+    });
+  }, [profile?.profile, profile?.user, updateUserIdentity]);
 
   return (
     <AppScreen>

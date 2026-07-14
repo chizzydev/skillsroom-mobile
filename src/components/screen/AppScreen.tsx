@@ -1,3 +1,4 @@
+import { useSegments } from "expo-router";
 import { ReactNode } from "react";
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
@@ -5,7 +6,9 @@ import { colors, spacing } from "../../constants/theme";
 
 export function AppScreen({ children, scroll = true }: { children: ReactNode; scroll?: boolean }) {
   const insets = useSafeAreaInsets();
-  const bottomPadding = Math.max(spacing.md, Math.min(insets.bottom, spacing.md));
+  const segments = useSegments() as string[];
+  const isBottomTabScreen = segments.includes("(tabs)");
+  const bottomPadding = isBottomTabScreen ? spacing.md : spacing.xl + Math.max(insets.bottom, spacing.sm);
   const content = <View style={[styles.content, { paddingBottom: scroll ? bottomPadding : 0 }]}>{children}</View>;
 
   return (

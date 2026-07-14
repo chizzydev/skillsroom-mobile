@@ -25,6 +25,7 @@ import { colors, radius, spacing } from "../../../constants/theme";
 import { useAuthStore } from "../../../store/auth-store";
 
 type Notice = { tone: "error" | "success" | "info"; message: string } | null;
+type NoticeTarget = "security" | "members" | "role";
 type Tone = "cyan" | "green" | "amber" | "red";
 
 const assignableRoles: Array<Exclude<TeamRole, "owner">> = ["player", "support", "moderator", "admin"];
@@ -114,6 +115,7 @@ export function AdminTeamScreen() {
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
   const [notice, setNotice] = useState<Notice>(null);
+  const [targetNotice, setTargetNotice] = useState<{ target: NoticeTarget; notice: NonNullable<Notice> } | null>(null);
   const [selectedUserId, setSelectedUserId] = useState("");
   const [selectedRole, setSelectedRole] = useState<Exclude<TeamRole, "owner">>("support");
   const [note, setNote] = useState("");
@@ -137,15 +139,25 @@ export function AdminTeamScreen() {
   const moderatorCount = members.filter((member) => member.user_role === "moderator").length;
   const supportCount = members.filter((member) => member.user_role === "support").length;
 
+  const notify = (target: NoticeTarget, nextNotice: NonNullable<Notice>) => {
+    setNotice(nextNotice);
+    setTargetNotice({ target, notice: nextNotice });
+  };
+
+  const noticeFor = (target: NoticeTarget) => {
+    if (targetNotice?.target !== target) return null;
+    return <FormNotice tone={targetNotice.notice.tone} message={targetNotice.notice.message} />;
+  };
+
   const stepUpMutation = useMutation({
     mutationFn: () => confirmAdminStepUp(password),
     onSuccess: (result) => {
       setStepUpToken(result.step_up_token);
       setStepUpExpiresAt(result.expires_at ?? null);
       setPassword("");
-      setNotice({ tone: "success", message: "Role-change unlock is active for this session." });
+      notify("security", { tone: "success", message: "Role-change unlock is active for this session." });
     },
-    onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "Step-up confirmation failed.") })
+    onError: (error) => notify("security", { tone: "error", message: plainApiError(error, "Step-up confirmation failed.") })
   });
 
   const roleMutation = useMutation({
@@ -161,11 +173,11 @@ export function AdminTeamScreen() {
     },
     onSuccess: async (updatedMembers) => {
       queryClient.setQueryData(["admin", "team", "members"], updatedMembers);
-      setNotice({ tone: "success", message: `${selectedMember ? displayName(selectedMember) : "Team member"} is now ${label(selectedRole)}.` });
+      notify("role", { tone: "success", message: `${selectedMember ? displayName(selectedMember) : "Team member"} is now ${label(selectedRole)}.` });
       setNote("");
       await queryClient.invalidateQueries({ queryKey: ["admin", "team", "members"] });
     },
-    onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "Team role could not be updated.") })
+    onError: (error) => notify("role", { tone: "error", message: plainApiError(error, "Team role could not be updated.") })
   });
 
   if (!canAdmin) {
@@ -220,7 +232,7 @@ export function AdminTeamScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        {notice ? <FormNotice tone={notice.tone} message={notice.message} /> : null}
+        {notice && !targetNotice ? <FormNotice tone={notice.tone} message={notice.message} /> : null}
         {teamQuery.isError ? <FormNotice tone="error" message={plainApiError(teamQuery.error, "Unable to load team roles right now.")} /> : null}
 
         <SurfaceCard style={styles.hero}>
@@ -262,6 +274,7 @@ export function AdminTeamScreen() {
           <AppButton onPress={() => stepUpMutation.mutate()} loading={stepUpMutation.isPending} disabled={!password.trim()}>
             Confirm password
           </AppButton>
+          {noticeFor("security")}
         </SurfaceCard>
 
         <SectionHeader
@@ -273,6 +286,7 @@ export function AdminTeamScreen() {
           <FeedbackState title="Loading team roles" body="Checking registered users and operator assignments." />
         ) : (
           <View style={styles.queueBlock}>
+            {noticeFor("members")}
             {members.length ? members.map((member) => (
               <MemberCard
                 key={member.user_id}
@@ -280,7 +294,7 @@ export function AdminTeamScreen() {
                 selected={member.user_id === selectedUserId}
                 onPress={() => {
                   if (member.is_platform_owner || member.user_role === "owner") {
-                    setNotice({ tone: "info", message: "The protected owner account cannot be changed from this page." });
+                    notify("members", { tone: "info", message: "The protected owner account cannot be changed from this page." });
                     return;
                   }
                   setSelectedUserId(member.user_id);
@@ -292,6 +306,7 @@ export function AdminTeamScreen() {
         )}
 
         <SurfaceCard style={styles.formStack}>
+          {noticeFor("role")}
           <View style={styles.securityHeader}>
             <View style={styles.securityIcon}><UserCog color={colors.cyan} size={24} /></View>
             <View style={styles.fill}>

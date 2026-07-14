@@ -27,6 +27,7 @@ import type { CommunityLivestreamLink, TournamentDetail, TournamentEntry, Tourna
 
 type DetailView = "overview" | "entry" | "bracket" | "standings" | "streams";
 type Notice = { tone: "error" | "success" | "info"; message: string } | null;
+type DetailNotice = { view: DetailView; notice: NonNullable<Notice> } | null;
 
 const views: DetailView[] = ["overview", "entry", "bracket", "standings", "streams"];
 const collectionAccount = {
@@ -97,6 +98,7 @@ export function TournamentDetailScreen() {
   const userId = user?.id;
   const [view, setView] = useState<DetailView>("overview");
   const [notice, setNotice] = useState<Notice>(null);
+  const [localNotice, setLocalNotice] = useState<DetailNotice>(null);
   const [displayName, setDisplayName] = useState("");
   const [teamName, setTeamName] = useState("");
   const [proofUrl, setProofUrl] = useState("");
@@ -126,6 +128,14 @@ export function TournamentDetailScreen() {
     await queryClient.invalidateQueries({ queryKey: ["wallet"] });
   };
 
+  const notify = (targetView: DetailView, nextNotice: NonNullable<Notice>, focusView = false) => {
+    setNotice(nextNotice);
+    setLocalNotice({ view: targetView, notice: nextNotice });
+    if (focusView) setView(targetView);
+  };
+
+  const noticeFor = (targetView: DetailView) => localNotice?.view === targetView ? localNotice.notice : null;
+
   const registerMutation = useMutation({
     mutationFn: () => {
       if (!tournament) throw new Error("Tournament is not loaded yet.");
@@ -137,12 +147,12 @@ export function TournamentDetailScreen() {
       });
     },
     onSuccess: async () => {
-      setNotice({ tone: "success", message: "Registration saved. Paid entries still need payment confirmation before play." });
+      notify("entry", { tone: "success", message: "Registration saved. Paid entries still need payment confirmation before play." }, true);
       setDisplayName("");
       setTeamName("");
       await refresh();
     },
-    onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "Could not register for this tournament.") })
+    onError: (error) => notify("entry", { tone: "error", message: plainApiError(error, "Could not register for this tournament.") }, true)
   });
 
   const balanceMutation = useMutation({
@@ -151,10 +161,10 @@ export function TournamentDetailScreen() {
       return payTournamentEntryWithBalance(tournament.id);
     },
     onSuccess: async () => {
-      setNotice({ tone: "success", message: "Entry paid from your Skillsroom balance. We are confirming the tournament entry now." });
+      notify("entry", { tone: "success", message: "Entry paid from your Skillsroom balance. We are confirming the tournament entry now." });
       await refresh();
     },
-    onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "Could not pay entry from balance.") })
+    onError: (error) => notify("entry", { tone: "error", message: plainApiError(error, "Could not pay entry from balance.") })
   });
 
   const proofMutation = useMutation({
@@ -180,13 +190,13 @@ export function TournamentDetailScreen() {
       });
     },
     onSuccess: async () => {
-      setNotice({ tone: "success", message: "Receipt submitted. Your entry will update after Skillsroom confirms the transfer." });
+      notify("entry", { tone: "success", message: "Receipt submitted. Your entry will update after Skillsroom confirms the transfer." });
       setProofUrl("");
       setTransferReference("");
       setProofNote("");
       await refresh();
     },
-    onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "Could not submit receipt.") })
+    onError: (error) => notify("entry", { tone: "error", message: plainApiError(error, "Could not submit receipt.") })
   });
 
   const checkInMutation = useMutation({
@@ -195,10 +205,10 @@ export function TournamentDetailScreen() {
       return checkInForTournament(tournament.id);
     },
     onSuccess: async () => {
-      setNotice({ tone: "success", message: "Checked in. You are ready for seeding or pairing." });
+      notify("entry", { tone: "success", message: "Checked in. You are ready for seeding or pairing." });
       await refresh();
     },
-    onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "Could not check in.") })
+    onError: (error) => notify("entry", { tone: "error", message: plainApiError(error, "Could not check in.") })
   });
 
   const streamMutation = useMutation({
@@ -212,10 +222,10 @@ export function TournamentDetailScreen() {
       });
     },
     onSuccess: async () => {
-      setNotice({ tone: "success", message: "Tournament stream attached. Viewers can open it from Streams." });
+      notify("streams", { tone: "success", message: "Tournament stream attached. Viewers can open it from Streams." });
       await queryClient.invalidateQueries({ queryKey: ["tournaments", "streams", target] });
     },
-    onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "Could not attach stream link.") })
+    onError: (error) => notify("streams", { tone: "error", message: plainApiError(error, "Could not attach stream link.") })
   });
 
   if (detailQuery.isError) {
@@ -249,7 +259,7 @@ export function TournamentDetailScreen() {
         <Text style={styles.heroCopy}>{tournament.game_name ?? tournament.game_slug ?? "Tournament"} - {clean(tournament.format)}</Text>
       </SurfaceCard>
 
-      {notice ? <FormNotice tone={notice.tone} message={notice.message} /> : null}
+      {notice && !noticeFor(view) ? <FormNotice tone={notice.tone} message={notice.message} /> : null}
 
       <SurfaceCard>
         <Text style={styles.currentTitle}>{myEntry ? `Your entry: ${clean(myEntry.status)}` : registrationOpen ? "Registration is open" : "Registration is not open"}</Text>
@@ -267,6 +277,7 @@ export function TournamentDetailScreen() {
       {view === "overview" ? <Overview tournament={tournament} events={events} /> : null}
       {view === "entry" ? (
         <EntryPanel
+          notice={noticeFor("entry")}
           tournament={tournament}
           myEntry={myEntry}
           registrationOpen={registrationOpen}
@@ -306,6 +317,7 @@ export function TournamentDetailScreen() {
       {view === "standings" ? <StandingsPanel tournament={tournament} /> : null}
       {view === "streams" ? (
         <StreamsPanel
+          notice={noticeFor("streams")}
           streams={streams}
           loading={streamsQuery.isLoading}
           canAttach={canAttachStream}
@@ -344,6 +356,7 @@ function Overview({ tournament, events }: { tournament: TournamentDetail; events
 }
 
 function EntryPanel(props: {
+  notice?: Notice;
   tournament: TournamentDetail;
   myEntry: TournamentEntry | null;
   registrationOpen: boolean;
@@ -383,6 +396,7 @@ function EntryPanel(props: {
       <SurfaceCard>
         <Badge tone={props.myEntry ? "green" : "cyan"}>{props.myEntry ? "Entered" : "Register"}</Badge>
         <Text style={styles.sectionTitle}>Entry readiness</Text>
+        {props.notice ? <FormNotice tone={props.notice.tone} message={props.notice.message} /> : null}
         <Text style={styles.copy}>Registration requires a complete profile, age confirmation, and a primary game account for this tournament game.</Text>
         <TextInput value={props.displayName} onChangeText={props.onDisplayName} placeholder="Display name shown in bracket" placeholderTextColor={colors.faint} style={styles.input} editable={props.registrationOpen && !props.myEntry} />
         {props.tournament.entry_type === "team" ? (
@@ -513,12 +527,14 @@ function StandingRow({ standing, entry }: { standing: TournamentStanding; entry?
 }
 
 function StreamsPanel({
+  notice,
   streams,
   loading,
   canAttach,
   attachLoading,
   onAttach
 }: {
+  notice?: Notice;
   streams: CommunityLivestreamLink[];
   loading: boolean;
   canAttach: boolean;
@@ -529,6 +545,7 @@ function StreamsPanel({
     <SurfaceCard>
       <Badge>Streams</Badge>
       <Text style={styles.sectionTitle}>Official streams</Text>
+      {notice ? <FormNotice tone={notice.tone} message={notice.message} /> : null}
       {loading ? <Text style={styles.copy}>Loading streams...</Text> : null}
       {streams.map((stream) => <StreamLinkCard key={stream.id} stream={stream} />)}
       {!loading && !streams.length ? <NoStreamState target="tournament" /> : null}

@@ -27,6 +27,7 @@ const allowedMimeTypes = new Set<EvidenceMimeType>([
 function asEvidenceMimeType(value?: string | null): EvidenceMimeType | null {
   if (!value) return null;
   const normalized = value.toLowerCase();
+  if (normalized === "image/jpg") return "image/jpeg";
   return allowedMimeTypes.has(normalized as EvidenceMimeType) ? (normalized as EvidenceMimeType) : null;
 }
 
@@ -45,6 +46,14 @@ async function fileSize(uri: string, fallback?: number | null) {
   if (fallback && fallback > 0) return fallback;
   const info = await FileSystem.getInfoAsync(uri);
   return info.exists && typeof info.size === "number" ? info.size : undefined;
+}
+
+function uploadErrorMessage(error: unknown) {
+  const message = plainApiError(error, "Could not upload this proof.");
+  if (message === "Something went wrong." || message === "Something went wrong. Please try again.") {
+    return "The file was selected, but the upload did not finish. Check your connection and try again.";
+  }
+  return message;
 }
 
 export function EvidenceUploadField({
@@ -68,6 +77,7 @@ export function EvidenceUploadField({
   async function uploadPicked(picked: PickedEvidence) {
     setBusy(true);
     setError(null);
+    setUploaded(null);
     setSelected(picked);
     try {
       const evidence = await uploadEvidenceFile({
@@ -81,7 +91,7 @@ export function EvidenceUploadField({
       setUploaded(evidence);
       onUploaded(evidence);
     } catch (uploadError) {
-      setError(plainApiError(uploadError, "Could not upload this evidence file."));
+      setError(uploadErrorMessage(uploadError));
     } finally {
       setBusy(false);
     }
@@ -146,13 +156,22 @@ export function EvidenceUploadField({
         <AppButton variant="secondary" disabled={disabled || busy} loading={busy} onPress={pickLibraryFile} style={styles.button}>
           Photos
         </AppButton>
-        <AppButton variant="secondary" disabled={disabled || busy} onPress={pickDocumentFile} style={styles.button}>
+        <AppButton variant="secondary" disabled={disabled || busy} loading={busy} onPress={pickDocumentFile} style={styles.button}>
           Files
         </AppButton>
       </View>
-      {selected ? <Text style={styles.meta}>Selected: {selected.name ?? selected.mimeType}</Text> : null}
+      {selected ? <Text style={styles.meta}>{busy ? "Uploading" : uploaded ? "Selected" : "Selected, not uploaded"}: {selected.name ?? selected.mimeType}</Text> : null}
       {uploaded ? <Text style={styles.success}>Uploaded: {uploaded.evidence_type} proof ready for submission.</Text> : null}
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {error ? (
+        <View style={styles.errorBox}>
+          <Text style={styles.error}>{error}</Text>
+          {selected && !busy ? (
+            <AppButton variant="secondary" onPress={() => void uploadPicked(selected)} style={styles.retryButton}>
+              Retry upload
+            </AppButton>
+          ) : null}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -191,5 +210,11 @@ const styles = StyleSheet.create({
     color: colors.red,
     fontWeight: "800",
     fontSize: 13
+  },
+  errorBox: {
+    gap: spacing.sm
+  },
+  retryButton: {
+    minHeight: 42
   }
 });

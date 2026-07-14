@@ -31,7 +31,7 @@ import {
 } from "../../../api/admin";
 import { ApiError } from "../../../api/client";
 import { plainApiError } from "../../../api/errors";
-import { env } from "../../../config/env";
+import { openableEvidenceUrl } from "../../../config/evidence-links";
 import { AppScreen } from "../../../components/screen/AppScreen";
 import { AppButton } from "../../../components/ui/AppButton";
 import { Badge } from "../../../components/ui/Badge";
@@ -44,6 +44,7 @@ import { useAuthStore } from "../../../store/auth-store";
 import type { WalletLedgerEntry, WalletPayoutRequest, WalletTopup } from "../../../types/api";
 
 type Notice = { tone: "error" | "success" | "info"; message: string } | null;
+type NoticeTarget = "topups" | "payouts" | "security" | "topupDecision" | "payoutDecision";
 type Tone = "cyan" | "green" | "amber" | "red";
 
 function money(currency = "NGN", minor = 0) {
@@ -67,13 +68,6 @@ function shortId(value?: string | null) {
   if (!value) return "Not supplied";
   if (value.length <= 14) return value;
   return `${value.slice(0, 8)}...${value.slice(-5)}`;
-}
-
-function proofUrl(value?: string | null) {
-  if (!value) return null;
-  if (value.startsWith("http://") || value.startsWith("https://")) return value;
-  if (value.startsWith("/")) return `${env.apiBaseUrl}${value}`;
-  return value;
 }
 
 function countStatus<T extends { status?: string }>(rows: T[], status: string) {
@@ -134,6 +128,7 @@ export function AdminWalletScreen() {
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
   const [notice, setNotice] = useState<Notice>(null);
+  const [targetNotice, setTargetNotice] = useState<{ target: NoticeTarget; notice: NonNullable<Notice> } | null>(null);
   const [selectedTopupId, setSelectedTopupId] = useState("");
   const [selectedPayoutId, setSelectedPayoutId] = useState("");
   const [topupNote, setTopupNote] = useState("");
@@ -187,6 +182,11 @@ export function AdminWalletScreen() {
   const canReviewPayout = Boolean(selectedPayoutId.trim() && stepUpToken);
   const isLoading = topupsQuery.isLoading || payoutsQuery.isLoading || dashboardQuery.isLoading;
   const hasError = topupsQuery.isError || payoutsQuery.isError || dashboardQuery.isError;
+  const notify = (target: NoticeTarget, nextNotice: NonNullable<Notice>) => {
+    setNotice(nextNotice);
+    setTargetNotice({ target, notice: nextNotice });
+  };
+  const noticeFor = (target: NoticeTarget) => targetNotice?.target === target ? targetNotice.notice : null;
 
   const stepUpMutation = useMutation({
     mutationFn: () => {
@@ -197,12 +197,12 @@ export function AdminWalletScreen() {
       setStepUpToken(result.step_up_token);
       setStepUpExpiresAt(result.expires_at ?? null);
       setPassword("");
-      setNotice({ tone: "success", message: "Sensitive wallet actions are unlocked for this session." });
+      notify("security", { tone: "success", message: "Sensitive wallet actions are unlocked for this session." });
     },
     onError: (error) => {
       setStepUpToken(null);
       setStepUpExpiresAt(null);
-      setNotice({ tone: "error", message: plainApiError(error, "Sensitive actions could not be unlocked.") });
+      notify("security", { tone: "error", message: plainApiError(error, "Sensitive actions could not be unlocked.") });
     }
   });
 
@@ -217,12 +217,12 @@ export function AdminWalletScreen() {
       });
     },
     onSuccess: async (_, decision) => {
-      setNotice({ tone: "success", message: decision === "approve" ? "Wallet top-up approved and credited." : "Wallet top-up rejected." });
+      notify("topupDecision", { tone: "success", message: decision === "approve" ? "Wallet top-up approved and credited." : "Wallet top-up rejected." });
       setSelectedTopupId("");
       setTopupNote("");
       await invalidateWalletQueries(queryClient);
     },
-    onError: (error) => handleSensitiveError(error, setStepUpToken, setStepUpExpiresAt, setNotice, "The wallet top-up review could not be completed.")
+    onError: (error) => handleSensitiveError(error, setStepUpToken, setStepUpExpiresAt, (value) => value && notify("topupDecision", value), "The wallet top-up review could not be completed.")
   });
 
   const payoutReviewMutation = useMutation({
@@ -238,13 +238,13 @@ export function AdminWalletScreen() {
       });
     },
     onSuccess: async (_, decision) => {
-      setNotice({ tone: "success", message: decision === "mark_paid" ? "Payout marked as paid." : "Payout rejected and returned to winnings." });
+      notify("payoutDecision", { tone: "success", message: decision === "mark_paid" ? "Payout marked as paid." : "Payout rejected and returned to winnings." });
       setSelectedPayoutId("");
       setPayoutNote("");
       setPaymentReference("");
       await invalidateWalletQueries(queryClient);
     },
-    onError: (error) => handleSensitiveError(error, setStepUpToken, setStepUpExpiresAt, setNotice, "The wallet payout review could not be completed.")
+    onError: (error) => handleSensitiveError(error, setStepUpToken, setStepUpExpiresAt, (value) => value && notify("payoutDecision", value), "The wallet payout review could not be completed.")
   });
 
   if (!canAdmin) {
@@ -318,7 +318,7 @@ export function AdminWalletScreen() {
         <Badge tone="green">On</Badge>
       </View>
 
-      {notice ? <FormNotice tone={notice.tone} message={notice.message} /> : null}
+      {notice && !targetNotice ? <FormNotice tone={notice.tone} message={notice.message} /> : null}
       {hasError ? (
         <FeedbackState
           tone="error"
@@ -373,6 +373,7 @@ export function AdminWalletScreen() {
 
       <SurfaceCard>
         <SectionHeader eyebrow="Review" title="Submitted wallet top-ups" detail="Check payment records and proof first, then tap a top-up to copy its ID into the decision panel." />
+        {noticeFor("topups") ? <FormNotice tone={noticeFor("topups")!.tone} message={noticeFor("topups")!.message} /> : null}
         {!isLoading && !topups.length ? <EmptyState title="Top-up queue is clear" body="No wallet top-ups are waiting for approval." /> : null}
         {topups.map((topup) => (
           <TopupCard
@@ -380,13 +381,14 @@ export function AdminWalletScreen() {
             topup={topup}
             selected={topup.id === selectedTopupId}
             onSelect={() => setSelectedTopupId(topup.id)}
-            onOpenProof={(url) => void Linking.openURL(url).catch(() => setNotice({ tone: "error", message: "The proof link could not be opened." }))}
+            onOpenProof={(url) => void Linking.openURL(url).catch(() => notify("topups", { tone: "error", message: "The proof link could not be opened." }))}
           />
         ))}
       </SurfaceCard>
 
       <SurfaceCard>
         <SectionHeader eyebrow="Cash-out" title="Requested wallet payouts" detail="Pay the bank account manually, then tap a request and mark it paid with the transfer reference." />
+        {noticeFor("payouts") ? <FormNotice tone={noticeFor("payouts")!.tone} message={noticeFor("payouts")!.message} /> : null}
         {!isLoading && !payouts.length ? <EmptyState title="Payout queue is clear" body="No wallet cash-outs are waiting for payment." /> : null}
         {payouts.map((payout) => (
           <PayoutCard key={payout.id} payout={payout} selected={payout.id === selectedPayoutId} onSelect={() => setSelectedPayoutId(payout.id)} />
@@ -408,12 +410,14 @@ export function AdminWalletScreen() {
         onLock={() => {
           setStepUpToken(null);
           setStepUpExpiresAt(null);
-          setNotice({ tone: "info", message: "Sensitive wallet actions are locked again." });
+          notify("security", { tone: "info", message: "Sensitive wallet actions are locked again." });
         }}
+        notice={noticeFor("security")}
       />
 
       <SurfaceCard>
         <SectionHeader eyebrow="Decision" title="Approve or reject top-up" detail="Approval writes wallet ledger entries. Rejection leaves the player balance unchanged." />
+        {noticeFor("topupDecision") ? <FormNotice tone={noticeFor("topupDecision")!.tone} message={noticeFor("topupDecision")!.message} /> : null}
         {selectedTopup ? (
           <SelectedMoneyPanel label="Selected top-up" amount={money(selectedTopup.currency, selectedTopup.amount_minor)} detail={`Player ${shortId(selectedTopup.user_id as string | undefined)} - ${shortId(selectedTopup.transfer_reference)}`} />
         ) : (
@@ -431,6 +435,7 @@ export function AdminWalletScreen() {
 
       <SurfaceCard>
         <SectionHeader eyebrow="Payout" title="Mark payout paid" detail="This does not credit the user again. It only confirms the manual bank payment is done." />
+        {noticeFor("payoutDecision") ? <FormNotice tone={noticeFor("payoutDecision")!.tone} message={noticeFor("payoutDecision")!.message} /> : null}
         {selectedPayout ? (
           <SelectedMoneyPanel label="Selected payout" amount={money(selectedPayout.currency, selectedPayout.amount_minor)} detail={`${selectedPayout.payout_bank_name ?? "Bank"} - ${selectedPayout.payout_account_number_masked ?? "Account"}`} />
         ) : (
@@ -516,7 +521,7 @@ function DuplicateWarning({ row }: { row: SuspiciousWalletTopupGroup }) {
 }
 
 function TopupCard({ topup, selected, onSelect, onOpenProof }: { topup: WalletTopup; selected: boolean; onSelect: () => void; onOpenProof: (url: string) => void }) {
-  const url = proofUrl(topup.proof_url);
+  const url = openableEvidenceUrl(topup.proof_url);
   return (
     <Pressable onPress={onSelect} style={[styles.moneyCard, selected && styles.moneyCardActive]}>
       <MoneyCardTop selected={selected} badge={topup.status} amount={money(topup.currency, topup.amount_minor)} meta={`Player ${shortId(topup.user_id as string | undefined)}`} date={topup.submitted_at} />
@@ -612,7 +617,8 @@ function SensitiveActionsPanel({
   stepUpExpiresAt,
   loading,
   onUnlock,
-  onLock
+  onLock,
+  notice
 }: {
   password: string;
   setPassword: (value: string) => void;
@@ -621,6 +627,7 @@ function SensitiveActionsPanel({
   loading: boolean;
   onUnlock: () => void;
   onLock: () => void;
+  notice?: Notice;
 }) {
   return (
     <SurfaceCard style={styles.securityCard}>
@@ -637,6 +644,7 @@ function SensitiveActionsPanel({
           </Text>
         </View>
       </View>
+      {notice ? <FormNotice tone={notice.tone} message={notice.message} /> : null}
       {stepUpToken ? (
         <AppButton variant="secondary" onPress={onLock}>Lock sensitive actions</AppButton>
       ) : (

@@ -57,6 +57,7 @@ import { colors, radius, spacing } from "../../../constants/theme";
 import { useAuthStore } from "../../../store/auth-store";
 
 type Notice = { tone: "error" | "success" | "info"; message: string } | null;
+type NoticeTarget = "reports" | "holds" | "chat" | "account";
 type Tone = "cyan" | "green" | "amber" | "red";
 type Severity = "low" | "medium" | "high" | "critical";
 type RiskStatus = "open" | "reviewing" | "resolved" | "dismissed";
@@ -170,6 +171,7 @@ export function AdminSafetyScreen() {
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
   const [notice, setNotice] = useState<Notice>(null);
+  const [targetNotice, setTargetNotice] = useState<{ target: NoticeTarget; notice: NonNullable<Notice> } | null>(null);
   const [riskUserId, setRiskUserId] = useState("");
   const [riskType, setRiskType] = useState("player_report");
   const [riskSeverity, setRiskSeverity] = useState<Severity>("medium");
@@ -233,15 +235,25 @@ export function AdminSafetyScreen() {
     ]);
   };
 
+  const notify = (target: NoticeTarget, nextNotice: NonNullable<Notice>) => {
+    setNotice(nextNotice);
+    setTargetNotice({ target, notice: nextNotice });
+  };
+
+  const noticeFor = (target: NoticeTarget) => {
+    if (targetNotice?.target !== target) return null;
+    return <FormNotice tone={targetNotice.notice.tone} message={targetNotice.notice.message} />;
+  };
+
   const stepUpMutation = useMutation({
     mutationFn: () => confirmAdminStepUp(password),
     onSuccess: (result) => {
       setStepUpToken(result.step_up_token);
       setStepUpExpiresAt(result.expires_at ?? null);
       setPassword("");
-      setNotice({ tone: "success", message: "Account moderation unlock is active for this session." });
+      notify("account", { tone: "success", message: "Account moderation unlock is active for this session." });
     },
-    onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "Step-up confirmation failed.") })
+    onError: (error) => notify("account", { tone: "error", message: plainApiError(error, "Step-up confirmation failed.") })
   });
 
   const createFlagMutation = useMutation({
@@ -251,12 +263,12 @@ export function AdminSafetyScreen() {
       return createAdminRiskFlag({ user_id: riskUserId, flag_type: riskType, severity: riskSeverity, summary: riskSummary });
     },
     onSuccess: async () => {
-      setNotice({ tone: "success", message: "Safety flag created." });
+      notify("reports", { tone: "success", message: "Safety flag created." });
       setRiskUserId("");
       setRiskSummary("");
       await invalidateSafety();
     },
-    onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "Safety flag could not be created.") })
+    onError: (error) => notify("reports", { tone: "error", message: plainApiError(error, "Safety flag could not be created.") })
   });
 
   const updateFlagMutation = useMutation({
@@ -266,10 +278,10 @@ export function AdminSafetyScreen() {
       return updateAdminRiskFlagStatus(selectedFlagId.trim(), flagStatus);
     },
     onSuccess: async () => {
-      setNotice({ tone: "success", message: `Safety flag moved to ${label(flagStatus)}.` });
+      notify("reports", { tone: "success", message: `Safety flag moved to ${label(flagStatus)}.` });
       await invalidateSafety();
     },
-    onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "Flag status could not be updated.") })
+    onError: (error) => notify("reports", { tone: "error", message: plainApiError(error, "Flag status could not be updated.") })
   });
 
   const createHoldMutation = useMutation({
@@ -279,12 +291,12 @@ export function AdminSafetyScreen() {
       return createAdminRoomHold({ match_room_id: roomId, reason: holdReason, severity: holdSeverity });
     },
     onSuccess: async () => {
-      setNotice({ tone: "success", message: "Room hold placed. The room should stay paused until review is complete." });
+      notify("holds", { tone: "success", message: "Room hold placed. The room should stay paused until review is complete." });
       setRoomId("");
       setHoldReason("");
       await invalidateSafety();
     },
-    onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "Room hold could not be placed.") })
+    onError: (error) => notify("holds", { tone: "error", message: plainApiError(error, "Room hold could not be placed.") })
   });
 
   const releaseHoldMutation = useMutation({
@@ -294,12 +306,12 @@ export function AdminSafetyScreen() {
       return releaseAdminRoomHold(releaseHoldId.trim(), releaseNote);
     },
     onSuccess: async () => {
-      setNotice({ tone: "success", message: "Room hold released." });
+      notify("holds", { tone: "success", message: "Room hold released." });
       setReleaseHoldId("");
       setReleaseNote("");
       await invalidateSafety();
     },
-    onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "Room hold could not be released.") })
+    onError: (error) => notify("holds", { tone: "error", message: plainApiError(error, "Room hold could not be released.") })
   });
 
   const hideMessageMutation = useMutation({
@@ -309,10 +321,10 @@ export function AdminSafetyScreen() {
       return hideAdminChatMessage(chatChannel.trim(), chatMessageId.trim(), chatReason);
     },
     onSuccess: async () => {
-      setNotice({ tone: "success", message: "Message hidden and logged." });
+      notify("chat", { tone: "success", message: "Message hidden and logged." });
       await invalidateSafety();
     },
-    onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "Message could not be hidden.") })
+    onError: (error) => notify("chat", { tone: "error", message: plainApiError(error, "Message could not be hidden.") })
   });
 
   const deleteMessageMutation = useMutation({
@@ -322,10 +334,10 @@ export function AdminSafetyScreen() {
       return deleteAdminChatMessage(chatChannel.trim(), chatMessageId.trim(), chatReason);
     },
     onSuccess: async () => {
-      setNotice({ tone: "success", message: "Message deleted and logged." });
+      notify("chat", { tone: "success", message: "Message deleted and logged." });
       await invalidateSafety();
     },
-    onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "Message could not be deleted.") })
+    onError: (error) => notify("chat", { tone: "error", message: plainApiError(error, "Message could not be deleted.") })
   });
 
   const muteMemberMutation = useMutation({
@@ -336,10 +348,10 @@ export function AdminSafetyScreen() {
       return muteAdminChatMember(chatChannel.trim(), { user_id: chatTargetUserId, duration_minutes: duration, reason: chatReason });
     },
     onSuccess: async () => {
-      setNotice({ tone: "success", message: "Member mute saved and logged." });
+      notify("chat", { tone: "success", message: "Member mute saved and logged." });
       await invalidateSafety();
     },
-    onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "Member could not be muted.") })
+    onError: (error) => notify("chat", { tone: "error", message: plainApiError(error, "Member could not be muted.") })
   });
 
   const actionMutation = useMutation({
@@ -358,13 +370,13 @@ export function AdminSafetyScreen() {
       });
     },
     onSuccess: async () => {
-      setNotice({ tone: "success", message: "Moderation action saved." });
+      notify("account", { tone: "success", message: "Moderation action saved." });
       setActionTargetUserId("");
       setActionRoomId("");
       setActionSummary("");
       await invalidateSafety();
     },
-    onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "Moderation action could not be saved.") })
+    onError: (error) => notify("account", { tone: "error", message: plainApiError(error, "Moderation action could not be saved.") })
   });
 
   if (!canAdmin) {
@@ -419,7 +431,7 @@ export function AdminSafetyScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        {notice ? <FormNotice tone={notice.tone} message={notice.message} /> : null}
+        {notice && !targetNotice ? <FormNotice tone={notice.tone} message={notice.message} /> : null}
         {safetyQuery.isError ? <FormNotice tone="error" message={plainApiError(safetyQuery.error, "Unable to load Safety queues right now.")} /> : null}
 
         <SurfaceCard style={styles.hero}>
@@ -459,6 +471,7 @@ export function AdminSafetyScreen() {
         </View>
 
         <SurfaceCard style={styles.formStack}>
+          {noticeFor("reports")}
           <View style={styles.formHeader}>
             <View style={styles.formIcon}><Flag color={colors.cyan} size={23} /></View>
             <View style={styles.fill}>
@@ -492,6 +505,7 @@ export function AdminSafetyScreen() {
         </View>
 
         <SurfaceCard style={styles.formStack}>
+          {noticeFor("holds")}
           <View style={styles.formHeader}>
             <View style={styles.formIcon}><LockKeyhole color={colors.amber} size={23} /></View>
             <View style={styles.fill}>
@@ -526,6 +540,7 @@ export function AdminSafetyScreen() {
         </View>
 
         <SurfaceCard style={styles.formStack}>
+          {noticeFor("chat")}
           <View style={styles.formHeader}>
             <View style={styles.formIcon}><MessageSquareWarning color={colors.cyan} size={23} /></View>
             <View style={styles.fill}>
@@ -559,6 +574,7 @@ export function AdminSafetyScreen() {
 
         <SectionHeader eyebrow="Account moderation" title="Warnings, restrictions, and bans" detail="These actions affect players directly. Confirm your password, identify the player or room, and leave a plain-language reason." />
         <SurfaceCard style={styles.formStack}>
+          {noticeFor("account")}
           <View style={styles.formHeader}>
             <View style={styles.formIcon}><KeyRound color={colors.cyan} size={23} /></View>
             <View style={styles.fill}>

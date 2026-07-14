@@ -26,11 +26,13 @@ import { CopyButton } from "../../../components/ui/CopyButton";
 import { FeedbackState } from "../../../components/ui/FeedbackState";
 import { FormNotice } from "../../../components/ui/FormNotice";
 import { SurfaceCard } from "../../../components/ui/SurfaceCard";
+import { openableEvidenceUrl } from "../../../config/evidence-links";
 import { colors, radius, spacing } from "../../../constants/theme";
 import { useAuthStore } from "../../../store/auth-store";
 import type { MatchParticipant, MatchResultClaim, MatchResultEvidence, MatchRoom } from "../../../types/api";
 
 type Notice = { tone: "error" | "success" | "info"; message: string } | null;
+type NoticeTarget = "queue" | "security" | "decision";
 type Tone = "cyan" | "green" | "amber" | "red";
 
 type ResultQueueCard = {
@@ -213,6 +215,7 @@ export function AdminResultsScreen() {
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
   const [notice, setNotice] = useState<Notice>(null);
+  const [targetNotice, setTargetNotice] = useState<{ target: NoticeTarget; notice: NonNullable<Notice> } | null>(null);
   const [selectedClaimId, setSelectedClaimId] = useState("");
   const [reviewNote, setReviewNote] = useState("");
   const [password, setPassword] = useState("");
@@ -237,6 +240,11 @@ export function AdminResultsScreen() {
   const cards = resultsQuery.data?.cards ?? [];
   const selectedCard = cards.find((card) => card.claim.id === selectedClaimId);
   const canReview = Boolean(selectedClaimId.trim() && stepUpToken);
+  const notify = (target: NoticeTarget, nextNotice: NonNullable<Notice>) => {
+    setNotice(nextNotice);
+    setTargetNotice({ target, notice: nextNotice });
+  };
+  const noticeFor = (target: NoticeTarget) => targetNotice?.target === target ? targetNotice.notice : null;
 
   const stepUpMutation = useMutation({
     mutationFn: () => {
@@ -247,12 +255,12 @@ export function AdminResultsScreen() {
       setStepUpToken(result.step_up_token);
       setStepUpExpiresAt(result.expires_at ?? null);
       setPassword("");
-      setNotice({ tone: "success", message: "Sensitive result actions are unlocked for this session." });
+      notify("security", { tone: "success", message: "Sensitive result actions are unlocked for this session." });
     },
     onError: (error) => {
       setStepUpToken(null);
       setStepUpExpiresAt(null);
-      setNotice({ tone: "error", message: plainApiError(error, "Sensitive actions could not be unlocked.") });
+      notify("security", { tone: "error", message: plainApiError(error, "Sensitive actions could not be unlocked.") });
     }
   });
 
@@ -267,7 +275,7 @@ export function AdminResultsScreen() {
       });
     },
     onSuccess: async (_, decision) => {
-      setNotice({ tone: "success", message: resultSuccessMessages[decision] ?? "Result review completed." });
+      notify("decision", { tone: "success", message: resultSuccessMessages[decision] ?? "Result review completed." });
       setSelectedClaimId("");
       setReviewNote("");
       await queryClient.invalidateQueries({ queryKey: ["admin", "results"] });
@@ -278,7 +286,7 @@ export function AdminResultsScreen() {
         setStepUpToken(null);
         setStepUpExpiresAt(null);
       }
-      setNotice({ tone: "error", message: plainApiError(error, "The result review could not be completed.") });
+      notify("decision", { tone: "error", message: plainApiError(error, "The result review could not be completed.") });
     }
   });
 
@@ -353,7 +361,7 @@ export function AdminResultsScreen() {
         <Badge tone="green">On</Badge>
       </View>
 
-      {notice ? <FormNotice tone={notice.tone} message={notice.message} /> : null}
+      {notice && !targetNotice ? <FormNotice tone={notice.tone} message={notice.message} /> : null}
       {resultsQuery.isError ? (
         <FeedbackState
           tone="error"
@@ -373,6 +381,7 @@ export function AdminResultsScreen() {
 
       <SurfaceCard>
         <SectionHeader eyebrow="Queue" title="Result review queue" detail="Review room evidence and player context first, then tap a claim to copy its ID into the decision panel when you are ready to rule." />
+        {noticeFor("queue") ? <FormNotice tone={noticeFor("queue")!.tone} message={noticeFor("queue")!.message} /> : null}
         {resultsQuery.isLoading ? <Text style={styles.copy}>Loading result reviews...</Text> : null}
         {!resultsQuery.isLoading && !claims.length ? (
           <EmptyState title="Result review queue is clear" body="No result claims are waiting in submitted, agreed, or disputed review." />
@@ -397,7 +406,10 @@ export function AdminResultsScreen() {
                     card={card}
                     selected={card.claim.id === selectedClaimId}
                     onSelect={() => setSelectedClaimId(card.claim.id)}
-                    onOpenEvidence={(url) => void Linking.openURL(url).catch(() => setNotice({ tone: "error", message: "The evidence link could not be opened." }))}
+                    onOpenEvidence={(url) => {
+                      const openUrl = openableEvidenceUrl(url);
+                      if (openUrl) void Linking.openURL(openUrl).catch(() => notify("queue", { tone: "error", message: "The evidence link could not be opened." }));
+                    }}
                   />
                 ))
               ) : (
@@ -418,12 +430,14 @@ export function AdminResultsScreen() {
         onLock={() => {
           setStepUpToken(null);
           setStepUpExpiresAt(null);
-          setNotice({ tone: "info", message: "Sensitive result actions are locked again." });
+          notify("security", { tone: "info", message: "Sensitive result actions are locked again." });
         }}
+        notice={noticeFor("security")}
       />
 
       <SurfaceCard>
         <SectionHeader eyebrow="Decision" title="Review result claim" detail="Unlock first, then move a room toward settlement, dispute resolution, rejection, or void." />
+        {noticeFor("decision") ? <FormNotice tone={noticeFor("decision")!.tone} message={noticeFor("decision")!.message} /> : null}
         {selectedCard ? (
           <View style={styles.selectedPanel}>
             <Badge tone="cyan">Selected claim</Badge>
@@ -550,7 +564,8 @@ function SensitiveActionsPanel({
   stepUpExpiresAt,
   loading,
   onUnlock,
-  onLock
+  onLock,
+  notice
 }: {
   password: string;
   setPassword: (value: string) => void;
@@ -559,6 +574,7 @@ function SensitiveActionsPanel({
   loading: boolean;
   onUnlock: () => void;
   onLock: () => void;
+  notice?: Notice;
 }) {
   return (
     <SurfaceCard style={styles.securityCard}>
@@ -575,6 +591,7 @@ function SensitiveActionsPanel({
           </Text>
         </View>
       </View>
+      {notice ? <FormNotice tone={notice.tone} message={notice.message} /> : null}
       {stepUpToken ? (
         <AppButton variant="secondary" onPress={onLock}>Lock sensitive actions</AppButton>
       ) : (

@@ -45,6 +45,7 @@ import { useAuthStore } from "../../../store/auth-store";
 import type { Tournament, TournamentDetail, TournamentFormat, TournamentPrizeContribution, TournamentStateEvent } from "../../../types/api";
 
 type Notice = { tone: "error" | "success" | "info"; message: string } | null;
+type NoticeTarget = "security" | "contributions" | "create" | "operations" | "hosts";
 type Tone = "cyan" | "green" | "amber" | "red";
 
 const formatOptions: Array<{ value: TournamentFormat; label: string; detail: string }> = [
@@ -263,6 +264,7 @@ export function AdminTournamentsScreen() {
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
   const [notice, setNotice] = useState<Notice>(null);
+  const [targetNotice, setTargetNotice] = useState<{ target: NoticeTarget; notice: NonNullable<Notice> } | null>(null);
   const [password, setPassword] = useState("");
   const [stepUpToken, setStepUpToken] = useState<string | null>(null);
   const [stepUpExpiresAt, setStepUpExpiresAt] = useState<string | null>(null);
@@ -331,6 +333,22 @@ export function AdminTournamentsScreen() {
     await queryClient.invalidateQueries({ queryKey: ["admin", "tournaments"] });
   };
 
+  const notify = (target: NoticeTarget, nextNotice: NonNullable<Notice>) => {
+    setNotice(nextNotice);
+    setTargetNotice({ target, notice: nextNotice });
+  };
+
+  const noticeFor = (target: NoticeTarget) => {
+    if (targetNotice?.target !== target) return null;
+    return <FormNotice tone={targetNotice.notice.tone} message={targetNotice.notice.message} />;
+  };
+
+  const targetForAction = (action: string): NoticeTarget => {
+    if (action === "contribution_approve" || action === "contribution_reject") return "contributions";
+    if (action === "host" || action === "event") return "hosts";
+    return "operations";
+  };
+
   const stepUpMutation = useMutation({
     mutationFn: async () => {
       if (!password.trim()) throw new Error("Enter your password to unlock tournament money and decision actions.");
@@ -340,9 +358,9 @@ export function AdminTournamentsScreen() {
       setStepUpToken(result.step_up_token ?? null);
       setStepUpExpiresAt(result.expires_at ?? null);
       setPassword("");
-      setNotice({ tone: "success", message: "Tournament sensitive actions are unlocked for this session." });
+      notify("security", { tone: "success", message: "Tournament sensitive actions are unlocked for this session." });
     },
-    onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "Tournament actions could not be unlocked.") })
+    onError: (error) => notify("security", { tone: "error", message: plainApiError(error, "Tournament actions could not be unlocked.") })
   });
 
   const createMutation = useMutation({
@@ -386,12 +404,12 @@ export function AdminTournamentsScreen() {
       });
     },
     onSuccess: async (tournament) => {
-      setNotice({ tone: "success", message: "Tournament created. Review it before publishing or generating structure." });
+      notify("create", { tone: "success", message: "Tournament created. Review it before publishing or generating structure." });
       setSelectedTournamentId(tournament.id);
       setForm(blankTournamentForm);
       await refresh();
     },
-    onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "Tournament could not be created.") })
+    onError: (error) => notify("create", { tone: "error", message: plainApiError(error, "Tournament could not be created.") })
   });
 
   const guardedMutation = useMutation({
@@ -466,10 +484,10 @@ export function AdminTournamentsScreen() {
       });
     },
     onSuccess: async (_, action) => {
-      setNotice({ tone: "success", message: actionSuccess(action) });
+      notify(targetForAction(action), { tone: "success", message: actionSuccess(action) });
       await refresh();
     },
-    onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "Tournament operation failed.") })
+    onError: (error, action) => notify(targetForAction(action), { tone: "error", message: plainApiError(error, "Tournament operation failed.") })
   });
 
   if (!canAdmin) {
@@ -524,7 +542,7 @@ export function AdminTournamentsScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        {notice ? <FormNotice tone={notice.tone} message={notice.message} /> : null}
+        {notice && !targetNotice ? <FormNotice tone={notice.tone} message={notice.message} /> : null}
         {tournamentsQuery.isError ? <FormNotice tone="error" message={plainApiError(tournamentsQuery.error, "Tournament admin data could not be loaded.")} /> : null}
 
         <SurfaceCard style={styles.hero}>
@@ -559,6 +577,7 @@ export function AdminTournamentsScreen() {
           </View>
           <LabeledInput label="Current password" value={password} onChangeText={setPassword} secureTextEntry placeholder="Confirm before sensitive action" />
           <AppButton variant="dark" loading={stepUpMutation.isPending} onPress={() => stepUpMutation.mutate()}>Unlock actions</AppButton>
+          {noticeFor("security")}
           {stepUpToken ? <Text style={styles.helpText}>Unlocked{stepUpExpiresAt ? ` until ${dateLabel(stepUpExpiresAt)}` : " for this session"}.</Text> : null}
         </SurfaceCard>
 
@@ -583,6 +602,7 @@ export function AdminTournamentsScreen() {
 
         <SectionHeader eyebrow="Contribution review" title="Prize and entry money queue" detail="Approve only after checking bank records, proof, sender identity, amount, and tournament context." />
         <View style={styles.queueBlock}>
+          {noticeFor("contributions")}
           {contributions.length ? contributions.map((row) => (
             <ContributionRow key={row.id} row={row} selected={selectedContributionId === row.id} onPress={() => {
               setSelectedContributionId(row.id);
@@ -599,6 +619,7 @@ export function AdminTournamentsScreen() {
 
         <SectionHeader eyebrow="Create" title="Create tournament" detail="Start with the event details players will see. Publishing, seeding, bracket setup, and money actions stay separate." />
         <SurfaceCard style={styles.formStack}>
+          {noticeFor("create")}
           <LabeledInput label="Title" value={form.title} onChangeText={(title) => setForm({ ...form, title })} placeholder="T26 Visual QA Bracket" />
           <LabeledInput label="Description" value={form.description} onChangeText={(description) => setForm({ ...form, description })} multiline minHeight={96} placeholder="What players should know before entering" />
           <Selector label="Game" value={form.gameSlug ? slugLabel(form.gameSlug) : "Choose game"} selected={form.gameSlug} options={(tournamentsQuery.data?.catalog.games ?? []).map((game) => ({ value: game.slug, label: game.name, detail: "Tournament game" }))} onSelect={(gameSlug) => setForm({ ...form, gameSlug })} />
@@ -637,6 +658,7 @@ export function AdminTournamentsScreen() {
 
         <SectionHeader eyebrow="Operations" title="Run event operations" detail="Paste or tap a tournament ID, then run the exact operational task. Sensitive actions require the unlock above." />
         <SurfaceCard style={styles.formStack}>
+          {noticeFor("operations")}
           <LabeledInput label="Selected tournament ID" value={selectedTournamentId} onChangeText={setSelectedTournamentId} mono />
           {selectedTournament ? <FormNotice tone="info" message={`Selected: ${selectedTournament.title} / ${label(selectedTournament.status)} / ${money(selectedTournament.currency, prizePool(selectedTournament))}`} /> : null}
           <ChipRow label="Seed mode" values={seedModes} selected={seedMode} onSelect={(value) => setSeedMode(value as TournamentSeedMode)} />
@@ -669,6 +691,7 @@ export function AdminTournamentsScreen() {
 
         <SectionHeader eyebrow="Hosts" title="Host and sponsor controls" detail="Grant trusted people narrow access and update public event details without changing the tournament structure." />
         <SurfaceCard style={styles.formStack}>
+          {noticeFor("hosts")}
           <LabeledInput label="Host username or user ID" value={hostTarget} onChangeText={setHostTarget} placeholder="username or user_id" />
           <ChipRow label="Host role" values={hostRoles} selected={hostRole} onSelect={(value) => setHostRole(value as TournamentHostRole)} />
           <ToggleRow label="Manage event" value={hostPermissions.manage_event} onPress={() => setHostPermissions({ ...hostPermissions, manage_event: !hostPermissions.manage_event })} />

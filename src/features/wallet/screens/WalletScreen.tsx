@@ -10,13 +10,14 @@ import { Badge } from "../../../components/ui/Badge";
 import { FeedbackState } from "../../../components/ui/FeedbackState";
 import { FormNotice } from "../../../components/ui/FormNotice";
 import { SurfaceCard } from "../../../components/ui/SurfaceCard";
-import { env } from "../../../config/env";
+import { openableEvidenceUrl } from "../../../config/evidence-links";
 import { colors, radius, spacing } from "../../../constants/theme";
 import { EvidenceUploadField } from "../../uploads/components/EvidenceUploadField";
 import type { WalletLedgerEntry, WalletPayoutRequest, WalletTopup } from "../../../types/api";
 
 type WalletView = "overview" | "topup" | "payout" | "history";
 type Notice = { tone: "error" | "success" | "info"; message: string } | null;
+type WalletNotice = { view: WalletView; notice: NonNullable<Notice> } | null;
 
 const views: WalletView[] = ["overview", "topup", "payout", "history"];
 const collectionAccount = {
@@ -81,15 +82,11 @@ function payoutLabel(status?: string) {
   return String(status ?? "Pending").replaceAll("_", " ");
 }
 
-function openableProofUrl(value: string) {
-  if (/^https?:\/\//i.test(value)) return value;
-  return `${env.webAppUrl}${value.startsWith("/") ? value : `/${value}`}`;
-}
-
 export function WalletScreen() {
   const queryClient = useQueryClient();
   const [view, setView] = useState<WalletView>("overview");
   const [notice, setNotice] = useState<Notice>(null);
+  const [localNotice, setLocalNotice] = useState<WalletNotice>(null);
 
   const [topupAmount, setTopupAmount] = useState("");
   const [transferReference, setTransferReference] = useState("");
@@ -124,6 +121,13 @@ export function WalletScreen() {
     await queryClient.invalidateQueries({ queryKey: ["wallet"] });
   };
 
+  const notify = (targetView: WalletView, nextNotice: NonNullable<Notice>) => {
+    setNotice(nextNotice);
+    setLocalNotice({ view: targetView, notice: nextNotice });
+  };
+
+  const noticeFor = (targetView: WalletView) => localNotice?.view === targetView ? localNotice.notice : null;
+
   const topupMutation = useMutation({
     mutationFn: () => {
       const amountMinor = amountFromNaira(topupAmount);
@@ -143,7 +147,7 @@ export function WalletScreen() {
       });
     },
     onSuccess: async () => {
-      setNotice({ tone: "success", message: "Top-up receipt submitted. Your balance will update after Skillsroom confirms the transfer." });
+      notify("topup", { tone: "success", message: "Top-up receipt submitted. Your balance will update after Skillsroom confirms the transfer." });
       setTopupAmount("");
       setTransferReference("");
       setSenderName("");
@@ -152,7 +156,7 @@ export function WalletScreen() {
       setProofNote("");
       await refreshWallet();
     },
-    onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "Could not submit top-up.") })
+    onError: (error) => notify("topup", { tone: "error", message: plainApiError(error, "Could not submit top-up.") })
   });
 
   const payoutMutation = useMutation({
@@ -174,12 +178,12 @@ export function WalletScreen() {
       });
     },
     onSuccess: async () => {
-      setNotice({ tone: "success", message: "Payout requested. The amount has left winnings so it cannot be requested twice." });
+      notify("payout", { tone: "success", message: "Payout requested. The amount has left winnings so it cannot be requested twice." });
       setPayoutAmount("");
       setPayoutNote("");
       await refreshWallet();
     },
-    onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "Could not request payout.") })
+    onError: (error) => notify("payout", { tone: "error", message: plainApiError(error, "Could not request payout.") })
   });
 
   return (
@@ -191,7 +195,7 @@ export function WalletScreen() {
       </SurfaceCard>
 
       {walletQuery.isError ? <FeedbackState tone="error" title="Wallet unavailable" body="We could not load your wallet right now." actionLabel="Retry" onAction={() => void walletQuery.refetch()} /> : null}
-      {notice ? <FormNotice tone={notice.tone} message={notice.message} /> : null}
+      {notice && !noticeFor(view) ? <FormNotice tone={notice.tone} message={notice.message} /> : null}
 
       <View style={styles.nav}>
         {views.map((item) => (
@@ -233,6 +237,7 @@ export function WalletScreen() {
             </View>
           </SurfaceCard>
           <TopupPanel
+            notice={noticeFor("topup")}
             topupAmount={topupAmount}
             transferReference={transferReference}
             senderName={senderName}
@@ -249,6 +254,7 @@ export function WalletScreen() {
             onSubmit={() => topupMutation.mutate()}
           />
           <PayoutPanel
+            notice={noticeFor("payout")}
             currency={currency}
             winnings={winnings}
             payoutAmount={payoutAmount}
@@ -272,6 +278,7 @@ export function WalletScreen() {
 
       {view === "topup" ? (
         <TopupPanel
+          notice={noticeFor("topup")}
           topupAmount={topupAmount}
           transferReference={transferReference}
           senderName={senderName}
@@ -291,6 +298,7 @@ export function WalletScreen() {
 
       {view === "payout" ? (
         <PayoutPanel
+          notice={noticeFor("payout")}
           currency={currency}
           winnings={winnings}
           payoutAmount={payoutAmount}
@@ -318,6 +326,7 @@ export function WalletScreen() {
 }
 
 function TopupPanel({
+  notice,
   topupAmount,
   transferReference,
   senderName,
@@ -333,6 +342,7 @@ function TopupPanel({
   onProofNote,
   onSubmit
 }: {
+  notice?: Notice;
   topupAmount: string;
   transferReference: string;
   senderName: string;
@@ -352,6 +362,7 @@ function TopupPanel({
     <SurfaceCard>
       <Badge tone="green">Fund balance</Badge>
       <Text style={styles.sectionTitle}>Send payment, then upload receipt</Text>
+      {notice ? <FormNotice tone={notice.tone} message={notice.message} /> : null}
       <FormNotice tone="info" message={`Transfer to ${collectionAccount.bankName} ${collectionAccount.accountNumber}, ${collectionAccount.accountName}. Pending top-ups are not spendable until confirmed.`} />
       <View style={styles.formGrid}>
         <TextInput value={topupAmount} onChangeText={onTopupAmount} keyboardType="number-pad" placeholder="Amount sent in NGN" placeholderTextColor={colors.faint} style={styles.input} />
@@ -368,6 +379,7 @@ function TopupPanel({
 }
 
 function PayoutPanel({
+  notice,
   currency,
   winnings,
   payoutAmount,
@@ -385,6 +397,7 @@ function PayoutPanel({
   onPayoutNote,
   onSubmit
 }: {
+  notice?: Notice;
   currency: string;
   winnings: number;
   payoutAmount: string;
@@ -407,6 +420,7 @@ function PayoutPanel({
       <Badge>Winnings payout</Badge>
       <Text style={styles.darkSectionTitle}>Request payout</Text>
       <Text style={styles.darkCopy}>This uses your winnings balance only. Once submitted, that amount is removed from winnings so it cannot be requested twice.</Text>
+      {notice ? <FormNotice tone={notice.tone} message={notice.message} /> : null}
       <FormNotice tone="info" message={`You can request up to ${money(winnings, currency)}. Available balance cannot be withdrawn here.`} />
       <View style={styles.formGrid}>
         <TextInput value={payoutAmount} onChangeText={onPayoutAmount} keyboardType="number-pad" placeholder="Amount to withdraw in NGN" placeholderTextColor="#9dafc1" style={styles.darkInput} />
@@ -466,7 +480,10 @@ function TopupRow({ topup }: { topup: WalletTopup }) {
       </View>
       <View style={styles.rowSide}>
         <Badge tone={topupTone(topup.status)}>{topupLabel(topup.status)}</Badge>
-        {topup.proof_url ? <AppButton variant="secondary" onPress={() => void Linking.openURL(openableProofUrl(topup.proof_url!))}>Receipt</AppButton> : null}
+        {topup.proof_url ? <AppButton variant="secondary" onPress={() => {
+          const url = openableEvidenceUrl(topup.proof_url);
+          if (url) void Linking.openURL(url);
+        }}>Receipt</AppButton> : null}
       </View>
     </View>
   );
