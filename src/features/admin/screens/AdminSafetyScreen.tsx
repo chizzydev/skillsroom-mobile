@@ -54,6 +54,7 @@ import { FeedbackState } from "../../../components/ui/FeedbackState";
 import { FormNotice } from "../../../components/ui/FormNotice";
 import { SurfaceCard } from "../../../components/ui/SurfaceCard";
 import { colors, radius, spacing } from "../../../constants/theme";
+import { isAdminStepUpActive, useAdminStepUpStore } from "../../../store/admin-step-up-store";
 import { useAuthStore } from "../../../store/auth-store";
 
 type Notice = { tone: "error" | "success" | "info"; message: string } | null;
@@ -194,12 +195,18 @@ export function AdminSafetyScreen() {
   const [actionRoomId, setActionRoomId] = useState("");
   const [actionSummary, setActionSummary] = useState("");
   const [password, setPassword] = useState("");
-  const [stepUpToken, setStepUpToken] = useState<string | null>(null);
-  const [stepUpExpiresAt, setStepUpExpiresAt] = useState<string | null>(null);
+  const savedStepUpToken = useAdminStepUpStore((state) => state.token);
+  const savedStepUpExpiresAt = useAdminStepUpStore((state) => state.expiresAt);
+  const savedStepUpUserId = useAdminStepUpStore((state) => state.userId);
+  const setAdminStepUp = useAdminStepUpStore((state) => state.setStepUp);
+  const clearAdminStepUp = useAdminStepUpStore((state) => state.clearStepUp);
   const canAdmin = canAccessAdmin(user);
   const canSafety = canUseAdminSection(user, "risk");
   const canModerate = user?.role === "moderator" || user?.role === "admin" || user?.role === "owner";
   const lanes = useMemo(() => adminLanesFor(user), [user]);
+  const stepUpActive = isAdminStepUpActive({ token: savedStepUpToken, expiresAt: savedStepUpExpiresAt, userId: savedStepUpUserId }, user?.id);
+  const stepUpToken = stepUpActive ? savedStepUpToken : null;
+  const stepUpExpiresAt = stepUpActive ? savedStepUpExpiresAt : null;
 
   const safetyQuery = useQuery({
     queryKey: ["admin", "safety"],
@@ -248,12 +255,14 @@ export function AdminSafetyScreen() {
   const stepUpMutation = useMutation({
     mutationFn: () => confirmAdminStepUp(password),
     onSuccess: (result) => {
-      setStepUpToken(result.step_up_token);
-      setStepUpExpiresAt(result.expires_at ?? null);
+      setAdminStepUp(result.step_up_token, result.expires_at ?? null, user?.id ?? null);
       setPassword("");
       notify("account", { tone: "success", message: "Account moderation unlock is active for this session." });
     },
-    onError: (error) => notify("account", { tone: "error", message: plainApiError(error, "Step-up confirmation failed.") })
+    onError: (error) => {
+      clearAdminStepUp();
+      notify("account", { tone: "error", message: plainApiError(error, "Step-up confirmation failed.") });
+    }
   });
 
   const createFlagMutation = useMutation({

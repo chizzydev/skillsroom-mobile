@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { plainApiError } from "../../../api/errors";
@@ -463,7 +463,7 @@ function HistorySection<T extends { id: string }>({ title, empty, rows, renderRo
     <>
       <Badge>{title}</Badge>
       <Text style={styles.sectionTitle}>{title}</Text>
-      {rows.length ? rows.map((row) => renderRow(row)) : <FeedbackState title={empty} body="Wallet activity will appear here after it is recorded." />}
+      {rows.length ? rows.map((row) => <Fragment key={row.id}>{renderRow(row)}</Fragment>) : <FeedbackState title={empty} body="Wallet activity will appear here after it is recorded." />}
     </>
   );
 

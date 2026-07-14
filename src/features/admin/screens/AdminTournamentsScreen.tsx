@@ -41,6 +41,7 @@ import { FeedbackState } from "../../../components/ui/FeedbackState";
 import { FormNotice } from "../../../components/ui/FormNotice";
 import { SurfaceCard } from "../../../components/ui/SurfaceCard";
 import { colors, radius, spacing } from "../../../constants/theme";
+import { isAdminStepUpActive, useAdminStepUpStore } from "../../../store/admin-step-up-store";
 import { useAuthStore } from "../../../store/auth-store";
 import type { Tournament, TournamentDetail, TournamentFormat, TournamentPrizeContribution, TournamentStateEvent } from "../../../types/api";
 
@@ -266,8 +267,11 @@ export function AdminTournamentsScreen() {
   const [notice, setNotice] = useState<Notice>(null);
   const [targetNotice, setTargetNotice] = useState<{ target: NoticeTarget; notice: NonNullable<Notice> } | null>(null);
   const [password, setPassword] = useState("");
-  const [stepUpToken, setStepUpToken] = useState<string | null>(null);
-  const [stepUpExpiresAt, setStepUpExpiresAt] = useState<string | null>(null);
+  const savedStepUpToken = useAdminStepUpStore((state) => state.token);
+  const savedStepUpExpiresAt = useAdminStepUpStore((state) => state.expiresAt);
+  const savedStepUpUserId = useAdminStepUpStore((state) => state.userId);
+  const setAdminStepUp = useAdminStepUpStore((state) => state.setStepUp);
+  const clearAdminStepUp = useAdminStepUpStore((state) => state.clearStepUp);
   const [form, setForm] = useState<TournamentForm>(blankTournamentForm);
   const [selectedTournamentId, setSelectedTournamentId] = useState("");
   const [selectedContributionId, setSelectedContributionId] = useState("");
@@ -297,6 +301,9 @@ export function AdminTournamentsScreen() {
   const canAdmin = canAccessAdmin(user);
   const canTournaments = canUseAdminSection(user, "tournaments");
   const lanes = useMemo(() => adminLanesFor(user), [user]);
+  const stepUpActive = isAdminStepUpActive({ token: savedStepUpToken, expiresAt: savedStepUpExpiresAt, userId: savedStepUpUserId }, user?.id);
+  const stepUpToken = stepUpActive ? savedStepUpToken : null;
+  const stepUpExpiresAt = stepUpActive ? savedStepUpExpiresAt : null;
 
   const tournamentsQuery = useQuery({
     queryKey: ["admin", "tournaments"],
@@ -355,12 +362,14 @@ export function AdminTournamentsScreen() {
       return confirmAdminStepUp(password);
     },
     onSuccess: (result) => {
-      setStepUpToken(result.step_up_token ?? null);
-      setStepUpExpiresAt(result.expires_at ?? null);
+      setAdminStepUp(result.step_up_token, result.expires_at ?? null, user?.id ?? null);
       setPassword("");
       notify("security", { tone: "success", message: "Tournament sensitive actions are unlocked for this session." });
     },
-    onError: (error) => notify("security", { tone: "error", message: plainApiError(error, "Tournament actions could not be unlocked.") })
+    onError: (error) => {
+      clearAdminStepUp();
+      notify("security", { tone: "error", message: plainApiError(error, "Tournament actions could not be unlocked.") });
+    }
   });
 
   const createMutation = useMutation({
@@ -485,7 +494,7 @@ export function AdminTournamentsScreen() {
     },
     onSuccess: async (_, action) => {
       notify(targetForAction(action), { tone: "success", message: actionSuccess(action) });
-      await refresh();
+      void refresh();
     },
     onError: (error, action) => notify(targetForAction(action), { tone: "error", message: plainApiError(error, "Tournament operation failed.") })
   });

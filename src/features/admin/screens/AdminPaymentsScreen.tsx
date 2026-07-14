@@ -43,6 +43,7 @@ import { FeedbackState } from "../../../components/ui/FeedbackState";
 import { FormNotice } from "../../../components/ui/FormNotice";
 import { SurfaceCard } from "../../../components/ui/SurfaceCard";
 import { colors, radius, spacing } from "../../../constants/theme";
+import { isAdminStepUpActive, useAdminStepUpStore } from "../../../store/admin-step-up-store";
 import { useAuthStore } from "../../../store/auth-store";
 import { EvidenceUploadField } from "../../uploads/components/EvidenceUploadField";
 
@@ -168,8 +169,11 @@ export function AdminPaymentsScreen() {
   const [notice, setNotice] = useState<Notice>(null);
   const [mode, setMode] = useState<PaymentMode>("match_payout");
   const [password, setPassword] = useState("");
-  const [stepUpToken, setStepUpToken] = useState<string | null>(null);
-  const [stepUpExpiresAt, setStepUpExpiresAt] = useState<string | null>(null);
+  const savedStepUpToken = useAdminStepUpStore((state) => state.token);
+  const savedStepUpExpiresAt = useAdminStepUpStore((state) => state.expiresAt);
+  const savedStepUpUserId = useAdminStepUpStore((state) => state.userId);
+  const setAdminStepUp = useAdminStepUpStore((state) => state.setStepUp);
+  const clearAdminStepUp = useAdminStepUpStore((state) => state.clearStepUp);
   const [completion, setCompletion] = useState<CompletionForm>(blankCompletion);
   const [repair, setRepair] = useState<RepairForm>(blankRepair);
   const [reserveRoomId, setReserveRoomId] = useState("");
@@ -179,6 +183,9 @@ export function AdminPaymentsScreen() {
   const canAdmin = canAccessAdmin(user);
   const canPayments = canUseAdminSection(user, "settlements");
   const lanes = useMemo(() => adminLanesFor(user), [user]);
+  const stepUpActive = isAdminStepUpActive({ token: savedStepUpToken, expiresAt: savedStepUpExpiresAt, userId: savedStepUpUserId }, user?.id);
+  const stepUpToken = stepUpActive ? savedStepUpToken : null;
+  const stepUpExpiresAt = stepUpActive ? savedStepUpExpiresAt : null;
 
   const paymentsQuery = useQuery({
     queryKey: ["admin", "payments"],
@@ -214,12 +221,14 @@ export function AdminPaymentsScreen() {
       return confirmAdminStepUp(password);
     },
     onSuccess: (result) => {
-      setStepUpToken(result.step_up_token ?? null);
-      setStepUpExpiresAt(result.expires_at ?? null);
+      setAdminStepUp(result.step_up_token, result.expires_at ?? null, user?.id ?? null);
       setPassword("");
       setNotice({ tone: "success", message: "Money actions unlocked for this session." });
     },
-    onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "Sensitive actions could not be unlocked.") })
+    onError: (error) => {
+      clearAdminStepUp();
+      setNotice({ tone: "error", message: plainApiError(error, "Sensitive actions could not be unlocked.") });
+    }
   });
 
   const completeMutation = useMutation({
@@ -261,8 +270,8 @@ export function AdminPaymentsScreen() {
     onSuccess: async () => {
       setNotice({ tone: "success", message: mode.includes("refund") ? "Refund marked as completed." : "Payout marked as completed." });
       setCompletion(blankCompletion);
-      await queryClient.invalidateQueries({ queryKey: ["admin", "payments"] });
-      await queryClient.invalidateQueries({ queryKey: ["admin", "overview"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin", "payments"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin", "overview"] });
     },
     onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "The payment action could not be completed.") })
   });
@@ -288,7 +297,7 @@ export function AdminPaymentsScreen() {
     onSuccess: async () => {
       setNotice({ tone: "success", message: "Payment instructions saved." });
       setRepair(blankRepair);
-      await queryClient.invalidateQueries({ queryKey: ["admin", "payments"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin", "payments"] });
     },
     onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "Instructions could not be saved.") })
   });
@@ -303,7 +312,7 @@ export function AdminPaymentsScreen() {
       setNotice({ tone: "success", message: "Settlement reserved and payout queue created." });
       setReserveRoomId("");
       setReserveNotes("");
-      await queryClient.invalidateQueries({ queryKey: ["admin", "payments"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin", "payments"] });
     },
     onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "Settlement could not be reserved.") })
   });
@@ -319,7 +328,7 @@ export function AdminPaymentsScreen() {
       setNotice({ tone: "success", message: "Refund queue created." });
       setRefundRoomId("");
       setRefundReason("");
-      await queryClient.invalidateQueries({ queryKey: ["admin", "payments"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin", "payments"] });
     },
     onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "Refunds could not be reserved.") })
   });
@@ -418,8 +427,7 @@ export function AdminPaymentsScreen() {
         loading={stepUpMutation.isPending}
         onUnlock={() => stepUpMutation.mutate()}
         onLock={() => {
-          setStepUpToken(null);
-          setStepUpExpiresAt(null);
+          clearAdminStepUp();
           setNotice({ tone: "info", message: "Money actions locked." });
         }}
       />

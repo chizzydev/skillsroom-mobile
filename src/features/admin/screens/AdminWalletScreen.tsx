@@ -41,6 +41,7 @@ import { FeedbackState } from "../../../components/ui/FeedbackState";
 import { FormNotice } from "../../../components/ui/FormNotice";
 import { SurfaceCard } from "../../../components/ui/SurfaceCard";
 import { colors, radius, spacing } from "../../../constants/theme";
+import { isAdminStepUpActive, useAdminStepUpStore } from "../../../store/admin-step-up-store";
 import { useAuthStore } from "../../../store/auth-store";
 import type { WalletLedgerEntry, WalletPayoutRequest, WalletTopup } from "../../../types/api";
 
@@ -136,8 +137,11 @@ export function AdminWalletScreen() {
   const [payoutNote, setPayoutNote] = useState("");
   const [paymentReference, setPaymentReference] = useState("");
   const [password, setPassword] = useState("");
-  const [stepUpToken, setStepUpToken] = useState<string | null>(null);
-  const [stepUpExpiresAt, setStepUpExpiresAt] = useState<string | null>(null);
+  const savedStepUpToken = useAdminStepUpStore((state) => state.token);
+  const savedStepUpExpiresAt = useAdminStepUpStore((state) => state.expiresAt);
+  const savedStepUpUserId = useAdminStepUpStore((state) => state.userId);
+  const setAdminStepUp = useAdminStepUpStore((state) => state.setStepUp);
+  const clearAdminStepUp = useAdminStepUpStore((state) => state.clearStepUp);
   const [historyUserId, setHistoryUserId] = useState("");
   const [historyRoomId, setHistoryRoomId] = useState("");
   const [historyTournamentId, setHistoryTournamentId] = useState("");
@@ -179,6 +183,9 @@ export function AdminWalletScreen() {
   const financeTimeline = timelineRows(dashboard);
   const selectedTopup = topups.find((row) => row.id === selectedTopupId);
   const selectedPayout = payouts.find((row) => row.id === selectedPayoutId);
+  const stepUpActive = isAdminStepUpActive({ token: savedStepUpToken, expiresAt: savedStepUpExpiresAt, userId: savedStepUpUserId }, user?.id);
+  const stepUpToken = stepUpActive ? savedStepUpToken : null;
+  const stepUpExpiresAt = stepUpActive ? savedStepUpExpiresAt : null;
   const canReviewTopup = Boolean(selectedTopupId.trim() && stepUpToken);
   const canReviewPayout = Boolean(selectedPayoutId.trim() && stepUpToken);
   const isLoading = topupsQuery.isLoading || payoutsQuery.isLoading || dashboardQuery.isLoading;
@@ -195,14 +202,12 @@ export function AdminWalletScreen() {
       return confirmAdminStepUp(password);
     },
     onSuccess: (result) => {
-      setStepUpToken(result.step_up_token);
-      setStepUpExpiresAt(result.expires_at ?? null);
+      setAdminStepUp(result.step_up_token, result.expires_at ?? null, user?.id ?? null);
       setPassword("");
       notify("security", { tone: "success", message: "Sensitive wallet actions are unlocked for this session." });
     },
     onError: (error) => {
-      setStepUpToken(null);
-      setStepUpExpiresAt(null);
+      clearAdminStepUp();
       notify("security", { tone: "error", message: plainApiError(error, "Sensitive actions could not be unlocked.") });
     }
   });
@@ -217,13 +222,13 @@ export function AdminWalletScreen() {
         stepUpToken
       });
     },
-    onSuccess: async (_, decision) => {
+    onSuccess: (_, decision) => {
       notify("topupDecision", { tone: "success", message: decision === "approve" ? "Wallet top-up approved and credited." : "Wallet top-up rejected." });
       setSelectedTopupId("");
       setTopupNote("");
-      await invalidateWalletQueries(queryClient);
+      void invalidateWalletQueries(queryClient);
     },
-    onError: (error) => handleSensitiveError(error, setStepUpToken, setStepUpExpiresAt, (value) => value && notify("topupDecision", value), "The wallet top-up review could not be completed.")
+    onError: (error) => handleSensitiveError(error, clearAdminStepUp, (value) => value && notify("topupDecision", value), "The wallet top-up review could not be completed.")
   });
 
   const payoutReviewMutation = useMutation({
@@ -238,14 +243,14 @@ export function AdminWalletScreen() {
         stepUpToken
       });
     },
-    onSuccess: async (_, decision) => {
+    onSuccess: (_, decision) => {
       notify("payoutDecision", { tone: "success", message: decision === "mark_paid" ? "Payout marked as paid." : "Payout rejected and returned to winnings." });
       setSelectedPayoutId("");
       setPayoutNote("");
       setPaymentReference("");
-      await invalidateWalletQueries(queryClient);
+      void invalidateWalletQueries(queryClient);
     },
-    onError: (error) => handleSensitiveError(error, setStepUpToken, setStepUpExpiresAt, (value) => value && notify("payoutDecision", value), "The wallet payout review could not be completed.")
+    onError: (error) => handleSensitiveError(error, clearAdminStepUp, (value) => value && notify("payoutDecision", value), "The wallet payout review could not be completed.")
   });
 
   if (!canAdmin) {
@@ -411,8 +416,7 @@ export function AdminWalletScreen() {
         loading={stepUpMutation.isPending}
         onUnlock={() => stepUpMutation.mutate()}
         onLock={() => {
-          setStepUpToken(null);
-          setStepUpExpiresAt(null);
+          clearAdminStepUp();
           notify("security", { tone: "info", message: "Sensitive wallet actions are locked again." });
         }}
         notice={noticeFor("security")}
@@ -475,14 +479,12 @@ async function invalidateWalletQueries(queryClient: ReturnType<typeof useQueryCl
 
 function handleSensitiveError(
   error: unknown,
-  setStepUpToken: (value: string | null) => void,
-  setStepUpExpiresAt: (value: string | null) => void,
+  clearStepUp: () => void,
   setNotice: (value: Notice) => void,
   fallback: string
 ) {
   if (error instanceof ApiError && (error.code === "ADMIN_STEP_UP_EXPIRED" || error.code === "ADMIN_STEP_UP_INVALID")) {
-    setStepUpToken(null);
-    setStepUpExpiresAt(null);
+    clearStepUp();
   }
   setNotice({ tone: "error", message: plainApiError(error, fallback) });
 }

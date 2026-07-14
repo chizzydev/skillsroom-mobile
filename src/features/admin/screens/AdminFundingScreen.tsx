@@ -24,6 +24,7 @@ import { FeedbackState } from "../../../components/ui/FeedbackState";
 import { FormNotice } from "../../../components/ui/FormNotice";
 import { SurfaceCard } from "../../../components/ui/SurfaceCard";
 import { colors, radius, spacing } from "../../../constants/theme";
+import { isAdminStepUpActive, useAdminStepUpStore } from "../../../store/admin-step-up-store";
 import { useAuthStore } from "../../../store/auth-store";
 import type { ManualFundingSubmission } from "../../../types/api";
 
@@ -64,8 +65,11 @@ export function AdminFundingScreen() {
   const [selectedId, setSelectedId] = useState("");
   const [note, setNote] = useState("");
   const [password, setPassword] = useState("");
-  const [stepUpToken, setStepUpToken] = useState<string | null>(null);
-  const [stepUpExpiresAt, setStepUpExpiresAt] = useState<string | null>(null);
+  const savedStepUpToken = useAdminStepUpStore((state) => state.token);
+  const savedStepUpExpiresAt = useAdminStepUpStore((state) => state.expiresAt);
+  const savedStepUpUserId = useAdminStepUpStore((state) => state.userId);
+  const setAdminStepUp = useAdminStepUpStore((state) => state.setStepUp);
+  const clearAdminStepUp = useAdminStepUpStore((state) => state.clearStepUp);
   const [notice, setNotice] = useState<Notice>(null);
   const [targetNotice, setTargetNotice] = useState<{ target: NoticeTarget; notice: NonNullable<Notice> } | null>(null);
   const canAdmin = canAccessAdmin(user);
@@ -82,6 +86,9 @@ export function AdminFundingScreen() {
   const selectedSubmission = submissions.find((row) => row.id === selectedId);
   const totalMinor = submissions.reduce((total, row) => total + (typeof row.amount_minor === "number" ? row.amount_minor : 0), 0);
   const hasSubmissionId = Boolean(selectedId.trim());
+  const stepUpActive = isAdminStepUpActive({ token: savedStepUpToken, expiresAt: savedStepUpExpiresAt, userId: savedStepUpUserId }, user?.id);
+  const stepUpToken = stepUpActive ? savedStepUpToken : null;
+  const stepUpExpiresAt = stepUpActive ? savedStepUpExpiresAt : null;
   const hasFundingUnlock = Boolean(stepUpToken);
   const canReview = hasSubmissionId && hasFundingUnlock;
   const notify = (target: NoticeTarget, nextNotice: NonNullable<Notice>) => {
@@ -96,14 +103,12 @@ export function AdminFundingScreen() {
       return confirmAdminStepUp(password);
     },
     onSuccess: (result) => {
-      setStepUpToken(result.step_up_token);
-      setStepUpExpiresAt(result.expires_at ?? null);
+      setAdminStepUp(result.step_up_token, result.expires_at ?? null, user?.id ?? null);
       setPassword("");
       notify("security", { tone: "success", message: "Sensitive funding actions are unlocked for this session." });
     },
     onError: (error) => {
-      setStepUpToken(null);
-      setStepUpExpiresAt(null);
+      clearAdminStepUp();
       notify("security", { tone: "error", message: plainApiError(error, "Sensitive actions could not be unlocked.") });
     }
   });
@@ -122,13 +127,12 @@ export function AdminFundingScreen() {
       notify("decision", { tone: "success", message: decision === "approve" ? "Funding submission approved." : "Funding submission rejected." });
       setSelectedId("");
       setNote("");
-      await queryClient.invalidateQueries({ queryKey: ["admin", "funding"] });
-      await queryClient.invalidateQueries({ queryKey: ["admin", "overview"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin", "funding"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin", "overview"] });
     },
     onError: (error) => {
       if (error instanceof ApiError && (error.code === "ADMIN_STEP_UP_EXPIRED" || error.code === "ADMIN_STEP_UP_INVALID")) {
-        setStepUpToken(null);
-        setStepUpExpiresAt(null);
+        clearAdminStepUp();
       }
       notify("decision", { tone: "error", message: plainApiError(error, "The funding review could not be completed.") });
     }
@@ -267,8 +271,7 @@ export function AdminFundingScreen() {
           <AppButton
             variant="secondary"
             onPress={() => {
-              setStepUpToken(null);
-              setStepUpExpiresAt(null);
+              clearAdminStepUp();
               notify("security", { tone: "info", message: "Sensitive funding actions are locked again." });
             }}
           >

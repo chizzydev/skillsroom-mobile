@@ -28,6 +28,7 @@ import { FormNotice } from "../../../components/ui/FormNotice";
 import { SurfaceCard } from "../../../components/ui/SurfaceCard";
 import { openEvidenceInApp } from "../../evidence/openEvidence";
 import { colors, radius, spacing } from "../../../constants/theme";
+import { isAdminStepUpActive, useAdminStepUpStore } from "../../../store/admin-step-up-store";
 import { useAuthStore } from "../../../store/auth-store";
 import type { MatchParticipant, MatchResultClaim, MatchResultEvidence, MatchRoom } from "../../../types/api";
 
@@ -219,8 +220,11 @@ export function AdminResultsScreen() {
   const [selectedClaimId, setSelectedClaimId] = useState("");
   const [reviewNote, setReviewNote] = useState("");
   const [password, setPassword] = useState("");
-  const [stepUpToken, setStepUpToken] = useState<string | null>(null);
-  const [stepUpExpiresAt, setStepUpExpiresAt] = useState<string | null>(null);
+  const savedStepUpToken = useAdminStepUpStore((state) => state.token);
+  const savedStepUpExpiresAt = useAdminStepUpStore((state) => state.expiresAt);
+  const savedStepUpUserId = useAdminStepUpStore((state) => state.userId);
+  const setAdminStepUp = useAdminStepUpStore((state) => state.setStepUp);
+  const clearAdminStepUp = useAdminStepUpStore((state) => state.clearStepUp);
   const canAdmin = canAccessAdmin(user);
   const canResults = canUseAdminSection(user, "results");
   const lanes = useMemo(() => adminLanesFor(user), [user]);
@@ -239,6 +243,9 @@ export function AdminResultsScreen() {
   const claims = resultsQuery.data?.claims ?? [];
   const cards = resultsQuery.data?.cards ?? [];
   const selectedCard = cards.find((card) => card.claim.id === selectedClaimId);
+  const stepUpActive = isAdminStepUpActive({ token: savedStepUpToken, expiresAt: savedStepUpExpiresAt, userId: savedStepUpUserId }, user?.id);
+  const stepUpToken = stepUpActive ? savedStepUpToken : null;
+  const stepUpExpiresAt = stepUpActive ? savedStepUpExpiresAt : null;
   const canReview = Boolean(selectedClaimId.trim() && stepUpToken);
   const notify = (target: NoticeTarget, nextNotice: NonNullable<Notice>) => {
     setNotice(nextNotice);
@@ -252,14 +259,12 @@ export function AdminResultsScreen() {
       return confirmAdminStepUp(password);
     },
     onSuccess: (result) => {
-      setStepUpToken(result.step_up_token);
-      setStepUpExpiresAt(result.expires_at ?? null);
+      setAdminStepUp(result.step_up_token, result.expires_at ?? null, user?.id ?? null);
       setPassword("");
       notify("security", { tone: "success", message: "Sensitive result actions are unlocked for this session." });
     },
     onError: (error) => {
-      setStepUpToken(null);
-      setStepUpExpiresAt(null);
+      clearAdminStepUp();
       notify("security", { tone: "error", message: plainApiError(error, "Sensitive actions could not be unlocked.") });
     }
   });
@@ -274,17 +279,16 @@ export function AdminResultsScreen() {
         stepUpToken
       });
     },
-    onSuccess: async (_, decision) => {
+    onSuccess: (_, decision) => {
       notify("decision", { tone: "success", message: resultSuccessMessages[decision] ?? "Result review completed." });
       setSelectedClaimId("");
       setReviewNote("");
-      await queryClient.invalidateQueries({ queryKey: ["admin", "results"] });
-      await queryClient.invalidateQueries({ queryKey: ["admin", "overview"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin", "results"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin", "overview"] });
     },
     onError: (error) => {
       if (error instanceof ApiError && (error.code === "ADMIN_STEP_UP_EXPIRED" || error.code === "ADMIN_STEP_UP_INVALID")) {
-        setStepUpToken(null);
-        setStepUpExpiresAt(null);
+        clearAdminStepUp();
       }
       notify("decision", { tone: "error", message: plainApiError(error, "The result review could not be completed.") });
     }
@@ -427,8 +431,7 @@ export function AdminResultsScreen() {
         loading={stepUpMutation.isPending}
         onUnlock={() => stepUpMutation.mutate()}
         onLock={() => {
-          setStepUpToken(null);
-          setStepUpExpiresAt(null);
+          clearAdminStepUp();
           notify("security", { tone: "info", message: "Sensitive result actions are locked again." });
         }}
         notice={noticeFor("security")}

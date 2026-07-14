@@ -5,6 +5,7 @@ import { ApiError, setAuthFailureHandler } from "../api/client";
 import { clearStoredTokens, getStoredTokens, getStoredUser, setStoredUser } from "../api/session";
 import { unregisterCurrentPushDevice } from "../features/notifications/pushRegistration";
 import { queryClient } from "../providers/query-client";
+import { useAdminStepUpStore } from "./admin-step-up-store";
 
 type AuthState = {
   user: AuthUser | null;
@@ -63,6 +64,8 @@ function preferCachedIdentity(user: AuthUser, cached: AuthUser | null) {
 }
 
 function setSignedInUser(set: (state: Partial<AuthState>) => void, user: AuthUser) {
+  const stepUp = useAdminStepUpStore.getState();
+  if (stepUp.userId && stepUp.userId !== user.id) stepUp.clearStepUp();
   set({ user, isSignedIn: true, bootstrapError: null });
   void setStoredUser(user);
 }
@@ -78,6 +81,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ isBootstrapping: true, bootstrapError: null });
       const { accessToken } = await getStoredTokens();
       if (!accessToken) {
+        useAdminStepUpStore.getState().clearStepUp();
         set({ user: null, isSignedIn: false, isBootstrapping: false });
         return;
       }
@@ -102,6 +106,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
 
       await clearStoredTokens();
+      useAdminStepUpStore.getState().clearStepUp();
       queryClient.clear();
       set({ user: null, isSignedIn: false, isBootstrapping: false, bootstrapError: null });
     }
@@ -140,6 +145,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch {
       // Local sign-out must still succeed if the API is unavailable.
     }
+    useAdminStepUpStore.getState().clearStepUp();
     queryClient.clear();
     set({ user: null, isSignedIn: false, bootstrapError: null });
   },
@@ -155,6 +161,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
 setAuthFailureHandler(() => {
   void clearStoredTokens();
+  useAdminStepUpStore.getState().clearStepUp();
   queryClient.clear();
   useAuthStore.setState({ user: null, isSignedIn: false, isBootstrapping: false, bootstrapError: null });
 });
