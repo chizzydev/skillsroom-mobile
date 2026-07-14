@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Linking, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { WebView } from "react-native-webview";
 import { AppButton } from "../../../components/ui/AppButton";
@@ -18,6 +18,63 @@ type AttachInput = {
   stream_role: "official" | "player_a" | "player_b";
 };
 
+type StreamTelemetryEvent = "blocked_navigation" | "load_error" | "http_error" | "missing_embed" | "external_open_failed";
+type StreamPlayerConfig = {
+  label: string;
+  dependableForLive: boolean;
+  domains: string[];
+  fallbackMessage: string;
+  unsupportedEmbedMessage: string;
+};
+
+const playerConfigs: Record<StreamProvider, StreamPlayerConfig> = {
+  youtube: {
+    label: "YouTube",
+    dependableForLive: true,
+    domains: [
+      "youtube.com",
+      "youtube-nocookie.com",
+      "youtu.be",
+      "ytimg.com",
+      "youtubei.googleapis.com",
+      "googleapis.com",
+      "googlevideo.com",
+      "gstatic.com",
+      "google.com",
+      "googleusercontent.com",
+      "ggpht.com"
+    ],
+    fallbackMessage: "YouTube blocked the embedded player here. Open it externally to keep watching.",
+    unsupportedEmbedMessage: "This YouTube link cannot be embedded here. Open it externally to watch."
+  },
+  twitch: {
+    label: "Twitch",
+    dependableForLive: true,
+    domains: ["twitch.tv", "ext-twitch.tv", "twitchcdn.net", "twitchstatic.com", "jtvnw.net"],
+    fallbackMessage: "Twitch blocked the embedded player here. Open it externally to keep watching.",
+    unsupportedEmbedMessage: "This Twitch link cannot be embedded here. Open it externally to watch."
+  },
+  tiktok: {
+    label: "TikTok",
+    dependableForLive: false,
+    domains: [
+      "tiktok.com",
+      "tiktokv.com",
+      "tiktokcdn.com",
+      "tiktokcdn-us.com",
+      "byteoversea.com",
+      "ibytedtos.com",
+      "ibyteimg.com",
+      "ttwstatic.com",
+      "muscdn.com",
+      "byteimg.com",
+      "isnssdk.com"
+    ],
+    fallbackMessage: "TikTok blocked the embedded player here. Open it externally to keep watching.",
+    unsupportedEmbedMessage: "TikTok LIVE and short links may not embed in-app. Open it externally to watch."
+  }
+};
+
 function clean(value?: string | null) {
   return String(value ?? "").replaceAll("_", " ") || "stream";
 }
@@ -30,10 +87,31 @@ function tone(value?: string | null): "cyan" | "green" | "amber" | "red" | "dark
 }
 
 function providerHint(provider?: string | null) {
-  if (provider === "youtube") return "YouTube";
-  if (provider === "twitch") return "Twitch";
-  if (provider === "tiktok") return "TikTok";
+  if (isStreamProvider(provider)) return playerConfigs[provider].label;
   return "Stream";
+}
+
+function isStreamProvider(provider?: string | null): provider is StreamProvider {
+  return provider === "youtube" || provider === "twitch" || provider === "tiktok";
+}
+
+function inferStreamProvider(input: { provider?: string | null; streamUrl?: string | null; embedUrl?: string | null }): StreamProvider | null {
+  if (isStreamProvider(input.provider)) return input.provider;
+  const candidate = input.streamUrl ?? input.embedUrl;
+  if (!candidate) return null;
+  try {
+    const host = new URL(candidate).hostname.toLowerCase();
+    if (host === "youtu.be" || host.endsWith("youtube.com") || host.endsWith("youtube-nocookie.com")) return "youtube";
+    if (host.endsWith("twitch.tv")) return "twitch";
+    if (host.endsWith("tiktok.com") || host.endsWith("tiktokv.com")) return "tiktok";
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function streamTelemetry(event: StreamTelemetryEvent, details: Record<string, unknown>) {
+  console.warn("[stream-player]", { event, ...details });
 }
 
 function embedParent() {
@@ -94,53 +172,30 @@ function computedEmbedUrl(input: { provider?: string | null; streamUrl?: string 
   try {
     const url = new URL(input.streamUrl);
     if (url.protocol !== "https:") return null;
-    if (input.provider === "youtube") return youtubeEmbedUrl(url);
-    if (input.provider === "twitch") return twitchEmbedUrl(url);
-    if (input.provider === "tiktok") return tiktokEmbedUrl(url);
+    const provider = inferStreamProvider(input);
+    if (provider === "youtube") return youtubeEmbedUrl(url);
+    if (provider === "twitch") return twitchEmbedUrl(url);
+    if (provider === "tiktok") return tiktokEmbedUrl(url);
     return youtubeEmbedUrl(url) ?? twitchEmbedUrl(url) ?? tiktokEmbedUrl(url);
   } catch {
     return null;
   }
 }
 
-function allowedPlayerNavigation(requestUrl?: string) {
-  if (!requestUrl) return false;
+function allowedPlayerNavigation(requestUrl: string | undefined, provider: StreamProvider | null) {
+  if (!requestUrl) return { allowed: false, reason: "missing_url", host: null };
   try {
     const url = new URL(requestUrl);
-    if (url.protocol === "about:" || url.protocol === "data:" || url.protocol === "blob:") return true;
-    if (url.protocol !== "https:") return false;
+    if (url.protocol === "about:" || url.protocol === "data:" || url.protocol === "blob:") {
+      return { allowed: true, reason: "internal_player_protocol", host: url.protocol };
+    }
+    if (url.protocol !== "https:") return { allowed: false, reason: "unsupported_protocol", host: url.hostname || url.protocol };
     const host = url.hostname.toLowerCase();
-    return [
-      "youtube.com",
-      "youtube-nocookie.com",
-      "youtu.be",
-      "ytimg.com",
-      "youtubei.googleapis.com",
-      "googleapis.com",
-      "googlevideo.com",
-      "gstatic.com",
-      "google.com",
-      "googleusercontent.com",
-      "ggpht.com",
-      "twitch.tv",
-      "ext-twitch.tv",
-      "twitchcdn.net",
-      "twitchstatic.com",
-      "jtvnw.net",
-      "tiktok.com",
-      "tiktokv.com",
-      "tiktokcdn.com",
-      "tiktokcdn-us.com",
-      "byteoversea.com",
-      "ibytedtos.com",
-      "ibyteimg.com",
-      "ttwstatic.com",
-      "muscdn.com",
-      "byteimg.com",
-      "isnssdk.com"
-    ].some((domain) => host === domain || host.endsWith(`.${domain}`));
+    const domains = provider ? playerConfigs[provider].domains : Object.values(playerConfigs).flatMap((config) => config.domains);
+    const allowed = domains.some((domain) => host === domain || host.endsWith(`.${domain}`));
+    return { allowed, reason: allowed ? "provider_domain" : "domain_not_allowed", host };
   } catch {
-    return false;
+    return { allowed: false, reason: "invalid_url", host: null };
   }
 }
 
@@ -157,9 +212,36 @@ function EmbeddedStreamPlayer({
 }) {
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
-  const source = computedEmbedUrl({ provider, streamUrl, embedUrl });
+  const resolvedProvider = inferStreamProvider({ provider, streamUrl, embedUrl });
+  const source = computedEmbedUrl({ provider: resolvedProvider, streamUrl, embedUrl });
+  const config = resolvedProvider ? playerConfigs[resolvedProvider] : null;
+  const missingEmbedLogged = useRef(false);
 
-  if (!source) return null;
+  useEffect(() => {
+    missingEmbedLogged.current = false;
+  }, [source, streamUrl, embedUrl, resolvedProvider]);
+
+  useEffect(() => {
+    if (source || missingEmbedLogged.current) return;
+    missingEmbedLogged.current = true;
+    streamTelemetry("missing_embed", {
+      provider: resolvedProvider ?? provider ?? "unknown",
+      title: title ?? "stream",
+      streamUrl,
+      hasEmbedUrl: Boolean(embedUrl)
+    });
+  }, [embedUrl, provider, resolvedProvider, source, streamUrl, title]);
+
+  if (!source) {
+    return (
+      <View style={styles.playerWrap}>
+        <View style={styles.playerPlaceholder}>
+          <Badge tone="amber">{`${providerHint(resolvedProvider ?? provider)} player`}</Badge>
+          <Text style={styles.copy}>{config?.unsupportedEmbedMessage ?? "This stream cannot be embedded here. Open it externally to watch."}</Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.playerWrap}>
@@ -176,15 +258,47 @@ function EmbeddedStreamPlayer({
           thirdPartyCookiesEnabled
           mediaPlaybackRequiresUserAction={false}
           setSupportMultipleWindows={false}
-          onError={() => setFailed(true)}
-          onHttpError={() => setFailed(true)}
-          onShouldStartLoadWithRequest={(request) => allowedPlayerNavigation(request.url)}
-          accessibilityLabel={`${providerHint(provider)} player for ${title ?? "stream"}`}
+          onError={(event) => {
+            streamTelemetry("load_error", {
+              provider: resolvedProvider ?? "unknown",
+              title: title ?? "stream",
+              source,
+              description: event.nativeEvent.description,
+              code: event.nativeEvent.code
+            });
+            setFailed(true);
+          }}
+          onHttpError={(event) => {
+            streamTelemetry("http_error", {
+              provider: resolvedProvider ?? "unknown",
+              title: title ?? "stream",
+              source,
+              statusCode: event.nativeEvent.statusCode,
+              url: event.nativeEvent.url
+            });
+            setFailed(true);
+          }}
+          onShouldStartLoadWithRequest={(request) => {
+            const decision = allowedPlayerNavigation(request.url, resolvedProvider);
+            if (!decision.allowed) {
+              streamTelemetry("blocked_navigation", {
+                provider: resolvedProvider ?? "unknown",
+                title: title ?? "stream",
+                source,
+                requestUrl: request.url,
+                host: decision.host,
+                reason: decision.reason,
+                navigationType: request.navigationType
+              });
+            }
+            return decision.allowed;
+          }}
+          accessibilityLabel={`${providerHint(resolvedProvider ?? provider)} player for ${title ?? "stream"}`}
         />
       ) : (
         <View style={styles.playerPlaceholder}>
-          <Badge tone={failed ? "amber" : "dark"}>{`${providerHint(provider)} player`}</Badge>
-          <Text style={styles.copy}>{failed ? "Player could not load here. Open externally if this provider blocks embeds." : "Load the embedded player when you are ready to watch."}</Text>
+          <Badge tone={failed ? "amber" : "dark"}>{`${providerHint(resolvedProvider ?? provider)} player`}</Badge>
+          <Text style={styles.copy}>{failed ? config?.fallbackMessage ?? "Player could not load here. Open externally if this provider blocks embeds." : "Load the embedded player when you are ready to watch."}</Text>
           <AppButton variant="secondary" onPress={() => {
             setFailed(false);
             setLoaded(true);
@@ -198,6 +312,22 @@ function EmbeddedStreamPlayer({
 }
 
 export function StreamLinkCard({ stream }: { stream: CommunityLivestreamLink }) {
+  const provider = inferStreamProvider({ provider: stream.provider, streamUrl: stream.stream_url, embedUrl: stream.embed_url });
+  const config = provider ? playerConfigs[provider] : null;
+  const openExternally = async () => {
+    if (!stream.stream_url) return;
+    try {
+      await Linking.openURL(stream.stream_url);
+    } catch (error) {
+      streamTelemetry("external_open_failed", {
+        provider: stream.provider,
+        title: stream.title ?? "stream",
+        streamUrl: stream.stream_url,
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  };
+
   return (
     <View style={styles.card}>
       <View style={styles.rowTop}>
@@ -206,8 +336,9 @@ export function StreamLinkCard({ stream }: { stream: CommunityLivestreamLink }) 
       </View>
       <Text style={styles.title}>{stream.title ?? "Stream link"}</Text>
       <Text style={styles.copy}>{providerHint(stream.provider)} - {clean(stream.playback_status)}</Text>
+      {config && !config.dependableForLive ? <Text style={styles.providerNote}>{config.unsupportedEmbedMessage}</Text> : null}
       <EmbeddedStreamPlayer provider={stream.provider} title={stream.title} streamUrl={stream.stream_url} embedUrl={stream.embed_url} />
-      <AppButton variant="secondary" disabled={!stream.stream_url} onPress={() => stream.stream_url && void Linking.openURL(stream.stream_url)}>
+      <AppButton variant="secondary" disabled={!stream.stream_url} onPress={() => void openExternally()}>
         Open externally
       </AppButton>
     </View>
@@ -215,6 +346,20 @@ export function StreamLinkCard({ stream }: { stream: CommunityLivestreamLink }) 
 }
 
 export function ConnectedChannelCard({ account, onRefresh, loading }: { account: StreamingAccount; onRefresh?: () => void; loading?: boolean }) {
+  const openUrl = async (url: string | null | undefined, label: string) => {
+    if (!url) return;
+    try {
+      await Linking.openURL(url);
+    } catch (error) {
+      streamTelemetry("external_open_failed", {
+        provider: account.provider,
+        title: account.display_name ?? label,
+        streamUrl: url,
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  };
+
   return (
     <View style={styles.card}>
       <View style={styles.rowTop}>
@@ -225,12 +370,12 @@ export function ConnectedChannelCard({ account, onRefresh, loading }: { account:
       <Text style={styles.copy}>This is your saved profile channel. It is not a room or tournament stream until attached to one.</Text>
       <EmbeddedStreamPlayer provider={account.provider} title={account.live_title ?? account.display_name} streamUrl={account.live_stream_url} embedUrl={account.live_embed_url} />
       {account.channel_url ? (
-        <AppButton variant="secondary" onPress={() => account.channel_url && void Linking.openURL(account.channel_url)}>
+        <AppButton variant="secondary" onPress={() => void openUrl(account.channel_url, "channel")}>
           Open channel
         </AppButton>
       ) : null}
       {account.live_stream_url ? (
-        <AppButton variant="secondary" onPress={() => account.live_stream_url && void Linking.openURL(account.live_stream_url)}>
+        <AppButton variant="secondary" onPress={() => void openUrl(account.live_stream_url, "live video")}>
           Open live video
         </AppButton>
       ) : null}
@@ -337,6 +482,17 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 14,
     lineHeight: 20
+  },
+  providerNote: {
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surface,
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: "800",
+    lineHeight: 19,
+    padding: spacing.sm
   },
   attach: {
     borderTopWidth: 1,
