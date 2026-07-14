@@ -1,14 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
-import { BadgeCheck, Banknote, Clock3, Copy, FileCheck2, Play, Radio, RefreshCw, Send, Share2, ShieldCheck, Trophy, Users } from "lucide-react-native";
-import { useMemo, useState } from "react";
+import { BadgeCheck, Banknote, Clock3, Copy, FileCheck2, KeyRound, Play, Radio, RefreshCw, Send, Share2, ShieldCheck, Trophy, Users } from "lucide-react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Linking, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { plainApiError } from "../../../api/errors";
+import { profileTrustSummary } from "../../../api/profile";
 import {
   createRoomInvite,
   getRoomFunding,
   getRoomResults,
   getRoomTimeline,
+  joinRoom,
   listRoomLivestreams,
   openRoom,
   payRoomWithBalance,
@@ -25,14 +27,16 @@ import { CopyButton } from "../../../components/ui/CopyButton";
 import { FeedbackState } from "../../../components/ui/FeedbackState";
 import { FormNotice } from "../../../components/ui/FormNotice";
 import { SurfaceCard } from "../../../components/ui/SurfaceCard";
+import { openableEvidenceUrl } from "../../../config/evidence-links";
 import { colors, radius, spacing } from "../../../constants/theme";
 import { EvidenceUploadField } from "../../uploads/components/EvidenceUploadField";
 import { NoStreamState, StreamAttachForm, StreamLinkCard } from "../../streaming/components/StreamCards";
 import { useAuthStore } from "../../../store/auth-store";
-import type { MatchParticipant, MatchResultClaim, MatchRoom } from "../../../types/api";
+import type { ManualFundingSubmission, MatchParticipant, MatchResultClaim, MatchRoom, PlayerTrustSummary, RoomFundingOverview } from "../../../types/api";
 
 type Section = "overview" | "players" | "funding" | "live" | "result" | "history";
 type Notice = { tone: "error" | "success" | "info"; message: string } | null;
+type SectionNotice = { section: Section; notice: NonNullable<Notice> } | null;
 
 const sections: Section[] = ["overview", "players", "funding", "live", "result", "history"];
 const collectionAccount = {
@@ -79,7 +83,7 @@ function nextAction(room?: MatchRoom, participantCount = 0) {
     : (["Entry is next", "Both players are in. Each entry must be confirmed before play."] as const);
   if (room.status === "awaiting_funding") return ["Complete your entry", "Use Skillsroom Balance or submit transfer proof. The room updates when your entry is confirmed."] as const;
   if (room.status === "funding_review") return ["Entry review", "A transfer or balance hold is being checked before play opens."] as const;
-  if (room.status === "funded") return ["Start the match", "Both entries are confirmed. Start play only when both players are ready."] as const;
+  if (room.status === "funded") return ["Confirm you are ready", "Both entries are confirmed. The match goes live after both players confirm."] as const;
   if (room.status === "active") return ["Submit result evidence", "After the match, submit the winner and proof for review."] as const;
   if (room.status === "awaiting_results") return ["Result needed", "A player should submit the winner and match proof."] as const;
   if (room.status === "under_review") return ["Review in progress", "Result evidence and responses are being checked."] as const;
@@ -94,6 +98,78 @@ function participantLabel(participant?: MatchParticipant) {
   if (participant.slot === "player_a") return "Player A";
   if (participant.slot === "player_b") return "Player B";
   return "Player";
+}
+
+function slotLabel(slot?: string) {
+  if (slot === "player_a") return "Player A";
+  if (slot === "player_b") return "Player B";
+  return "Player";
+}
+
+function fundingStatusLabel(status?: string) {
+  if (status === "submitted") return "Proof in review";
+  if (status === "approved") return "Entry confirmed";
+  if (status === "rejected") return "Needs correction";
+  if (status === "refunded") return "Refunded";
+  if (status === "cancelled") return "Cancelled";
+  return "Pending";
+}
+
+function playerDisplayName(participant?: MatchParticipant, trust?: PlayerTrustSummary | null, currentUserId?: string) {
+  if (!participant) return "Open slot";
+  if (participant.user_id === currentUserId) return "You";
+  return trust?.display_name || trust?.username || shortUser(participant.user_id);
+}
+
+function playerHandleLine(participant?: MatchParticipant, trust?: PlayerTrustSummary | null) {
+  if (!participant) return "Waiting for player";
+  if (trust?.primary_game_handle && trust.primary_game_external_uid) return `${trust.primary_game_handle} / ${trust.primary_game_external_uid}`;
+  if (trust?.primary_game_handle) return trust.primary_game_handle;
+  if (trust?.primary_game_external_uid) return `UID ${trust.primary_game_external_uid}`;
+  return "No game handle shown";
+}
+
+function trustLabel(trust?: PlayerTrustSummary | null, loading = false) {
+  if (!trust) return loading ? "Trust loading" : "Trust unavailable";
+  if (trust.trust_level === "ready") return "Ready";
+  if (trust.trust_level === "blocked") return "Blocked";
+  if (trust.trust_level === "review") return "Review";
+  if (trust.profile_complete) return "Profile ready";
+  return "Setup incomplete";
+}
+
+function fundingMethodDetail(
+  participant: MatchParticipant | undefined,
+  submission: ManualFundingSubmission | undefined,
+  funding: RoomFundingOverview | undefined
+) {
+  if (!participant) return { label: "Waiting", detail: "This slot has not been joined yet.", tone: "amber" as const };
+
+  const escrowEntry = (funding?.ledger_entries ?? []).find((entry) => {
+    const item = entry as Record<string, unknown>;
+    return item.participant_id === participant.id && item.entry_type === "manual_funding_approved" && item.direction === "credit" && item.account_type === "match_escrow";
+  }) as Record<string, unknown> | undefined;
+
+  if (participant.funding_status === "approved" && escrowEntry?.source_type === "wallet_hold") {
+    return { label: "Balance", detail: "Entry fee is locked from Skillsroom Balance.", tone: "green" as const };
+  }
+  if (participant.funding_status === "approved" && (submission?.status === "approved" || escrowEntry)) {
+    return { label: "Manual transfer", detail: "Payment proof is approved for this room.", tone: "green" as const };
+  }
+  if (submission?.status === "submitted" || participant.funding_status === "submitted") {
+    return { label: "Under review", detail: "Payment proof is waiting for Skillsroom review.", tone: "amber" as const };
+  }
+  if (submission?.status === "rejected" || participant.funding_status === "rejected") {
+    return { label: "Needs correction", detail: "The last proof was rejected. Submit corrected proof.", tone: "red" as const };
+  }
+  if (participant.funding_status === "refunded") return { label: "Refunded", detail: "This entry has been returned.", tone: "amber" as const };
+  return { label: "Not funded", detail: "Player still needs to pay the entry or upload payment proof.", tone: "amber" as const };
+}
+
+function fundingStatusTone(status?: string): "green" | "amber" | "red" {
+  if (status === "approved") return "green";
+  if (status === "rejected" || status === "cancelled") return "red";
+  return "amber";
 }
 
 function shortUser(userId?: string) {
@@ -118,6 +194,7 @@ export function RoomDetailScreen() {
   const queryClient = useQueryClient();
   const [section, setSection] = useState<Section>("overview");
   const [notice, setNotice] = useState<Notice>(null);
+  const [sectionNotice, setSectionNotice] = useState<SectionNotice>(null);
   const [proofUrl, setProofUrl] = useState("");
   const [senderName, setSenderName] = useState("");
   const [senderBank, setSenderBank] = useState("");
@@ -126,10 +203,12 @@ export function RoomDetailScreen() {
   const [scoreSummary, setScoreSummary] = useState("");
   const [resultNote, setResultNote] = useState("");
   const [evidenceUrl, setEvidenceUrl] = useState("");
-  const [selectedWinnerId, setSelectedWinnerId] = useState("");
   const [responseNote, setResponseNote] = useState("");
   const [inviteUsername, setInviteUsername] = useState("");
   const [inviteMessage, setInviteMessage] = useState("");
+  const [detailJoinCode, setDetailJoinCode] = useState("");
+  const [localFundingSubmitted, setLocalFundingSubmitted] = useState(false);
+  const promptedNextStep = useRef<string | null>(null);
 
   const timelineQuery = useQuery({ queryKey: ["room", roomId, "timeline"], queryFn: () => getRoomTimeline(roomId), enabled: Boolean(roomId), refetchInterval: 10000 });
   const fundingQuery = useQuery({ queryKey: ["room", roomId, "funding"], queryFn: () => getRoomFunding(roomId), enabled: Boolean(roomId), refetchInterval: 10000 });
@@ -138,6 +217,27 @@ export function RoomDetailScreen() {
 
   const room = timelineQuery.data?.room;
   const participants = fundingQuery.data?.participants ?? timelineQuery.data?.participants ?? [];
+  const startConfirmations = timelineQuery.data?.start_confirmations ?? [];
+  const participantUserIds = useMemo(
+    () => Array.from(new Set(participants.map((participant) => participant.user_id).filter(Boolean))),
+    [participants]
+  );
+  const trustQuery = useQuery({
+    queryKey: ["room", roomId, "participant-trust", participantUserIds],
+    queryFn: async () => {
+      const entries = await Promise.all(
+        participantUserIds.map(async (userId) => {
+          try {
+            return [userId, await profileTrustSummary(userId)] as const;
+          } catch {
+            return [userId, null] as const;
+          }
+        })
+      );
+      return Object.fromEntries(entries) as Record<string, PlayerTrustSummary | null>;
+    },
+    enabled: Boolean(roomId && participantUserIds.length)
+  });
   const ownParticipant = participants.find((participant) => participant.user_id === user?.id);
   const claim = latestClaim(resultsQuery.data?.claims);
   const participantCount = room?.participant_count ?? participants.length;
@@ -145,7 +245,99 @@ export function RoomDetailScreen() {
   const canAttachStream = canManageStreams(user?.role, room, user?.id);
   const isCreator = Boolean(user?.id && room?.creator_user_id === user.id);
   const canInvite = Boolean(room?.status === "open" && isCreator && participantCount < (room?.max_participants ?? 2));
+  const canJoinFromDetail = Boolean(room?.status === "open" && !ownParticipant && participantCount < (room?.max_participants ?? 2));
+  const ownFundingSubmission = useMemo(() => {
+    const submissions = fundingQuery.data?.submissions ?? [];
+    return submissions.find((submission) => {
+      if (ownParticipant?.id && submission.participant_id === ownParticipant.id) return true;
+      if (user?.id && submission.user_id === user.id) return true;
+      return false;
+    });
+  }, [fundingQuery.data?.submissions, ownParticipant?.id, user?.id]);
+  const ownFundingStatus = String(ownParticipant?.funding_status ?? ownFundingSubmission?.status ?? "");
+  const ownEntryApproved = ownFundingStatus === "approved" || ownFundingSubmission?.status === "approved";
+  const ownEntrySubmitted = localFundingSubmitted || ownFundingStatus === "submitted" || ownFundingSubmission?.status === "submitted";
+  const canSubmitOwnFunding = Boolean(
+    ownParticipant &&
+    ["awaiting_funding", "funding_review"].includes(String(room?.status)) &&
+    !ownEntryApproved &&
+    !ownEntrySubmitted
+  );
+  const canSubmitManualFunding = canSubmitOwnFunding && Boolean(proofUrl.trim() && senderName.trim() && senderBank.trim());
+  const needsOwnEntry = Boolean(
+    ownParticipant &&
+    ["awaiting_funding", "funding_review"].includes(String(room?.status)) &&
+    !["approved", "submitted"].includes(ownFundingStatus)
+  );
+  const joinedParticipants = participants.filter((participant) => participant.participant_status === "joined");
+  const ownStartConfirmed = Boolean(
+    ownParticipant && startConfirmations.some((confirmation) => confirmation.participant_id === ownParticipant.id)
+  );
+  const waitingForOpponentStart = Boolean(
+    ownParticipant &&
+    room?.status === "funded" &&
+    ownStartConfirmed &&
+    startConfirmations.length < joinedParticipants.length
+  );
+  const canStartMatch = Boolean(ownParticipant && room?.status === "funded" && !ownStartConfirmed);
+  const canSubmitRoomResult = Boolean(ownParticipant && ["active", "awaiting_results"].includes(String(room?.status)));
+  const canRespondToResult = Boolean(
+    claim &&
+    ownParticipant &&
+    ["submitted"].includes(String(claim.status)) &&
+    claim.claimant_user_id !== user?.id &&
+    claim.submitted_by_user_id !== user?.id &&
+    claim.claimant_participant_id !== ownParticipant.id &&
+    claim.submitted_by_participant_id !== ownParticipant.id &&
+    claim.claimed_winner_participant_id !== ownParticipant.id
+  );
   const inviteCopy = room?.room_code ? `Join my Skillsroom room with code ${room.room_code}.` : null;
+  const playerSlots = useMemo(() => {
+    const baseSlots = ["player_a", "player_b"];
+    const slots = baseSlots.slice(0, Math.max(room?.max_participants ?? 2, 2));
+    return slots.map((slot) => ({
+      slot,
+      participant: participants.find((participant) => participant.slot === slot)
+    }));
+  }, [participants, room?.max_participants]);
+  const fundedCount = participants.filter((participant) => participant.funding_status === "approved").length;
+
+  const notify = (targetSection: Section, nextNotice: NonNullable<Notice>, focusSection = false) => {
+    setNotice(nextNotice);
+    setSectionNotice({ section: targetSection, notice: nextNotice });
+    if (focusSection) setSection(targetSection);
+  };
+
+  const activeSectionNotice = sectionNotice?.section === section ? sectionNotice.notice : null;
+
+  useEffect(() => {
+    if (!roomId) return;
+    const promptKey = `${roomId}:${room?.status ?? "loading"}:${claim?.id ?? "none"}`;
+    if (promptedNextStep.current === promptKey) return;
+
+    if (needsOwnEntry) {
+      promptedNextStep.current = promptKey;
+      setSection("funding");
+      return;
+    }
+    if (canStartMatch) {
+      promptedNextStep.current = promptKey;
+      setSection("live");
+      return;
+    }
+    if (canSubmitRoomResult || canRespondToResult) {
+      promptedNextStep.current = promptKey;
+      setSection("result");
+    }
+  }, [canRespondToResult, canStartMatch, canSubmitRoomResult, claim?.id, needsOwnEntry, room?.status, roomId]);
+
+  useEffect(() => {
+    setLocalFundingSubmitted(false);
+  }, [roomId]);
+
+  useEffect(() => {
+    if (ownFundingStatus === "rejected") setLocalFundingSubmitted(false);
+  }, [ownFundingStatus]);
 
   const refreshRoom = async () => {
     await Promise.all([
@@ -157,10 +349,10 @@ export function RoomDetailScreen() {
   const openMutation = useMutation({
     mutationFn: () => openRoom(roomId),
     onSuccess: async () => {
-      setNotice({ tone: "success", message: "Room opened. Share the code with your opponent." });
+      notify("overview", { tone: "success", message: "Room opened. Share the code with your opponent." }, true);
       await refreshRoom();
     },
-    onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "Could not open room.") })
+    onError: (error) => notify("overview", { tone: "error", message: plainApiError(error, "Could not open room.") }, true)
   });
 
   const inviteMutation = useMutation({
@@ -173,21 +365,47 @@ export function RoomDetailScreen() {
       });
     },
     onSuccess: async () => {
-      setNotice({ tone: "success", message: "Invite sent." });
+      notify("overview", { tone: "success", message: "Invite sent." });
       setInviteUsername("");
       setInviteMessage("");
       await refreshRoom();
     },
-    onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "Could not send invite.") })
+    onError: (error) => notify("overview", { tone: "error", message: plainApiError(error, "Could not send invite.") })
+  });
+
+  const detailJoinMutation = useMutation({
+    mutationFn: () => {
+      const roomCode = detailJoinCode.trim().toUpperCase();
+      if (roomCode.length < 4) throw new Error("Paste the room code your opponent shared.");
+      return joinRoom(roomCode);
+    },
+    onSuccess: async (result) => {
+      setDetailJoinCode("");
+      setSection("funding");
+      notify("funding", { tone: "success", message: `Joined ${result.room?.room_code ?? "the room"}. Choose balance payment or upload transfer proof below.` }, true);
+      await refreshRoom();
+      if (result.room?.id && result.room.id !== roomId) router.push(`/(app)/rooms/${result.room.id}`);
+    },
+    onError: (error) => notify("overview", { tone: "error", message: plainApiError(error, "Could not join room.") })
   });
 
   const balanceMutation = useMutation({
     mutationFn: () => payRoomWithBalance(roomId),
-    onSuccess: async () => {
-      setNotice({ tone: "success", message: "Your entry fee is held from Skillsroom Balance. The room will update when both players are ready." });
-      await refreshRoom();
+    onSuccess: async (result) => {
+      queryClient.setQueryData<RoomFundingOverview | undefined>(["room", roomId, "funding"], (current) => {
+        if (!current) return current;
+        const nextParticipants = current.participants.map((participant) =>
+          participant.id === result.participant.id ? { ...participant, funding_status: "approved" } : participant
+        );
+        return { ...current, participants: nextParticipants };
+      });
+      notify("funding", { tone: "success", message: "Your entry fee is held from Skillsroom Balance. The room will update when both players are ready." });
+      await Promise.all([
+        refreshRoom(),
+        queryClient.invalidateQueries({ queryKey: ["room", roomId, "funding"] })
+      ]);
     },
-    onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "Could not pay with balance.") })
+    onError: (error) => notify("funding", { tone: "error", message: plainApiError(error, "Could not pay with balance.") })
   });
 
   const manualFundingMutation = useMutation({
@@ -207,27 +425,49 @@ export function RoomDetailScreen() {
         proof_note: proofNote.trim() || undefined
       });
     },
-    onSuccess: async () => {
-      setNotice({ tone: "success", message: "Entry proof submitted. It will show as complete after review." });
+    onSuccess: async (submission) => {
+      queryClient.setQueryData<RoomFundingOverview | undefined>(["room", roomId, "funding"], (current) => {
+        if (!current) return current;
+        const submissions = current.submissions ?? [];
+        const nextSubmissions = submissions.some((item) => item.id === submission.id)
+          ? submissions.map((item) => (item.id === submission.id ? submission : item))
+          : [submission, ...submissions.filter((item) => item.participant_id !== submission.participant_id)];
+        const nextParticipants = current.participants.map((participant) =>
+          participant.id === submission.participant_id ? { ...participant, funding_status: "submitted" } : participant
+        );
+        return { ...current, submissions: nextSubmissions, participants: nextParticipants };
+      });
+      notify("funding", { tone: "success", message: "Entry proof submitted. Wait for Skillsroom review before sending anything again." });
+      setLocalFundingSubmitted(true);
       setProofUrl("");
       setProofNote("");
-      await refreshRoom();
+      setTransferReference("");
+      await Promise.all([
+        refreshRoom(),
+        queryClient.invalidateQueries({ queryKey: ["room", roomId, "funding"] })
+      ]);
     },
-    onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "Could not submit entry proof.") })
+    onError: (error) => notify("funding", { tone: "error", message: plainApiError(error, "Could not submit entry proof.") })
   });
 
   const startMutation = useMutation({
     mutationFn: () => startMatchPlay(roomId),
-    onSuccess: async () => {
-      setNotice({ tone: "success", message: "Match started. Submit result evidence when play is done." });
+    onSuccess: async (updatedRoom) => {
+      if (updatedRoom.status === "active") {
+        setSection("result");
+        notify("result", { tone: "success", message: "Both players confirmed. Submit result evidence when play is done." }, true);
+      } else {
+        setSection("live");
+        notify("live", { tone: "success", message: "Ready confirmed. Waiting for the other player before the match goes live." }, true);
+      }
       await refreshRoom();
     },
-    onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "Could not start match.") })
+    onError: (error) => notify("live", { tone: "error", message: plainApiError(error, "Could not confirm ready status.") })
   });
 
   const resultMutation = useMutation({
     mutationFn: () => {
-      if (!selectedWinnerId) throw new Error("Choose the winner before submitting the result.");
+      if (!ownParticipant?.id) throw new Error("Only room players can submit result evidence.");
       const evidenceType: "screenshot" | "video" | "link" = evidenceUrl.includes("/api/evidence-files/evidence-v1_") && evidenceUrl.match(/\.(mp4|webm|mov)$/i)
         ? "video"
         : evidenceUrl.includes("/api/evidence-files/evidence-v1_")
@@ -237,19 +477,19 @@ export function RoomDetailScreen() {
         ? [{ evidence_type: evidenceType, uri: evidenceUrl.trim(), title: "Match result evidence", notes: resultNote.trim() || undefined }]
         : [{ evidence_type: "note" as const, title: "Match result note", notes: resultNote.trim() || scoreSummary.trim() || "Result submitted from mobile." }];
       return submitResultClaim(roomId, {
-        claimed_winner_participant_id: selectedWinnerId,
+        claimed_winner_participant_id: ownParticipant.id,
         score_summary: scoreSummary.trim() || undefined,
         note: resultNote.trim() || undefined,
         evidence
       });
     },
     onSuccess: async () => {
-      setNotice({ tone: "success", message: "Result submitted. It will update after response or review." });
+      notify("result", { tone: "success", message: "Result submitted. It will update after response or review." });
       setEvidenceUrl("");
       setResultNote("");
       await refreshRoom();
     },
-    onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "Could not submit result.") })
+    onError: (error) => notify("result", { tone: "error", message: plainApiError(error, "Could not submit result.") })
   });
 
   const streamMutation = useMutation({
@@ -261,10 +501,10 @@ export function RoomDetailScreen() {
         ...input
       }),
     onSuccess: async () => {
-      setNotice({ tone: "success", message: "Stream link attached. Viewers can open it from the Live section." });
+      notify("live", { tone: "success", message: "Stream link attached. Viewers can open it from the Live section." });
       await queryClient.invalidateQueries({ queryKey: ["room", roomId, "livestreams"] });
     },
-    onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "Could not attach stream link.") })
+    onError: (error) => notify("live", { tone: "error", message: plainApiError(error, "Could not attach stream link.") })
   });
 
   const responseMutation = useMutation({
@@ -273,18 +513,18 @@ export function RoomDetailScreen() {
       return respondToResultClaim(claim.id, { response, note: responseNote.trim() || undefined });
     },
     onSuccess: async () => {
-      setNotice({ tone: "success", message: "Response submitted. The room will update after review." });
+      notify("result", { tone: "success", message: "Response submitted. The room will update after review." });
       setResponseNote("");
       await refreshRoom();
     },
-    onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "Could not respond to result.") })
+    onError: (error) => notify("result", { tone: "error", message: plainApiError(error, "Could not respond to result.") })
   });
 
   const fundingByParticipant = useMemo(() => {
     const submissions = fundingQuery.data?.submissions ?? [];
     return new Map(participants.map((participant) => [
       participant.id,
-      submissions.find((submission) => submission.participant_id === participant.id)
+      submissions.find((submission) => submission.participant_id === participant.id || submission.user_id === participant.user_id)
     ]));
   }, [fundingQuery.data?.submissions, participants]);
 
@@ -311,13 +551,18 @@ export function RoomDetailScreen() {
       </SurfaceCard>
 
       {timelineQuery.isError ? <FeedbackState tone="error" title="Room unavailable" body="We could not load this room." actionLabel="Back to rooms" onAction={() => router.back()} /> : null}
-      {notice ? <FormNotice tone={notice.tone} message={notice.message} /> : null}
+      {notice && !activeSectionNotice ? <FormNotice tone={notice.tone} message={notice.message} /> : null}
 
       <SurfaceCard>
         <Badge tone={toneForStatus(room?.status)}>{statusLabel(room?.status)}</Badge>
         <Text style={styles.sectionTitle}>{actionTitle}</Text>
         <Text style={styles.copy}>{actionBody}</Text>
         {room?.status === "draft" && isCreator ? <AppButton loading={openMutation.isPending} onPress={() => openMutation.mutate()}>Open room</AppButton> : null}
+        {needsOwnEntry ? <AppButton onPress={() => setSection("funding")}>Complete entry</AppButton> : null}
+        {canStartMatch ? <AppButton onPress={() => setSection("live")}>Confirm ready</AppButton> : null}
+        {waitingForOpponentStart ? <AppButton variant="secondary" onPress={() => setSection("live")}>Waiting on opponent</AppButton> : null}
+        {canSubmitRoomResult ? <AppButton onPress={() => setSection("result")}>Submit result</AppButton> : null}
+        {canRespondToResult ? <AppButton onPress={() => setSection("result")}>Respond to result</AppButton> : null}
         <View style={styles.quickActions}>
           <QuickAction icon={Copy} label="Code" value={room?.room_code ?? "..."} copyValue={room?.room_code} />
           <QuickAction icon={Share2} label="Invite" value="Copy text" copyValue={inviteCopy} copiedLabel="Invite copied" />
@@ -343,6 +588,7 @@ export function RoomDetailScreen() {
         <>
           <SurfaceCard>
             <Badge>Room code</Badge>
+            {activeSectionNotice ? <FormNotice tone={activeSectionNotice.tone} message={activeSectionNotice.message} /> : null}
             <Text style={styles.bigCode}>{room?.room_code ?? "..."}</Text>
             <CopyButton value={room?.room_code} label="Copy room code" copiedLabel="Room code copied" />
             <Text style={styles.copy}>Share this code with your opponent. The room will show when they join, complete entry, and submit a result.</Text>
@@ -363,26 +609,60 @@ export function RoomDetailScreen() {
             <InstructionStep index="3" title="Capture proof" detail="Screenshot the lobby and final scoreboard. Keep usernames visible." />
             <InstructionStep index="4" title="Wait for ready status" detail="Do not play until the room says the match is ready." />
           </SurfaceCard>
+          {canJoinFromDetail ? (
+            <SurfaceCard>
+              <Badge tone="green">Join room</Badge>
+              <Text style={styles.sectionTitle}>Paste room code</Text>
+              <Text style={styles.copy}>If this is the room your opponent shared, paste the code here to claim the open slot.</Text>
+              <View style={styles.joinCodeShell}>
+                <KeyRound size={22} color={colors.cyan} />
+                <TextInput
+                  value={detailJoinCode}
+                  onChangeText={(value) => setDetailJoinCode(value.replace(/\s+/g, "").toUpperCase())}
+                  autoCapitalize="characters"
+                  placeholder={room?.room_code ?? "ROOMCODE"}
+                  placeholderTextColor={colors.faint}
+                  style={styles.joinCodeInput}
+                />
+              </View>
+              <FormNotice tone="info" message="Joining adds you to this room. Entry confirmation still happens after both players are in." />
+              <AppButton loading={detailJoinMutation.isPending} disabled={!detailJoinCode.trim()} onPress={() => detailJoinMutation.mutate()}>Join this room</AppButton>
+            </SurfaceCard>
+          ) : null}
         </>
       ) : null}
 
       {section === "players" ? (
         <SurfaceCard>
           <Badge>Players</Badge>
-          <Text style={styles.sectionTitle}>Slots</Text>
-          {participants.map((participant) => (
-            <View key={participant.id} style={styles.playerRow}>
-              <View style={styles.fill}>
-                <Text style={styles.itemTitle}>{participantLabel(participant)}</Text>
-                <Text style={styles.copy}>{shortUser(participant.user_id)}</Text>
+          <Text style={styles.sectionTitle}>Room players</Text>
+          <Text style={styles.copy}>Confirm who is in the room before entry, play, or result evidence. Use the game handle/UID shown here for the in-game lobby.</Text>
+          {trustQuery.isFetching ? <Text style={styles.helpText}>Loading player identity...</Text> : null}
+          {playerSlots.map(({ slot, participant }) => {
+            const trust = participant ? trustQuery.data?.[participant.user_id] : null;
+            const isYou = Boolean(participant && participant.user_id === user?.id);
+            return (
+              <View key={participant?.id ?? slot} style={styles.playerCard}>
+                <View style={styles.playerCardHeader}>
+                  <View style={styles.fill}>
+                    <Text style={styles.quickLabel}>{slotLabel(participant?.slot ?? slot)}</Text>
+                    <Text style={styles.itemTitle}>{playerDisplayName(participant, trust, user?.id)}</Text>
+                  </View>
+                  <Badge tone={participant ? "green" : "amber"}>{participant ? (isYou ? "You" : "Opponent") : "Open"}</Badge>
+                </View>
+                <View style={styles.detailList}>
+                  <DetailRow label="Game identity" value={playerHandleLine(participant, trust)} />
+                  <DetailRow label="Trust" value={trustLabel(trust, trustQuery.isFetching)} />
+                  <DetailRow label="Entry" value={participant ? fundingStatusLabel(participant.funding_status) : "Waiting"} />
+                  <DetailRow label="User ref" value={participant ? shortUser(participant.user_id) : "Share the room code"} />
+                </View>
               </View>
-              <Badge tone={participant.funding_status === "approved" ? "green" : "amber"}>{participant.funding_status ?? "pending"}</Badge>
-            </View>
-          ))}
+            );
+          })}
           {participants.length < (room?.max_participants ?? 2) ? <FormNotice tone="info" message="An open slot remains. Share the room code with your opponent." /> : null}
           <SurfaceCard style={styles.embeddedCard}>
             <Badge tone="cyan">Player safety</Badge>
-            <Text style={styles.copy}>Only joined players can submit entry proof or result evidence. Private review details stay protected.</Text>
+            <Text style={styles.copy}>Payment proof, result evidence, and private review notes stay visible only to the players involved and the Skillsroom team.</Text>
           </SurfaceCard>
         </SurfaceCard>
       ) : null}
@@ -391,20 +671,55 @@ export function RoomDetailScreen() {
         <SurfaceCard>
           <Badge tone="amber">Entry</Badge>
           <Text style={styles.sectionTitle}>Entry confirmation</Text>
+          {activeSectionNotice ? <FormNotice tone={activeSectionNotice.tone} message={activeSectionNotice.message} /> : null}
+          {needsOwnEntry ? <FormNotice tone="info" message={`Next step: confirm your ${money(room?.entry_amount_minor, room?.currency)} entry with Skillsroom Balance or transfer proof.`} /> : null}
+          {ownEntrySubmitted && !ownEntryApproved ? (
+            <FormNotice tone="success" message="Your transfer proof is under review. You do not need to submit again unless Skillsroom asks for a correction." />
+          ) : null}
+          {ownEntryApproved ? (
+            <FormNotice tone="success" message={room?.status === "funded" ? "Both entries are confirmed. Start play when both players are ready." : "Your entry is confirmed. We are waiting for the other player or the next room step."} />
+          ) : null}
+          {ownFundingStatus === "rejected" ? (
+            <FormNotice tone="error" message="Your last transfer proof needs correction. Upload a clearer proof or update the transfer details below." />
+          ) : null}
           {fundingQuery.isError ? <FormNotice tone="info" message="Entry details are only visible to room participants." /> : null}
-          {participants.map((participant) => {
-            const submission = fundingByParticipant.get(participant.id);
+          <View style={styles.summaryGrid}>
+            <View style={styles.summaryTile}>
+              <Text style={styles.quickLabel}>Entry</Text>
+              <Text style={styles.summaryValue}>{money(room?.entry_amount_minor, room?.currency)}</Text>
+              <Text style={styles.copy}>Equal amount for both players</Text>
+            </View>
+            <View style={styles.summaryTile}>
+              <Text style={styles.quickLabel}>Confirmed</Text>
+              <Text style={styles.summaryValue}>{fundedCount}/{room?.max_participants ?? 2}</Text>
+              <Text style={styles.copy}>Approved entries</Text>
+            </View>
+          </View>
+          {playerSlots.map(({ slot, participant }) => {
+            const trust = participant ? trustQuery.data?.[participant.user_id] : null;
+            const submission = participant ? fundingByParticipant.get(participant.id) : undefined;
+            const participantFundingStatus = String(participant?.funding_status ?? submission?.status ?? "pending");
+            const method = fundingMethodDetail(participant, submission, fundingQuery.data);
             return (
-              <View key={participant.id} style={styles.playerRow}>
-                <View style={styles.fill}>
-                  <Text style={styles.itemTitle}>{participantLabel(participant)}</Text>
-                  <Text style={styles.copy}>{submission?.status ? `Transfer proof: ${submission.status}` : "No transfer proof shown."}</Text>
+              <View key={participant?.id ?? slot} style={styles.playerCard}>
+                <View style={styles.playerCardHeader}>
+                  <View style={styles.fill}>
+                    <Text style={styles.quickLabel}>{slotLabel(participant?.slot ?? slot)}</Text>
+                    <Text style={styles.itemTitle}>{playerDisplayName(participant, trust, user?.id)}</Text>
+                    <Text style={styles.copy}>{playerHandleLine(participant, trust)}</Text>
+                  </View>
+                  <Badge tone={method.tone}>{method.label}</Badge>
                 </View>
-                <Badge tone={participant.funding_status === "approved" ? "green" : participant.funding_status === "rejected" ? "red" : "amber"}>{participant.funding_status ?? "pending"}</Badge>
+                <Text style={styles.copy}>{method.detail}</Text>
+                <View style={styles.detailList}>
+                  <DetailRow label="Entry amount" value={money(room?.entry_amount_minor, room?.currency)} />
+                  <DetailRow label="Entry status" value={fundingStatusLabel(participantFundingStatus)} />
+                  <DetailRow label="Proof" value={submission?.status ? fundingStatusLabel(submission.status) : "No proof shown"} />
+                </View>
               </View>
             );
           })}
-          {ownParticipant && ["awaiting_funding", "funding_review"].includes(String(room?.status)) ? (
+          {canSubmitOwnFunding ? (
             <>
               <AppButton loading={balanceMutation.isPending} onPress={() => balanceMutation.mutate()}>Pay with balance</AppButton>
               <FormNotice tone="info" message={`Manual transfer: ${collectionAccount.bankName} ${collectionAccount.accountNumber}, ${collectionAccount.accountName}. Upload payment proof or paste a proof link.`} />
@@ -414,7 +729,17 @@ export function RoomDetailScreen() {
               <EvidenceUploadField contextType="match_room" contextId={roomId} label="Entry proof upload" disabled={manualFundingMutation.isPending} onUploaded={(evidence) => setProofUrl(evidence.url)} />
               <TextInput value={proofUrl} onChangeText={setProofUrl} autoCapitalize="none" keyboardType="url" placeholder="Proof link" placeholderTextColor={colors.faint} style={styles.input} />
               <TextInput value={proofNote} onChangeText={setProofNote} placeholder="Proof note" placeholderTextColor={colors.faint} style={styles.input} />
-              <AppButton loading={manualFundingMutation.isPending} onPress={() => manualFundingMutation.mutate()}>Submit proof for review</AppButton>
+              <AppButton
+                disabled={!canSubmitManualFunding}
+                loading={manualFundingMutation.isPending}
+                loadingLabel="Submitting proof..."
+                onPress={() => manualFundingMutation.mutate()}
+              >
+                Submit proof for review
+              </AppButton>
+              {!canSubmitManualFunding ? (
+                <Text style={styles.helpText}>Add sender name, sender bank, and uploaded proof before submitting.</Text>
+              ) : null}
             </>
           ) : null}
           {!ownParticipant ? <FormNotice tone="info" message="Only room participants can submit entry proof for this room." /> : null}
@@ -425,8 +750,10 @@ export function RoomDetailScreen() {
         <SurfaceCard>
           <Badge tone="green">Live</Badge>
           <Text style={styles.sectionTitle}>Streams and play</Text>
-          {room?.status === "funded" ? <AppButton loading={startMutation.isPending} onPress={() => startMutation.mutate()}>Start match</AppButton> : null}
-          <FormNotice tone="info" message="Start play only when the room says it is ready. Streams can be official, Player A, or Player B links." />
+          {activeSectionNotice ? <FormNotice tone={activeSectionNotice.tone} message={activeSectionNotice.message} /> : null}
+          {canStartMatch ? <AppButton loading={startMutation.isPending} loadingLabel="Confirming..." onPress={() => startMutation.mutate()}>Confirm ready</AppButton> : null}
+          {waitingForOpponentStart ? <FormNotice tone="success" message="Your ready status is confirmed. The match will go live after the other player confirms." /> : null}
+          <FormNotice tone="info" message="Play only when the room says it is live. Streams can be official, Player A, or Player B links." />
           {livestreamsQuery.data?.length ? livestreamsQuery.data.map((stream) => <StreamLinkCard key={stream.id} stream={stream} />) : <NoStreamState target="room" />}
           <StreamAttachForm target="room" canAttach={canAttachStream} loading={streamMutation.isPending} onSubmit={(input) => streamMutation.mutate(input)} />
         </SurfaceCard>
@@ -436,12 +763,16 @@ export function RoomDetailScreen() {
         <SurfaceCard>
           <Badge tone="cyan">Result</Badge>
           <Text style={styles.sectionTitle}>Match result</Text>
+          {activeSectionNotice ? <FormNotice tone={activeSectionNotice.tone} message={activeSectionNotice.message} /> : null}
           {resultsQuery.isError ? <FormNotice tone="info" message="Result details are only visible to room participants." /> : null}
           {claim ? <FormNotice tone="info" message={`Latest claim: ${claim.status ?? "submitted"}${claim.score_summary ? `, ${claim.score_summary}` : ""}.`} /> : <Text style={styles.copy}>No result claim has been submitted yet.</Text>}
           {(resultsQuery.data?.evidence_items ?? []).length ? (
             <View style={styles.evidenceList}>
               {(resultsQuery.data?.evidence_items ?? []).slice(0, 4).map((item) => (
-                <Pressable key={item.id ?? item.uri ?? item.title ?? "evidence"} style={styles.evidenceRow} onPress={() => item.uri ? void Linking.openURL(item.uri) : undefined}>
+                <Pressable key={item.id ?? item.uri ?? item.title ?? "evidence"} style={styles.evidenceRow} onPress={() => {
+                  const url = openableEvidenceUrl(item.uri);
+                  if (url) void Linking.openURL(url);
+                }}>
                   <FileCheck2 size={20} color={colors.cyan} />
                   <View style={styles.fill}>
                     <Text style={styles.itemTitle}>{item.title ?? "Evidence item"}</Text>
@@ -451,16 +782,9 @@ export function RoomDetailScreen() {
               ))}
             </View>
           ) : null}
-          {["active", "awaiting_results", "under_review"].includes(String(room?.status)) && ownParticipant ? (
+          {["active", "awaiting_results"].includes(String(room?.status)) && ownParticipant ? (
             <>
-              <Text style={styles.itemTitle}>Choose winner</Text>
-              <View style={styles.sectionNav}>
-                {participants.map((participant) => (
-                  <Pressable key={participant.id} onPress={() => setSelectedWinnerId(participant.id)} style={[styles.sectionButton, selectedWinnerId === participant.id && styles.sectionButtonOn]}>
-                    <Text style={[styles.sectionButtonText, selectedWinnerId === participant.id && styles.sectionButtonTextOn]}>{participantLabel(participant)}</Text>
-                  </Pressable>
-                ))}
-              </View>
+              <FormNotice tone="info" message={`Submit your own win claim as ${playerDisplayName(ownParticipant, trustQuery.data?.[ownParticipant.user_id], user?.id)}. The opponent can agree or dispute from their side.`} />
               <TextInput value={scoreSummary} onChangeText={setScoreSummary} placeholder="Score summary" placeholderTextColor={colors.faint} style={styles.input} />
               <EvidenceUploadField contextType="match_room" contextId={roomId} label="Result evidence upload" disabled={resultMutation.isPending} onUploaded={(evidence) => setEvidenceUrl(evidence.url)} />
               <TextInput value={evidenceUrl} onChangeText={setEvidenceUrl} autoCapitalize="none" keyboardType="url" placeholder="Evidence link, optional" placeholderTextColor={colors.faint} style={styles.input} />
@@ -468,7 +792,7 @@ export function RoomDetailScreen() {
               <AppButton loading={resultMutation.isPending} onPress={() => resultMutation.mutate()}>Submit result</AppButton>
             </>
           ) : null}
-          {claim && ownParticipant && claim.submitted_by_user_id !== user?.id && ["submitted"].includes(String(claim.status)) ? (
+          {canRespondToResult ? (
             <>
               <TextInput value={responseNote} onChangeText={setResponseNote} placeholder="Response note, optional" placeholderTextColor={colors.faint} style={styles.input} />
               <View style={styles.actions}>
@@ -570,6 +894,15 @@ function InstructionStep({ index, title, detail }: { index: string; title: strin
   );
 }
 
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.detailRow}>
+      <Text style={styles.detailLabel}>{label}</Text>
+      <Text style={styles.detailValue}>{value}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   heroTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md },
   refreshButton: { width: 48, height: 48, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: colors.navySoft, borderWidth: 1, borderColor: "#22344b" },
@@ -581,6 +914,7 @@ const styles = StyleSheet.create({
   darkMetricValue: { color: colors.white, fontSize: 14, fontWeight: "900" },
   sectionTitle: { color: colors.ink, fontSize: 26, fontWeight: "900" },
   copy: { color: colors.muted, fontSize: 15, lineHeight: 22 },
+  helpText: { color: colors.muted, fontSize: 13, fontWeight: "800", lineHeight: 19 },
   itemTitle: { color: colors.ink, fontSize: 17, fontWeight: "900" },
   bigCode: { color: colors.ink, fontSize: 42, letterSpacing: 3, fontWeight: "900" },
   fill: { flex: 1 },
@@ -588,6 +922,9 @@ const styles = StyleSheet.create({
   quickAction: { flexBasis: "30%", flexGrow: 1, borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, padding: spacing.sm, backgroundColor: colors.surfaceAlt, gap: 4 },
   quickLabel: { color: colors.faint, fontSize: 11, fontWeight: "900", textTransform: "uppercase", letterSpacing: 1.5 },
   quickValue: { color: colors.ink, fontWeight: "900" },
+  summaryGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  summaryTile: { flexBasis: "45%", flexGrow: 1, borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, padding: spacing.md, backgroundColor: colors.surfaceAlt, gap: 4 },
+  summaryValue: { color: colors.ink, fontSize: 24, fontWeight: "900" },
   flowList: { gap: spacing.sm },
   flowRow: { flexDirection: "row", gap: spacing.md, alignItems: "center", borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, padding: spacing.md, backgroundColor: colors.surfaceAlt },
   flowMarker: { width: 38, height: 38, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: colors.cyanSoft },
@@ -634,6 +971,36 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: colors.surfaceAlt
   },
+  playerCard: {
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    gap: spacing.sm,
+    backgroundColor: colors.surfaceAlt
+  },
+  playerCardHeader: {
+    flexDirection: "row",
+    gap: spacing.md,
+    alignItems: "flex-start",
+    justifyContent: "space-between"
+  },
+  detailList: {
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.sm,
+    backgroundColor: colors.white,
+    padding: spacing.sm,
+    gap: spacing.xs
+  },
+  detailRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: spacing.md,
+    alignItems: "flex-start"
+  },
+  detailLabel: { color: colors.muted, fontSize: 13, fontWeight: "800", flex: 1 },
+  detailValue: { color: colors.ink, fontSize: 13, fontWeight: "900", flex: 1.2, textAlign: "right" },
   input: {
     minHeight: 56,
     borderWidth: 1,
@@ -643,6 +1010,25 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.ink,
     backgroundColor: colors.surfaceAlt
+  },
+  joinCodeShell: {
+    minHeight: 68,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    backgroundColor: colors.surfaceAlt
+  },
+  joinCodeInput: {
+    flex: 1,
+    minHeight: 66,
+    fontSize: 22,
+    letterSpacing: 2,
+    fontWeight: "900",
+    color: colors.ink
   },
   actions: { flexDirection: "row", gap: spacing.md },
   actionButton: { flex: 1 }

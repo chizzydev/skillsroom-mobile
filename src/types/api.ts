@@ -71,6 +71,7 @@ export type MatchTimeline = {
   participants: MatchParticipant[];
   events: MatchStateEvent[];
   tournament_match_check_ins?: Array<Record<string, unknown>>;
+  start_confirmations?: MatchStartConfirmation[];
 };
 
 export type ManualFundingSubmission = {
@@ -103,6 +104,8 @@ export type MatchResultClaim = {
   id: string;
   match_room_id: string;
   claimed_winner_participant_id?: string;
+  claimant_participant_id?: string;
+  claimant_user_id?: string;
   submitted_by_participant_id?: string;
   submitted_by_user_id?: string;
   status?: "submitted" | "opponent_agreed" | "opponent_disputed" | "admin_approved" | "admin_rejected" | "withdrawn" | string;
@@ -696,6 +699,15 @@ export type TournamentMatchCheckIn = {
   participant_id: string;
   user_id: string;
   checked_in_at: string;
+  metadata?: Record<string, unknown>;
+};
+
+export type MatchStartConfirmation = {
+  id: string;
+  match_room_id: string;
+  participant_id: string;
+  user_id: string;
+  confirmed_at: string;
   metadata?: Record<string, unknown>;
 };
 
