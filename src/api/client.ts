@@ -41,7 +41,7 @@ function unwrap<T>(payload: ApiEnvelope<T> | T): T {
   return payload as T;
 }
 
-async function refreshAccessToken() {
+export async function refreshAccessToken() {
   const { refreshToken } = await getStoredTokens();
   if (!refreshToken) return null;
 
