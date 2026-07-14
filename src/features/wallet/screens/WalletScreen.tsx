@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
-import { Linking, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { plainApiError } from "../../../api/errors";
 import { requestWalletPayout, submitWalletTopup, walletOverview } from "../../../api/wallet";
 import { AppScreen } from "../../../components/screen/AppScreen";
@@ -10,7 +10,7 @@ import { Badge } from "../../../components/ui/Badge";
 import { FeedbackState } from "../../../components/ui/FeedbackState";
 import { FormNotice } from "../../../components/ui/FormNotice";
 import { SurfaceCard } from "../../../components/ui/SurfaceCard";
-import { openableEvidenceUrl } from "../../../config/evidence-links";
+import { openEvidenceInApp } from "../../evidence/openEvidence";
 import { colors, radius, spacing } from "../../../constants/theme";
 import { EvidenceUploadField } from "../../uploads/components/EvidenceUploadField";
 import type { WalletLedgerEntry, WalletPayoutRequest, WalletTopup } from "../../../types/api";
@@ -480,10 +480,7 @@ function TopupRow({ topup }: { topup: WalletTopup }) {
       </View>
       <View style={styles.rowSide}>
         <Badge tone={topupTone(topup.status)}>{topupLabel(topup.status)}</Badge>
-        {topup.proof_url ? <AppButton variant="secondary" onPress={() => {
-          const url = openableEvidenceUrl(topup.proof_url);
-          if (url) void Linking.openURL(url);
-        }}>Receipt</AppButton> : null}
+        {topup.proof_url ? <AppButton variant="secondary" onPress={() => openEvidenceInApp(topup.proof_url, "Top-up receipt")}>Receipt</AppButton> : null}
       </View>
     </View>
   );

@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { ArrowLeft, BadgeCheck, Banknote, ClipboardCheck, ExternalLink, LockKeyhole, Radio, ShieldAlert } from "lucide-react-native";
 import { useMemo, useState } from "react";
-import { Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import {
   adminLanesFor,
   canAccessAdmin,
@@ -14,7 +14,8 @@ import {
 } from "../../../api/admin";
 import { ApiError } from "../../../api/client";
 import { plainApiError } from "../../../api/errors";
-import { openableEvidenceUrl } from "../../../config/evidence-links";
+import { evidenceApiUrl } from "../../../config/evidence-links";
+import { openEvidenceInApp } from "../../evidence/openEvidence";
 import { AppScreen } from "../../../components/screen/AppScreen";
 import { AppButton } from "../../../components/ui/AppButton";
 import { Badge } from "../../../components/ui/Badge";
@@ -241,7 +242,7 @@ export function AdminFundingScreen() {
             submission={submission}
             onSelect={() => setSelectedId(submission.id)}
             onOpenProof={(url) => {
-              void Linking.openURL(url).catch(() => notify("queue", { tone: "error", message: "The proof link could not be opened." }));
+              if (!openEvidenceInApp(url, "Funding proof")) notify("queue", { tone: "error", message: "The proof link could not be opened." });
             }}
           />
         ))}
@@ -405,7 +406,7 @@ function FundingSubmissionCard({
   onSelect: () => void;
   onOpenProof: (url: string) => void;
 }) {
-  const url = openableEvidenceUrl(submission.proof_url);
+  const url = evidenceApiUrl(submission.proof_url);
   return (
     <Pressable onPress={onSelect} style={[styles.submissionCard, selected && styles.submissionCardActive]}>
       <View style={styles.submissionTop}>

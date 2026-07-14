@@ -12,7 +12,7 @@ import {
   WalletCards
 } from "lucide-react-native";
 import { useMemo, useState } from "react";
-import { Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import {
   adminLanesFor,
   canAccessAdmin,
@@ -31,7 +31,8 @@ import {
 } from "../../../api/admin";
 import { ApiError } from "../../../api/client";
 import { plainApiError } from "../../../api/errors";
-import { openableEvidenceUrl } from "../../../config/evidence-links";
+import { evidenceApiUrl } from "../../../config/evidence-links";
+import { openEvidenceInApp } from "../../evidence/openEvidence";
 import { AppScreen } from "../../../components/screen/AppScreen";
 import { AppButton } from "../../../components/ui/AppButton";
 import { Badge } from "../../../components/ui/Badge";
@@ -381,7 +382,9 @@ export function AdminWalletScreen() {
             topup={topup}
             selected={topup.id === selectedTopupId}
             onSelect={() => setSelectedTopupId(topup.id)}
-            onOpenProof={(url) => void Linking.openURL(url).catch(() => notify("topups", { tone: "error", message: "The proof link could not be opened." }))}
+            onOpenProof={(url) => {
+              if (!openEvidenceInApp(url, "Wallet top-up proof")) notify("topups", { tone: "error", message: "The proof link could not be opened." });
+            }}
           />
         ))}
       </SurfaceCard>
@@ -521,7 +524,7 @@ function DuplicateWarning({ row }: { row: SuspiciousWalletTopupGroup }) {
 }
 
 function TopupCard({ topup, selected, onSelect, onOpenProof }: { topup: WalletTopup; selected: boolean; onSelect: () => void; onOpenProof: (url: string) => void }) {
-  const url = openableEvidenceUrl(topup.proof_url);
+  const url = evidenceApiUrl(topup.proof_url);
   return (
     <Pressable onPress={onSelect} style={[styles.moneyCard, selected && styles.moneyCardActive]}>
       <MoneyCardTop selected={selected} badge={topup.status} amount={money(topup.currency, topup.amount_minor)} meta={`Player ${shortId(topup.user_id as string | undefined)}`} date={topup.submitted_at} />

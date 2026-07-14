@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import { BadgeCheck, Banknote, Clock3, Copy, FileCheck2, KeyRound, Play, Radio, RefreshCw, Send, Share2, ShieldCheck, Trophy, Users } from "lucide-react-native";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Linking, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { plainApiError } from "../../../api/errors";
 import { profileTrustSummary } from "../../../api/profile";
 import {
@@ -27,7 +27,7 @@ import { CopyButton } from "../../../components/ui/CopyButton";
 import { FeedbackState } from "../../../components/ui/FeedbackState";
 import { FormNotice } from "../../../components/ui/FormNotice";
 import { SurfaceCard } from "../../../components/ui/SurfaceCard";
-import { openableEvidenceUrl } from "../../../config/evidence-links";
+import { openEvidenceInApp } from "../../evidence/openEvidence";
 import { colors, radius, spacing } from "../../../constants/theme";
 import { EvidenceUploadField } from "../../uploads/components/EvidenceUploadField";
 import { NoStreamState, StreamAttachForm, StreamLinkCard } from "../../streaming/components/StreamCards";
@@ -773,8 +773,7 @@ export function RoomDetailScreen() {
             <View style={styles.evidenceList}>
               {(resultsQuery.data?.evidence_items ?? []).slice(0, 4).map((item) => (
                 <Pressable key={item.id ?? item.uri ?? item.title ?? "evidence"} style={styles.evidenceRow} onPress={() => {
-                  const url = openableEvidenceUrl(item.uri);
-                  if (url) void Linking.openURL(url);
+                  openEvidenceInApp(item.uri, item.title ?? "Result evidence");
                 }}>
                   <FileCheck2 size={20} color={colors.cyan} />
                   <View style={styles.fill}>

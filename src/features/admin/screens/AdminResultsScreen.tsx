@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { ArrowLeft, BadgeCheck, ClipboardCheck, ExternalLink, LockKeyhole, Radio, ShieldAlert, Trophy } from "lucide-react-native";
 import { useMemo, useState } from "react";
-import { Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import {
   adminLanesFor,
   canAccessAdmin,
@@ -26,7 +26,7 @@ import { CopyButton } from "../../../components/ui/CopyButton";
 import { FeedbackState } from "../../../components/ui/FeedbackState";
 import { FormNotice } from "../../../components/ui/FormNotice";
 import { SurfaceCard } from "../../../components/ui/SurfaceCard";
-import { openableEvidenceUrl } from "../../../config/evidence-links";
+import { openEvidenceInApp } from "../../evidence/openEvidence";
 import { colors, radius, spacing } from "../../../constants/theme";
 import { useAuthStore } from "../../../store/auth-store";
 import type { MatchParticipant, MatchResultClaim, MatchResultEvidence, MatchRoom } from "../../../types/api";
@@ -407,8 +407,7 @@ export function AdminResultsScreen() {
                     selected={card.claim.id === selectedClaimId}
                     onSelect={() => setSelectedClaimId(card.claim.id)}
                     onOpenEvidence={(url) => {
-                      const openUrl = openableEvidenceUrl(url);
-                      if (openUrl) void Linking.openURL(openUrl).catch(() => notify("queue", { tone: "error", message: "The evidence link could not be opened." }));
+                      if (!openEvidenceInApp(url, "Result evidence")) notify("queue", { tone: "error", message: "The evidence link could not be opened." });
                     }}
                   />
                 ))
