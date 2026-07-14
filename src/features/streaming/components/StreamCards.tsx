@@ -107,21 +107,37 @@ function allowedPlayerNavigation(requestUrl?: string) {
   if (!requestUrl) return false;
   try {
     const url = new URL(requestUrl);
+    if (url.protocol === "about:" || url.protocol === "data:" || url.protocol === "blob:") return true;
     if (url.protocol !== "https:") return false;
     const host = url.hostname.toLowerCase();
     return [
       "youtube.com",
       "youtube-nocookie.com",
       "youtu.be",
+      "ytimg.com",
+      "youtubei.googleapis.com",
+      "googleapis.com",
       "googlevideo.com",
       "gstatic.com",
       "google.com",
+      "googleusercontent.com",
+      "ggpht.com",
       "twitch.tv",
+      "ext-twitch.tv",
       "twitchcdn.net",
+      "twitchstatic.com",
       "jtvnw.net",
       "tiktok.com",
+      "tiktokv.com",
       "tiktokcdn.com",
-      "byteoversea.com"
+      "tiktokcdn-us.com",
+      "byteoversea.com",
+      "ibytedtos.com",
+      "ibyteimg.com",
+      "ttwstatic.com",
+      "muscdn.com",
+      "byteimg.com",
+      "isnssdk.com"
     ].some((domain) => host === domain || host.endsWith(`.${domain}`));
   } catch {
     return false;
@@ -155,6 +171,9 @@ function EmbeddedStreamPlayer({
           javaScriptEnabled
           domStorageEnabled
           allowsFullscreenVideo
+          allowsInlineMediaPlayback
+          sharedCookiesEnabled
+          thirdPartyCookiesEnabled
           mediaPlaybackRequiresUserAction={false}
           setSupportMultipleWindows={false}
           onError={() => setFailed(true)}
@@ -165,7 +184,7 @@ function EmbeddedStreamPlayer({
       ) : (
         <View style={styles.playerPlaceholder}>
           <Badge tone={failed ? "amber" : "dark"}>{`${providerHint(provider)} player`}</Badge>
-          <Text style={styles.copy}>{failed ? "Player could not load here." : "Load the embedded player when you are ready to watch."}</Text>
+          <Text style={styles.copy}>{failed ? "Player could not load here. Open externally if this provider blocks embeds." : "Load the embedded player when you are ready to watch."}</Text>
           <AppButton variant="secondary" onPress={() => {
             setFailed(false);
             setLoaded(true);
@@ -276,7 +295,7 @@ export function StreamAttachForm({
       </View>
       <TextInput value={title} onChangeText={setTitle} placeholder="Stream title" placeholderTextColor={colors.faint} style={styles.input} />
       <TextInput value={url} onChangeText={setUrl} autoCapitalize="none" keyboardType="url" placeholder="https://youtube.com/..." placeholderTextColor={colors.faint} style={styles.input} />
-      <Text style={styles.copy}>Use YouTube, Twitch, or TikTok links. Viewers can load an embedded player where the provider allows it.</Text>
+      <Text style={styles.copy}>YouTube and Twitch are best for live rooms. TikTok video links can load in-app where TikTok allows it; some TikTok LIVE or short links may need external open.</Text>
       <AppButton
         loading={loading}
         disabled={!title.trim() || !url.trim()}
