@@ -7,6 +7,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { queryClient } from "./query-client";
 import { useAuthStore } from "../store/auth-store";
+import { ActionFeedbackProvider } from "./ActionFeedbackProvider";
 import { LiveUpdatesProvider } from "./LiveUpdatesProvider";
 import { PushNotificationsProvider } from "./PushNotificationsProvider";
 
@@ -73,11 +74,13 @@ export function AppProviders({ children }: { children: ReactNode }) {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
-          <AndroidNavigationBarController />
-          <SessionResumeController />
-          <PushNotificationsProvider>
-            <LiveUpdatesProvider>{children}</LiveUpdatesProvider>
-          </PushNotificationsProvider>
+          <ActionFeedbackProvider>
+            <AndroidNavigationBarController />
+            <SessionResumeController />
+            <PushNotificationsProvider>
+              <LiveUpdatesProvider>{children}</LiveUpdatesProvider>
+            </PushNotificationsProvider>
+          </ActionFeedbackProvider>
         </QueryClientProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

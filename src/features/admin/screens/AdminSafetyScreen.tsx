@@ -54,6 +54,7 @@ import { FeedbackState } from "../../../components/ui/FeedbackState";
 import { FormNotice } from "../../../components/ui/FormNotice";
 import { SurfaceCard } from "../../../components/ui/SurfaceCard";
 import { colors, radius, spacing } from "../../../constants/theme";
+import { useActionFeedback } from "../../../providers/ActionFeedbackProvider";
 import { isAdminStepUpActive, useAdminStepUpStore } from "../../../store/admin-step-up-store";
 import { useAuthStore } from "../../../store/auth-store";
 
@@ -171,6 +172,7 @@ function openAdminLane(section: string) {
 export function AdminSafetyScreen() {
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
+  const { pushFeedback } = useActionFeedback();
   const [notice, setNotice] = useState<Notice>(null);
   const [targetNotice, setTargetNotice] = useState<{ target: NoticeTarget; notice: NonNullable<Notice> } | null>(null);
   const [riskUserId, setRiskUserId] = useState("");
@@ -245,6 +247,11 @@ export function AdminSafetyScreen() {
   const notify = (target: NoticeTarget, nextNotice: NonNullable<Notice>) => {
     setNotice(nextNotice);
     setTargetNotice({ target, notice: nextNotice });
+    pushFeedback({
+      tone: nextNotice.tone,
+      title: nextNotice.tone === "error" ? "Safety action failed" : target === "account" ? "Account action updated" : target === "chat" ? "Chat action updated" : target === "holds" ? "Room hold updated" : "Safety review updated",
+      message: nextNotice.message
+    });
   };
 
   const noticeFor = (target: NoticeTarget) => {

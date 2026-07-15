@@ -26,6 +26,7 @@ import { FeedbackState } from "../../../components/ui/FeedbackState";
 import { FormNotice } from "../../../components/ui/FormNotice";
 import { SurfaceCard } from "../../../components/ui/SurfaceCard";
 import { colors, radius, spacing } from "../../../constants/theme";
+import { useActionFeedback } from "../../../providers/ActionFeedbackProvider";
 import { useAuthStore } from "../../../store/auth-store";
 
 type GameAccountStatus = "pending" | "verified" | "rejected" | "disabled";
@@ -114,6 +115,7 @@ function openAdminLane(section: string) {
 export function AdminPlayersScreen() {
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
+  const { pushFeedback } = useActionFeedback();
   const [notice, setNotice] = useState<Notice>(null);
   const [selectedUserId, setSelectedUserId] = useState("");
   const [selectedAccountId, setSelectedAccountId] = useState("");
@@ -164,6 +166,15 @@ export function AdminPlayersScreen() {
   const totalWins = leaderboard.reduce((sum, row) => sum + row.wins, 0);
   const selectedAccount = [...pendingAccounts, ...verifiedAccounts].find((account) => account.id === selectedAccountId);
 
+  const notify = (nextNotice: NonNullable<Notice>) => {
+    setNotice(nextNotice);
+    pushFeedback({
+      tone: nextNotice.tone,
+      title: nextNotice.tone === "error" ? "Player action failed" : "Player review updated",
+      message: nextNotice.message
+    });
+  };
+
   const reviewMutation = useMutation({
     mutationFn: async () => {
       if (!canReviewGameAccounts) throw new Error("Only Community Managers, Admins, and Owners can approve or reject handles.");
@@ -174,14 +185,14 @@ export function AdminPlayersScreen() {
       });
     },
     onSuccess: async (account) => {
-      setNotice({ tone: "success", message: `Handle review saved as ${label(account.status)}.` });
+      notify({ tone: "success", message: `Handle review saved as ${label(account.status)}.` });
       setSelectedUserId(account.user_id);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["admin", "players"] }),
         queryClient.invalidateQueries({ queryKey: ["admin", "players", "context", account.user_id] })
       ]);
     },
-    onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "The handle review could not be saved.") })
+    onError: (error) => notify({ tone: "error", message: plainApiError(error, "The handle review could not be saved.") })
   });
 
   if (!canAdmin) {

@@ -13,6 +13,7 @@ import { SurfaceCard } from "../../../components/ui/SurfaceCard";
 import { openEvidenceInApp } from "../../evidence/openEvidence";
 import { colors, radius, spacing } from "../../../constants/theme";
 import { EvidenceUploadField } from "../../uploads/components/EvidenceUploadField";
+import { useActionFeedback } from "../../../providers/ActionFeedbackProvider";
 import type { WalletLedgerEntry, WalletPayoutRequest, WalletTopup } from "../../../types/api";
 
 type WalletView = "overview" | "topup" | "payout" | "history";
@@ -82,8 +83,17 @@ function payoutLabel(status?: string) {
   return String(status ?? "Pending").replaceAll("_", " ");
 }
 
+function feedbackTitle(tone: NonNullable<Notice>["tone"], view: WalletView) {
+  if (tone === "success" && view === "topup") return "Top-up submitted";
+  if (tone === "success" && view === "payout") return "Payout requested";
+  if (tone === "success") return "Wallet updated";
+  if (tone === "error") return "Wallet action failed";
+  return "Wallet update";
+}
+
 export function WalletScreen() {
   const queryClient = useQueryClient();
+  const { pushFeedback } = useActionFeedback();
   const [view, setView] = useState<WalletView>("overview");
   const [notice, setNotice] = useState<Notice>(null);
   const [localNotice, setLocalNotice] = useState<WalletNotice>(null);
@@ -94,6 +104,7 @@ export function WalletScreen() {
   const [senderBank, setSenderBank] = useState("");
   const [proofUrl, setProofUrl] = useState("");
   const [proofNote, setProofNote] = useState("");
+  const [topupUploadResetSignal, setTopupUploadResetSignal] = useState(0);
 
   const [payoutAmount, setPayoutAmount] = useState("");
   const [payoutName, setPayoutName] = useState("");
@@ -124,6 +135,11 @@ export function WalletScreen() {
   const notify = (targetView: WalletView, nextNotice: NonNullable<Notice>) => {
     setNotice(nextNotice);
     setLocalNotice({ view: targetView, notice: nextNotice });
+    pushFeedback({
+      tone: nextNotice.tone,
+      title: feedbackTitle(nextNotice.tone, targetView),
+      message: nextNotice.message
+    });
   };
 
   const noticeFor = (targetView: WalletView) => localNotice?.view === targetView ? localNotice.notice : null;
@@ -154,6 +170,7 @@ export function WalletScreen() {
       setSenderBank("");
       setProofUrl("");
       setProofNote("");
+      setTopupUploadResetSignal((value) => value + 1);
       await refreshWallet();
     },
     onError: (error) => notify("topup", { tone: "error", message: plainApiError(error, "Could not submit top-up.") })
@@ -244,6 +261,7 @@ export function WalletScreen() {
             senderBank={senderBank}
             proofUrl={proofUrl}
             proofNote={proofNote}
+            uploadResetSignal={topupUploadResetSignal}
             loading={topupMutation.isPending}
             onTopupAmount={setTopupAmount}
             onTransferReference={setTransferReference}
@@ -285,6 +303,7 @@ export function WalletScreen() {
           senderBank={senderBank}
           proofUrl={proofUrl}
           proofNote={proofNote}
+          uploadResetSignal={topupUploadResetSignal}
           loading={topupMutation.isPending}
           onTopupAmount={setTopupAmount}
           onTransferReference={setTransferReference}
@@ -333,6 +352,7 @@ function TopupPanel({
   senderBank,
   proofUrl,
   proofNote,
+  uploadResetSignal,
   loading,
   onTopupAmount,
   onTransferReference,
@@ -349,6 +369,7 @@ function TopupPanel({
   senderBank: string;
   proofUrl: string;
   proofNote: string;
+  uploadResetSignal: number;
   loading: boolean;
   onTopupAmount: (value: string) => void;
   onTransferReference: (value: string) => void;
@@ -370,7 +391,7 @@ function TopupPanel({
         <TextInput value={senderName} onChangeText={onSenderName} placeholder="Sender account name" placeholderTextColor={colors.faint} style={styles.input} />
         <TextInput value={senderBank} onChangeText={onSenderBank} placeholder="Sender bank" placeholderTextColor={colors.faint} style={styles.input} />
       </View>
-      <EvidenceUploadField contextType="wallet" contextId="wallet" label="Receipt upload" disabled={loading} onUploaded={(evidence) => onProofUrl(evidence.url)} />
+      <EvidenceUploadField contextType="wallet" contextId="wallet" label="Receipt upload" disabled={loading} resetSignal={uploadResetSignal} onUploaded={(evidence) => onProofUrl(evidence.url)} />
       <TextInput value={proofUrl} onChangeText={onProofUrl} autoCapitalize="none" keyboardType="url" placeholder="Receipt or screenshot link" placeholderTextColor={colors.faint} style={styles.input} />
       <TextInput value={proofNote} onChangeText={onProofNote} placeholder="Note, optional" placeholderTextColor={colors.faint} style={styles.input} />
       <AppButton loading={loading} onPress={onSubmit}>Submit top-up</AppButton>

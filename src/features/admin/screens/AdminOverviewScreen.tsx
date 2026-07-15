@@ -25,6 +25,7 @@ import { FeedbackState } from "../../../components/ui/FeedbackState";
 import { FormNotice } from "../../../components/ui/FormNotice";
 import { SurfaceCard } from "../../../components/ui/SurfaceCard";
 import { colors, radius, spacing } from "../../../constants/theme";
+import { useActionFeedback } from "../../../providers/ActionFeedbackProvider";
 import { useAuthStore } from "../../../store/auth-store";
 
 type Tone = "cyan" | "green" | "amber" | "red";
@@ -98,6 +99,7 @@ function shortId(value: string) {
 export function AdminOverviewScreen() {
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
+  const { pushFeedback } = useActionFeedback();
   const [selectedLane, setSelectedLane] = useState("overview");
   const [announcementNotice, setAnnouncementNotice] = useState<Notice>(null);
   const [announcementCategory, setAnnouncementCategory] = useState<CommunityAnnouncementCategory>("announcement");
@@ -136,6 +138,24 @@ export function AdminOverviewScreen() {
   }, [counts]);
   const canManageCommunity = user?.role === "owner" || user?.role === "admin";
 
+  const notifyAnnouncement = (nextNotice: NonNullable<Notice>) => {
+    setAnnouncementNotice(nextNotice);
+    pushFeedback({
+      tone: nextNotice.tone,
+      title: nextNotice.tone === "error" ? "Announcement action failed" : "Announcement updated",
+      message: nextNotice.message
+    });
+  };
+
+  const notifyChannel = (nextNotice: NonNullable<Notice>) => {
+    setChannelNotice(nextNotice);
+    pushFeedback({
+      tone: nextNotice.tone,
+      title: nextNotice.tone === "error" ? "Channel action failed" : "Channel updated",
+      message: nextNotice.message
+    });
+  };
+
   const announcementMutation = useMutation({
     mutationFn: () => {
       if (!announcementTitle.trim()) throw new Error("Enter an announcement title.");
@@ -153,7 +173,7 @@ export function AdminOverviewScreen() {
       });
     },
     onSuccess: async () => {
-      setAnnouncementNotice({ tone: "success", message: publishNow ? "Announcement published." : "Announcement saved as a draft." });
+      notifyAnnouncement({ tone: "success", message: publishNow ? "Announcement published." : "Announcement saved as a draft." });
       setAnnouncementTitle("");
       setAnnouncementSummary("");
       setAnnouncementBody("");
@@ -163,7 +183,7 @@ export function AdminOverviewScreen() {
       await queryClient.invalidateQueries({ queryKey: ["admin", "overview"] });
     },
     onError: (error) => {
-      setAnnouncementNotice({ tone: "error", message: plainApiError(error, "The announcement could not be saved.") });
+      notifyAnnouncement({ tone: "error", message: plainApiError(error, "The announcement could not be saved.") });
     }
   });
 
@@ -171,11 +191,11 @@ export function AdminOverviewScreen() {
     mutationFn: (announcementId: string) => publishCommunityAnnouncement(announcementId),
     onMutate: (announcementId) => setAnnouncementActionId(announcementId),
     onSuccess: async () => {
-      setAnnouncementNotice({ tone: "success", message: "Announcement published." });
+      notifyAnnouncement({ tone: "success", message: "Announcement published." });
       await queryClient.invalidateQueries({ queryKey: ["admin", "overview"] });
     },
     onError: (error) => {
-      setAnnouncementNotice({ tone: "error", message: plainApiError(error, "The announcement could not be published.") });
+      notifyAnnouncement({ tone: "error", message: plainApiError(error, "The announcement could not be published.") });
     },
     onSettled: () => setAnnouncementActionId(null)
   });
@@ -184,11 +204,11 @@ export function AdminOverviewScreen() {
     mutationFn: (announcementId: string) => archiveCommunityAnnouncement(announcementId),
     onMutate: (announcementId) => setAnnouncementActionId(announcementId),
     onSuccess: async () => {
-      setAnnouncementNotice({ tone: "success", message: "Announcement archived." });
+      notifyAnnouncement({ tone: "success", message: "Announcement archived." });
       await queryClient.invalidateQueries({ queryKey: ["admin", "overview"] });
     },
     onError: (error) => {
-      setAnnouncementNotice({ tone: "error", message: plainApiError(error, "The announcement could not be archived.") });
+      notifyAnnouncement({ tone: "error", message: plainApiError(error, "The announcement could not be archived.") });
     },
     onSettled: () => setAnnouncementActionId(null)
   });
@@ -211,7 +231,7 @@ export function AdminOverviewScreen() {
       });
     },
     onSuccess: async () => {
-      setChannelNotice({ tone: "success", message: "Community channel saved." });
+      notifyChannel({ tone: "success", message: "Community channel saved." });
       setChannelTitle("");
       setChannelDescription("");
       setChannelSlug("");
@@ -221,7 +241,7 @@ export function AdminOverviewScreen() {
       await queryClient.invalidateQueries({ queryKey: ["admin", "overview"] });
     },
     onError: (error) => {
-      setChannelNotice({ tone: "error", message: plainApiError(error, "The community channel could not be saved.") });
+      notifyChannel({ tone: "error", message: plainApiError(error, "The community channel could not be saved.") });
     }
   });
 

@@ -43,6 +43,7 @@ import { FeedbackState } from "../../../components/ui/FeedbackState";
 import { FormNotice } from "../../../components/ui/FormNotice";
 import { SurfaceCard } from "../../../components/ui/SurfaceCard";
 import { colors, radius, spacing } from "../../../constants/theme";
+import { useActionFeedback } from "../../../providers/ActionFeedbackProvider";
 import { isAdminStepUpActive, useAdminStepUpStore } from "../../../store/admin-step-up-store";
 import { useAuthStore } from "../../../store/auth-store";
 import { EvidenceUploadField } from "../../uploads/components/EvidenceUploadField";
@@ -166,6 +167,7 @@ const blankRepair: RepairForm = { rowId: "", recipient: "", bank: "", account: "
 export function AdminPaymentsScreen() {
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
+  const { pushFeedback } = useActionFeedback();
   const [notice, setNotice] = useState<Notice>(null);
   const [mode, setMode] = useState<PaymentMode>("match_payout");
   const [password, setPassword] = useState("");
@@ -180,6 +182,7 @@ export function AdminPaymentsScreen() {
   const [reserveNotes, setReserveNotes] = useState("");
   const [refundRoomId, setRefundRoomId] = useState("");
   const [refundReason, setRefundReason] = useState("");
+  const [completionUploadResetSignal, setCompletionUploadResetSignal] = useState(0);
   const canAdmin = canAccessAdmin(user);
   const canPayments = canUseAdminSection(user, "settlements");
   const lanes = useMemo(() => adminLanesFor(user), [user]);
@@ -215,6 +218,15 @@ export function AdminPaymentsScreen() {
   const completedTournamentPayouts = (data?.tournamentPayouts ?? []).filter((row) => row.status === "completed");
   const completedTournamentRefunds = (data?.tournamentRefunds ?? []).filter((row) => row.status === "completed");
 
+  const notify = (nextNotice: NonNullable<Notice>) => {
+    setNotice(nextNotice);
+    pushFeedback({
+      tone: nextNotice.tone,
+      title: nextNotice.tone === "error" ? "Payment action failed" : nextNotice.tone === "info" ? "Payment access updated" : "Payment action updated",
+      message: nextNotice.message
+    });
+  };
+
   const stepUpMutation = useMutation({
     mutationFn: async () => {
       if (!password.trim()) throw new Error("Enter your password to unlock money actions.");
@@ -223,11 +235,11 @@ export function AdminPaymentsScreen() {
     onSuccess: (result) => {
       setAdminStepUp(result.step_up_token, result.expires_at ?? null, user?.id ?? null);
       setPassword("");
-      setNotice({ tone: "success", message: "Money actions unlocked for this session." });
+      notify({ tone: "success", message: "Money actions unlocked for this session." });
     },
     onError: (error) => {
       clearAdminStepUp();
-      setNotice({ tone: "error", message: plainApiError(error, "Sensitive actions could not be unlocked.") });
+      notify({ tone: "error", message: plainApiError(error, "Sensitive actions could not be unlocked.") });
     }
   });
 
@@ -268,12 +280,13 @@ export function AdminPaymentsScreen() {
       });
     },
     onSuccess: async () => {
-      setNotice({ tone: "success", message: mode.includes("refund") ? "Refund marked as completed." : "Payout marked as completed." });
+      notify({ tone: "success", message: mode.includes("refund") ? "Refund marked as completed." : "Payout marked as completed." });
       setCompletion(blankCompletion);
+      setCompletionUploadResetSignal((value) => value + 1);
       void queryClient.invalidateQueries({ queryKey: ["admin", "payments"] });
       void queryClient.invalidateQueries({ queryKey: ["admin", "overview"] });
     },
-    onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "The payment action could not be completed.") })
+    onError: (error) => notify({ tone: "error", message: plainApiError(error, "The payment action could not be completed.") })
   });
 
   const repairMutation = useMutation({
@@ -295,11 +308,11 @@ export function AdminPaymentsScreen() {
       return updateTournamentRefundInstructions(repair.rowId.trim(), input);
     },
     onSuccess: async () => {
-      setNotice({ tone: "success", message: "Payment instructions saved." });
+      notify({ tone: "success", message: "Payment instructions saved." });
       setRepair(blankRepair);
       void queryClient.invalidateQueries({ queryKey: ["admin", "payments"] });
     },
-    onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "Instructions could not be saved.") })
+    onError: (error) => notify({ tone: "error", message: plainApiError(error, "Instructions could not be saved.") })
   });
 
   const reserveSettlementMutation = useMutation({
@@ -309,12 +322,12 @@ export function AdminPaymentsScreen() {
       return reserveMatchSettlement({ match_room_id: reserveRoomId.trim(), notes: reserveNotes, stepUpToken });
     },
     onSuccess: async () => {
-      setNotice({ tone: "success", message: "Settlement reserved and payout queue created." });
+      notify({ tone: "success", message: "Settlement reserved and payout queue created." });
       setReserveRoomId("");
       setReserveNotes("");
       void queryClient.invalidateQueries({ queryKey: ["admin", "payments"] });
     },
-    onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "Settlement could not be reserved.") })
+    onError: (error) => notify({ tone: "error", message: plainApiError(error, "Settlement could not be reserved.") })
   });
 
   const reserveRefundMutation = useMutation({
@@ -325,12 +338,12 @@ export function AdminPaymentsScreen() {
       return reserveMatchRefunds({ match_room_id: refundRoomId.trim(), reason: refundReason, stepUpToken });
     },
     onSuccess: async () => {
-      setNotice({ tone: "success", message: "Refund queue created." });
+      notify({ tone: "success", message: "Refund queue created." });
       setRefundRoomId("");
       setRefundReason("");
       void queryClient.invalidateQueries({ queryKey: ["admin", "payments"] });
     },
-    onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "Refunds could not be reserved.") })
+    onError: (error) => notify({ tone: "error", message: plainApiError(error, "Refunds could not be reserved.") })
   });
 
   const proofContextType = mode.startsWith("tournament") ? "tournament" : "match_room";
@@ -428,7 +441,7 @@ export function AdminPaymentsScreen() {
         onUnlock={() => stepUpMutation.mutate()}
         onLock={() => {
           clearAdminStepUp();
-          setNotice({ tone: "info", message: "Money actions locked." });
+          notify({ tone: "info", message: "Money actions locked." });
         }}
       />
 
@@ -523,6 +536,7 @@ export function AdminPaymentsScreen() {
           contextId={proofContextId || "pending"}
           label="Transfer proof upload"
           disabled={!proofContextId || completeMutation.isPending}
+          resetSignal={completionUploadResetSignal}
           onUploaded={(evidence) => setCompletion((current) => ({ ...current, proofUrl: evidence.url }))}
         />
         {!proofContextId ? <Text style={styles.helpText}>Enter the room or tournament ID before uploading proof so the file is stored against the right record.</Text> : null}

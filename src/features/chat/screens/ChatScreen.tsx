@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import { Hash, MessageCircle, Search, ShieldCheck, UserPlus, Users } from "lucide-react-native";
 import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { listChannels, listDmRequests } from "../../../api/chat";
 import { AppScreen } from "../../../components/screen/AppScreen";
 import { FeedbackState } from "../../../components/ui/FeedbackState";
@@ -56,6 +57,7 @@ function requestPeer(request: ChatDmRequest) {
 }
 
 export function ChatScreen() {
+  const insets = useSafeAreaInsets();
   const [view, setView] = useState<ChatView>("channels");
   const channelsQuery = useQuery({ queryKey: ["chat", "channels"], queryFn: listChannels, refetchInterval: 30000 });
   const dmRequestsQuery = useQuery({ queryKey: ["chat", "dm-requests"], queryFn: listDmRequests, refetchInterval: 30000 });
@@ -160,6 +162,8 @@ export function ChatScreen() {
             ) : null}
           </View>
         )}
+
+        <View style={[styles.bottomSpacer, { height: spacing.xl + Math.max(insets.bottom, spacing.sm) }]} />
       </View>
     </AppScreen>
   );
@@ -215,6 +219,9 @@ function ChannelRow({ channel, featured, onPress }: { channel: ChatChannel; feat
 const styles = StyleSheet.create({
   shell: {
     gap: spacing.md
+  },
+  bottomSpacer: {
+    flexShrink: 0
   },
   hero: {
     borderRadius: radius.lg,

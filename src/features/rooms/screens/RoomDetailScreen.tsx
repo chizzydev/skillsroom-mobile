@@ -31,6 +31,7 @@ import { openEvidenceInApp } from "../../evidence/openEvidence";
 import { colors, radius, spacing } from "../../../constants/theme";
 import { EvidenceUploadField } from "../../uploads/components/EvidenceUploadField";
 import { NoStreamState, StreamAttachForm, StreamLinkCard } from "../../streaming/components/StreamCards";
+import { useActionFeedback } from "../../../providers/ActionFeedbackProvider";
 import { useAuthStore } from "../../../store/auth-store";
 import type { ManualFundingSubmission, MatchParticipant, MatchResultClaim, MatchRoom, PlayerTrustSummary, RoomFundingOverview } from "../../../types/api";
 
@@ -187,11 +188,22 @@ function latestClaim(claims?: MatchResultClaim[]) {
   return [...(claims ?? [])].sort((a, b) => Date.parse(String(b.created_at ?? b.updated_at ?? "")) - Date.parse(String(a.created_at ?? a.updated_at ?? "")))[0] ?? null;
 }
 
+function feedbackTitle(tone: NonNullable<Notice>["tone"], section: Section) {
+  if (tone === "error") return "Room action failed";
+  if (tone === "info") return "Room update";
+  if (section === "funding") return "Entry updated";
+  if (section === "live") return "Match updated";
+  if (section === "result") return "Result updated";
+  if (section === "players") return "Players updated";
+  return "Room updated";
+}
+
 export function RoomDetailScreen() {
   const { matchId } = useLocalSearchParams<{ matchId?: string }>();
   const roomId = String(matchId ?? "");
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
+  const { pushFeedback } = useActionFeedback();
   const [section, setSection] = useState<Section>("overview");
   const [notice, setNotice] = useState<Notice>(null);
   const [sectionNotice, setSectionNotice] = useState<SectionNotice>(null);
@@ -208,6 +220,8 @@ export function RoomDetailScreen() {
   const [inviteMessage, setInviteMessage] = useState("");
   const [detailJoinCode, setDetailJoinCode] = useState("");
   const [localFundingSubmitted, setLocalFundingSubmitted] = useState(false);
+  const [fundingUploadResetSignal, setFundingUploadResetSignal] = useState(0);
+  const [resultUploadResetSignal, setResultUploadResetSignal] = useState(0);
   const promptedNextStep = useRef<string | null>(null);
 
   const timelineQuery = useQuery({ queryKey: ["room", roomId, "timeline"], queryFn: () => getRoomTimeline(roomId), enabled: Boolean(roomId), refetchInterval: 10000 });
@@ -305,6 +319,11 @@ export function RoomDetailScreen() {
   const notify = (targetSection: Section, nextNotice: NonNullable<Notice>, focusSection = false) => {
     setNotice(nextNotice);
     setSectionNotice({ section: targetSection, notice: nextNotice });
+    pushFeedback({
+      tone: nextNotice.tone,
+      title: feedbackTitle(nextNotice.tone, targetSection),
+      message: nextNotice.message
+    });
     if (focusSection) setSection(targetSection);
   };
 
@@ -442,6 +461,7 @@ export function RoomDetailScreen() {
       setProofUrl("");
       setProofNote("");
       setTransferReference("");
+      setFundingUploadResetSignal((value) => value + 1);
       await Promise.all([
         refreshRoom(),
         queryClient.invalidateQueries({ queryKey: ["room", roomId, "funding"] })
@@ -487,6 +507,8 @@ export function RoomDetailScreen() {
       notify("result", { tone: "success", message: "Result submitted. It will update after response or review." });
       setEvidenceUrl("");
       setResultNote("");
+      setScoreSummary("");
+      setResultUploadResetSignal((value) => value + 1);
       await refreshRoom();
     },
     onError: (error) => notify("result", { tone: "error", message: plainApiError(error, "Could not submit result.") })
@@ -729,7 +751,7 @@ export function RoomDetailScreen() {
               <TextInput value={senderName} onChangeText={setSenderName} placeholder="Sender account name" placeholderTextColor={colors.faint} style={styles.input} />
               <TextInput value={senderBank} onChangeText={setSenderBank} placeholder="Sender bank" placeholderTextColor={colors.faint} style={styles.input} />
               <TextInput value={transferReference} onChangeText={setTransferReference} placeholder="Transfer reference, optional" placeholderTextColor={colors.faint} style={styles.input} />
-              <EvidenceUploadField contextType="match_room" contextId={roomId} label="Entry proof upload" disabled={manualFundingMutation.isPending} onUploaded={(evidence) => setProofUrl(evidence.url)} />
+              <EvidenceUploadField contextType="match_room" contextId={roomId} label="Entry proof upload" disabled={manualFundingMutation.isPending} resetSignal={fundingUploadResetSignal} onUploaded={(evidence) => setProofUrl(evidence.url)} />
               <TextInput value={proofUrl} onChangeText={setProofUrl} autoCapitalize="none" keyboardType="url" placeholder="Proof link" placeholderTextColor={colors.faint} style={styles.input} />
               <TextInput value={proofNote} onChangeText={setProofNote} placeholder="Proof note" placeholderTextColor={colors.faint} style={styles.input} />
               <AppButton
@@ -788,7 +810,7 @@ export function RoomDetailScreen() {
             <>
               <FormNotice tone="info" message={`Submit your own win claim as ${playerDisplayName(ownParticipant, trustQuery.data?.[ownParticipant.user_id], user?.id)}. The opponent can agree or dispute from their side.`} />
               <TextInput value={scoreSummary} onChangeText={setScoreSummary} placeholder="Score summary" placeholderTextColor={colors.faint} style={styles.input} />
-              <EvidenceUploadField contextType="match_room" contextId={roomId} label="Result evidence upload" disabled={resultMutation.isPending} onUploaded={(evidence) => setEvidenceUrl(evidence.url)} />
+              <EvidenceUploadField contextType="match_room" contextId={roomId} label="Result evidence upload" disabled={resultMutation.isPending} resetSignal={resultUploadResetSignal} onUploaded={(evidence) => setEvidenceUrl(evidence.url)} />
               <TextInput value={evidenceUrl} onChangeText={setEvidenceUrl} autoCapitalize="none" keyboardType="url" placeholder="Evidence link, optional" placeholderTextColor={colors.faint} style={styles.input} />
               <TextInput value={resultNote} onChangeText={setResultNote} placeholder="Result note" placeholderTextColor={colors.faint} style={styles.input} />
               <AppButton loading={resultMutation.isPending} onPress={() => resultMutation.mutate()}>Submit result</AppButton>

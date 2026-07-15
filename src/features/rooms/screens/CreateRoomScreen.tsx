@@ -13,6 +13,7 @@ import { FeedbackState } from "../../../components/ui/FeedbackState";
 import { FormNotice } from "../../../components/ui/FormNotice";
 import { SurfaceCard } from "../../../components/ui/SurfaceCard";
 import { colors, radius, shadow, spacing } from "../../../constants/theme";
+import { useActionFeedback } from "../../../providers/ActionFeedbackProvider";
 
 type Notice = { tone: "error" | "success" | "info"; message: string } | null;
 
@@ -35,6 +36,7 @@ function moneyPreview(value: string) {
 
 export function CreateRoomScreen() {
   const queryClient = useQueryClient();
+  const { pushFeedback } = useActionFeedback();
   const profileQuery = useQuery({ queryKey: ["profile"], queryFn: profileOverview });
   const gamesQuery = useQuery({ queryKey: ["games"], queryFn: getGames });
 
@@ -58,6 +60,15 @@ export function CreateRoomScreen() {
   const missing = profileQuery.data?.completion?.missing ?? [];
   const profileReady = Boolean(profileQuery.data?.completion?.complete);
   const selectedRuleset = selectedRulesets.find((ruleset) => ruleset.slug === selectedRulesetSlug) ?? selectedRulesets[0];
+
+  const notify = (nextNotice: NonNullable<Notice>) => {
+    setNotice(nextNotice);
+    pushFeedback({
+      tone: nextNotice.tone,
+      title: nextNotice.tone === "error" ? "Room could not be created" : "Room created",
+      message: nextNotice.message
+    });
+  };
 
   useEffect(() => {
     if (defaultGameSlug && !selectedGameSlug) setSelectedGameSlug(defaultGameSlug);
@@ -84,12 +95,12 @@ export function CreateRoomScreen() {
       });
     },
     onSuccess: async (room) => {
-      setNotice({ tone: "success", message: `Room created. Share code ${room.room_code ?? "from the room detail"} with your opponent.` });
+      notify({ tone: "success", message: `Room created. Share code ${room.room_code ?? "from the room detail"} with your opponent.` });
       setTitle("");
       await queryClient.invalidateQueries({ queryKey: ["rooms"] });
       if (room.id) router.push(`/(app)/rooms/${room.id}`);
     },
-    onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "Could not create room.") })
+    onError: (error) => notify({ tone: "error", message: plainApiError(error, "Could not create room.") })
   });
 
   return (

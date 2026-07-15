@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
@@ -61,18 +61,32 @@ export function EvidenceUploadField({
   contextId,
   label,
   disabled,
+  resetSignal,
   onUploaded
 }: {
   contextType: EvidenceUploadContextType;
   contextId: string;
   label: string;
   disabled?: boolean;
+  resetSignal?: number;
   onUploaded: (evidence: UploadedEvidence) => void;
 }) {
   const [selected, setSelected] = useState<PickedEvidence | null>(null);
   const [uploaded, setUploaded] = useState<UploadedEvidence | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const didMountRef = useRef(false);
+
+  useEffect(() => {
+    if (!didMountRef.current) {
+      didMountRef.current = true;
+      return;
+    }
+    setSelected(null);
+    setUploaded(null);
+    setError(null);
+    setBusy(false);
+  }, [resetSignal]);
 
   async function uploadPicked(picked: PickedEvidence) {
     setBusy(true);

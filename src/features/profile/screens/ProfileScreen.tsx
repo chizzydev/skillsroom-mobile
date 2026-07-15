@@ -22,11 +22,13 @@ import { colors, radius, shadow, spacing } from "../../../constants/theme";
 import { useAuthStore } from "../../../store/auth-store";
 import type { PlayerTrustSummary, UserGameAccount } from "../../../types/api";
 import { ConnectedChannelCard } from "../../streaming/components/StreamCards";
+import { useActionFeedback } from "../../../providers/ActionFeedbackProvider";
 
 type Notice = { tone: "error" | "success" | "info"; message: string } | null;
 type Visibility = "private" | "room_participants" | "public";
 type StreamProvider = "youtube" | "twitch";
 type IconComponent = typeof ShieldCheck;
+type NoticeTarget = "profile" | "game" | "payout" | "stream";
 
 const profileArtwork = require("../../../../assets/marketing/skillsroom-premium/community-premium.png");
 
@@ -82,6 +84,7 @@ export function ProfileScreen() {
   const signOut = useAuthStore((state) => state.signOut);
   const updateUserIdentity = useAuthStore((state) => state.updateUserIdentity);
   const queryClient = useQueryClient();
+  const { pushFeedback } = useActionFeedback();
 
   const profileQuery = useQuery({ queryKey: ["profile"], queryFn: profileDetails });
   const gamesQuery = useQuery({ queryKey: ["games"], queryFn: getGames });
@@ -223,6 +226,18 @@ export function ProfileScreen() {
   const completedReadiness = readinessItems.filter((item) => item.done).length;
   const hasAdminAccess = canAccessAdmin(user);
 
+  const notify = (target: NoticeTarget, nextNotice: NonNullable<Notice>) => {
+    if (target === "profile") setProfileNotice(nextNotice);
+    if (target === "game") setGameNotice(nextNotice);
+    if (target === "payout") setPayoutNotice(nextNotice);
+    if (target === "stream") setStreamNotice(nextNotice);
+    pushFeedback({
+      tone: nextNotice.tone,
+      title: nextNotice.tone === "error" ? "Profile action failed" : target === "stream" ? "Stream updated" : target === "payout" ? "Payout details updated" : target === "game" ? "Game account updated" : "Profile updated",
+      message: nextNotice.message
+    });
+  };
+
   const refreshProfile = async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ["profile"] }),
@@ -273,10 +288,10 @@ export function ProfileScreen() {
           age_confirmed_at: savedProfile?.age_confirmed_at ?? current?.profile?.age_confirmed_at ?? new Date().toISOString()
         }
       }));
-      setProfileNotice({ tone: "success", message: "Profile details saved." });
+      notify("profile", { tone: "success", message: "Profile details saved." });
       await refreshProfile();
     },
-    onError: (error) => setProfileNotice({ tone: "error", message: plainApiError(error, "Could not save profile details.") })
+    onError: (error) => notify("profile", { tone: "error", message: plainApiError(error, "Could not save profile details.") })
   });
 
   const gameMutation = useMutation({
@@ -294,10 +309,10 @@ export function ProfileScreen() {
     onSuccess: async () => {
       setGameHandle("");
       setExternalUid("");
-      setGameNotice({ tone: "success", message: "Primary game account saved." });
+      notify("game", { tone: "success", message: "Primary game account saved." });
       await refreshProfile();
     },
-    onError: (error) => setGameNotice({ tone: "error", message: plainApiError(error, "Could not save game account.") })
+    onError: (error) => notify("game", { tone: "error", message: plainApiError(error, "Could not save game account.") })
   });
 
   const payoutMutation = useMutation({
@@ -316,10 +331,10 @@ export function ProfileScreen() {
     },
     onSuccess: async () => {
       setAccountNumber("");
-      setPayoutNotice({ tone: "success", message: "Payout details saved for future winnings." });
+      notify("payout", { tone: "success", message: "Payout details saved for future winnings." });
       await refreshProfile();
     },
-    onError: (error) => setPayoutNotice({ tone: "error", message: plainApiError(error, "Could not save payout details.") })
+    onError: (error) => notify("payout", { tone: "error", message: plainApiError(error, "Could not save payout details.") })
   });
 
   const streamMutation = useMutation({
@@ -336,10 +351,10 @@ export function ProfileScreen() {
       setStreamName("");
       setStreamUrl("");
       setStreamLogin("");
-      setStreamNotice({ tone: "success", message: "Stream channel saved." });
+      notify("stream", { tone: "success", message: "Stream channel saved." });
       await refreshProfile();
     },
-    onError: (error) => setStreamNotice({ tone: "error", message: plainApiError(error, "Could not save stream channel.") })
+    onError: (error) => notify("stream", { tone: "error", message: plainApiError(error, "Could not save stream channel.") })
   });
 
   async function logout() {
@@ -365,7 +380,7 @@ export function ProfileScreen() {
       });
       const result = await WebBrowser.openAuthSessionAsync(started.authorization_url, appRedirectUri);
       if (result.type !== "success") {
-        setStreamNotice({ tone: "info", message: "Streaming connection was cancelled before it finished." });
+        notify("stream", { tone: "info", message: "Streaming connection was cancelled before it finished." });
         return;
       }
 
@@ -377,10 +392,10 @@ export function ProfileScreen() {
       if (!code || !state) throw new Error("Streaming provider returned an incomplete callback.");
       if (state !== started.state) throw new Error("Streaming connection state did not match. Try again.");
       await completeStreamingOauth({ code, state });
-      setStreamNotice({ tone: "success", message: `${provider === "youtube" ? "YouTube" : "Twitch"} connected.` });
+      notify("stream", { tone: "success", message: `${provider === "youtube" ? "YouTube" : "Twitch"} connected.` });
       await refreshProfile();
     } catch (error) {
-      setStreamNotice({ tone: "error", message: plainApiError(error, "Could not connect streaming OAuth.") });
+      notify("stream", { tone: "error", message: plainApiError(error, "Could not connect streaming OAuth.") });
     } finally {
       setOauthProvider(null);
     }
@@ -540,7 +555,10 @@ export function ProfileScreen() {
             key={account.id}
             account={account}
             loading={streamMutation.isPending}
-            onRefresh={() => void syncStreamingAccount(account.id).then(refreshProfile).catch((error) => setStreamNotice({ tone: "error", message: plainApiError(error, "Could not refresh stream status.") }))}
+            onRefresh={() => void syncStreamingAccount(account.id).then(async () => {
+              notify("stream", { tone: "success", message: "Stream status refreshed." });
+              await refreshProfile();
+            }).catch((error) => notify("stream", { tone: "error", message: plainApiError(error, "Could not refresh stream status.") }))}
           />
         )) : <FormNotice tone="info" message="Connect a channel before your next streamed match, or save a public channel link manually." />}
         <View style={styles.twoCol}>

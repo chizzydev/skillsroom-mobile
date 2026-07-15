@@ -13,6 +13,7 @@ import { FeedbackState } from "../../../components/ui/FeedbackState";
 import { FormNotice } from "../../../components/ui/FormNotice";
 import { SurfaceCard } from "../../../components/ui/SurfaceCard";
 import { colors, radius, spacing } from "../../../constants/theme";
+import { useActionFeedback } from "../../../providers/ActionFeedbackProvider";
 
 type Notice = { tone: "error" | "success" | "info"; message: string } | null;
 
@@ -25,12 +26,22 @@ function missingText(key: string) {
 
 export function JoinRoomScreen() {
   const queryClient = useQueryClient();
+  const { pushFeedback } = useActionFeedback();
   const profileQuery = useQuery({ queryKey: ["profile"], queryFn: profileOverview });
   const [joinCode, setJoinCode] = useState("");
   const [notice, setNotice] = useState<Notice>(null);
 
   const profileReady = Boolean(profileQuery.data?.completion?.complete);
   const missing = profileQuery.data?.completion?.missing ?? [];
+
+  const notify = (nextNotice: NonNullable<Notice>) => {
+    setNotice(nextNotice);
+    pushFeedback({
+      tone: nextNotice.tone,
+      title: nextNotice.tone === "error" ? "Room could not be joined" : "Room joined",
+      message: nextNotice.message
+    });
+  };
 
   const joinMutation = useMutation({
     mutationFn: () => {
@@ -41,11 +52,11 @@ export function JoinRoomScreen() {
     },
     onSuccess: async (result) => {
       setJoinCode("");
-      setNotice({ tone: "success", message: `Joined ${result.room?.room_code ?? "the room"}. Complete your entry when the room asks for it.` });
+      notify({ tone: "success", message: `Joined ${result.room?.room_code ?? "the room"}. Complete your entry when the room asks for it.` });
       await queryClient.invalidateQueries({ queryKey: ["rooms"] });
       if (result.room?.id) router.push(`/(app)/rooms/${result.room.id}`);
     },
-    onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "Could not join room.") })
+    onError: (error) => notify({ tone: "error", message: plainApiError(error, "Could not join room.") })
   });
 
   return (

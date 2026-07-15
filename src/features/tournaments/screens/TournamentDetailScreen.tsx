@@ -22,6 +22,7 @@ import { SurfaceCard } from "../../../components/ui/SurfaceCard";
 import { colors, radius, spacing } from "../../../constants/theme";
 import { EvidenceUploadField } from "../../uploads/components/EvidenceUploadField";
 import { NoStreamState, StreamAttachForm, StreamLinkCard } from "../../streaming/components/StreamCards";
+import { useActionFeedback } from "../../../providers/ActionFeedbackProvider";
 import { useAuthStore } from "../../../store/auth-store";
 import type { CommunityLivestreamLink, TournamentDetail, TournamentEntry, TournamentMatch, TournamentMatchSide, TournamentStanding } from "../../../types/api";
 
@@ -90,10 +91,19 @@ function canManageTournamentStreams(tournament?: TournamentDetail, userId?: stri
   return tournament.hosts.some((host) => host.user_id === userId && host.status === "active" && host.role !== "sponsor");
 }
 
+function feedbackTitle(tone: NonNullable<Notice>["tone"], view: DetailView) {
+  if (tone === "error") return "Tournament action failed";
+  if (tone === "info") return "Tournament update";
+  if (view === "entry") return "Entry updated";
+  if (view === "streams") return "Stream updated";
+  return "Tournament updated";
+}
+
 export function TournamentDetailScreen() {
   const { tournamentId } = useLocalSearchParams<{ tournamentId?: string }>();
   const target = typeof tournamentId === "string" ? decodeURIComponent(tournamentId) : "";
   const queryClient = useQueryClient();
+  const { pushFeedback } = useActionFeedback();
   const user = useAuthStore((state) => state.user);
   const userId = user?.id;
   const [view, setView] = useState<DetailView>("overview");
@@ -107,6 +117,7 @@ export function TournamentDetailScreen() {
   const [senderBank, setSenderBank] = useState("");
   const [senderAccount, setSenderAccount] = useState("");
   const [proofNote, setProofNote] = useState("");
+  const [proofUploadResetSignal, setProofUploadResetSignal] = useState(0);
 
   const detailQuery = useQuery({ queryKey: ["tournaments", "detail", target], queryFn: () => getTournamentDetail(target), enabled: Boolean(target), refetchInterval: 10000 });
   const streamsQuery = useQuery({ queryKey: ["tournaments", "streams", target], queryFn: () => listTournamentLivestreams(target), enabled: Boolean(target), refetchInterval: 15000 });
@@ -131,6 +142,11 @@ export function TournamentDetailScreen() {
   const notify = (targetView: DetailView, nextNotice: NonNullable<Notice>, focusView = false) => {
     setNotice(nextNotice);
     setLocalNotice({ view: targetView, notice: nextNotice });
+    pushFeedback({
+      tone: nextNotice.tone,
+      title: feedbackTitle(nextNotice.tone, targetView),
+      message: nextNotice.message
+    });
     if (focusView) setView(targetView);
   };
 
@@ -194,6 +210,7 @@ export function TournamentDetailScreen() {
       setProofUrl("");
       setTransferReference("");
       setProofNote("");
+      setProofUploadResetSignal((value) => value + 1);
       await refresh();
     },
     onError: (error) => notify("entry", { tone: "error", message: plainApiError(error, "Could not submit receipt.") })
@@ -294,6 +311,7 @@ export function TournamentDetailScreen() {
           senderBank={senderBank}
           senderAccount={senderAccount}
           proofNote={proofNote}
+          proofUploadResetSignal={proofUploadResetSignal}
           onDisplayName={setDisplayName}
           onTeamName={setTeamName}
           onProofUrl={setProofUrl}
@@ -373,6 +391,7 @@ function EntryPanel(props: {
   senderBank: string;
   senderAccount: string;
   proofNote: string;
+  proofUploadResetSignal: number;
   onDisplayName: (value: string) => void;
   onTeamName: (value: string) => void;
   onProofUrl: (value: string) => void;
@@ -419,7 +438,7 @@ function EntryPanel(props: {
           <View style={styles.paymentBox}>
             <Text style={styles.sectionTitle}>Manual transfer</Text>
             <Text style={styles.copy}>{collectionAccount.bankName} - {collectionAccount.accountNumber} - {collectionAccount.accountName}</Text>
-            <EvidenceUploadField contextType="tournament" contextId={props.tournamentId} label="Receipt upload" disabled={!props.canFund || props.proofLoading} onUploaded={(evidence) => props.onProofUrl(evidence.url)} />
+            <EvidenceUploadField contextType="tournament" contextId={props.tournamentId} label="Receipt upload" disabled={!props.canFund || props.proofLoading} resetSignal={props.proofUploadResetSignal} onUploaded={(evidence) => props.onProofUrl(evidence.url)} />
             <TextInput value={props.proofUrl} onChangeText={props.onProofUrl} autoCapitalize="none" placeholder="Receipt or screenshot link" placeholderTextColor={colors.faint} style={styles.input} editable={props.canFund} />
             <TextInput value={props.transferReference} onChangeText={props.onTransferReference} placeholder="Transfer reference, optional" placeholderTextColor={colors.faint} style={styles.input} editable={props.canFund} />
             <TextInput value={props.senderName} onChangeText={props.onSenderName} placeholder="Refund account name" placeholderTextColor={colors.faint} style={styles.input} editable={props.canFund} />

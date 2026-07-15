@@ -28,6 +28,7 @@ import { FormNotice } from "../../../components/ui/FormNotice";
 import { SurfaceCard } from "../../../components/ui/SurfaceCard";
 import { openEvidenceInApp } from "../../evidence/openEvidence";
 import { colors, radius, spacing } from "../../../constants/theme";
+import { useActionFeedback } from "../../../providers/ActionFeedbackProvider";
 import { isAdminStepUpActive, useAdminStepUpStore } from "../../../store/admin-step-up-store";
 import { useAuthStore } from "../../../store/auth-store";
 import type { MatchParticipant, MatchResultClaim, MatchResultEvidence, MatchRoom } from "../../../types/api";
@@ -215,6 +216,7 @@ async function hydrateClaim(claim: MatchResultClaim): Promise<ResultQueueCard> {
 export function AdminResultsScreen() {
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
+  const { pushFeedback } = useActionFeedback();
   const [notice, setNotice] = useState<Notice>(null);
   const [targetNotice, setTargetNotice] = useState<{ target: NoticeTarget; notice: NonNullable<Notice> } | null>(null);
   const [selectedClaimId, setSelectedClaimId] = useState("");
@@ -250,6 +252,11 @@ export function AdminResultsScreen() {
   const notify = (target: NoticeTarget, nextNotice: NonNullable<Notice>) => {
     setNotice(nextNotice);
     setTargetNotice({ target, notice: nextNotice });
+    pushFeedback({
+      tone: nextNotice.tone,
+      title: nextNotice.tone === "error" ? "Result action failed" : target === "security" ? "Result access updated" : "Result review updated",
+      message: nextNotice.message
+    });
   };
   const noticeFor = (target: NoticeTarget) => targetNotice?.target === target ? targetNotice.notice : null;
 

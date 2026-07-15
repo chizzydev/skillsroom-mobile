@@ -24,6 +24,7 @@ import { FeedbackState } from "../../../components/ui/FeedbackState";
 import { FormNotice } from "../../../components/ui/FormNotice";
 import { SurfaceCard } from "../../../components/ui/SurfaceCard";
 import { colors, radius, spacing } from "../../../constants/theme";
+import { useActionFeedback } from "../../../providers/ActionFeedbackProvider";
 import { isAdminStepUpActive, useAdminStepUpStore } from "../../../store/admin-step-up-store";
 import { useAuthStore } from "../../../store/auth-store";
 import type { ManualFundingSubmission } from "../../../types/api";
@@ -62,6 +63,7 @@ function countStatus(rows: ManualFundingSubmission[], status: string) {
 export function AdminFundingScreen() {
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
+  const { pushFeedback } = useActionFeedback();
   const [selectedId, setSelectedId] = useState("");
   const [note, setNote] = useState("");
   const [password, setPassword] = useState("");
@@ -94,6 +96,11 @@ export function AdminFundingScreen() {
   const notify = (target: NoticeTarget, nextNotice: NonNullable<Notice>) => {
     setNotice(nextNotice);
     setTargetNotice({ target, notice: nextNotice });
+    pushFeedback({
+      tone: nextNotice.tone,
+      title: nextNotice.tone === "error" ? "Funding action failed" : target === "security" ? "Funding access updated" : "Funding review updated",
+      message: nextNotice.message
+    });
   };
   const noticeFor = (target: NoticeTarget) => targetNotice?.target === target ? targetNotice.notice : null;
 
