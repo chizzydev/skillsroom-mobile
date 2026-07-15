@@ -8,20 +8,52 @@ import { AppScreen } from "../../../components/screen/AppScreen";
 import { AppButton } from "../../../components/ui/AppButton";
 import { Badge } from "../../../components/ui/Badge";
 import { FeedbackState } from "../../../components/ui/FeedbackState";
-import { FormNotice } from "../../../components/ui/FormNotice";
 import { SurfaceCard } from "../../../components/ui/SurfaceCard";
 import { colors, radius, spacing } from "../../../constants/theme";
+import { useActionFeedback } from "../../../providers/ActionFeedbackProvider";
+import { useAuthStore } from "../../../store/auth-store";
 import type { ChatDmRequest } from "../../../types/api";
 
 function peerName(request: ChatDmRequest) {
   return request.peer_label ?? request.requester_label ?? request.recipient_label ?? request.peer_username ?? "Player";
 }
 
+function requesterName(request: ChatDmRequest) {
+  return request.requester_label ?? request.requester_display_name ?? request.requester_username ?? "Player";
+}
+
+function recipientName(request: ChatDmRequest) {
+  return request.recipient_label ?? request.recipient_display_name ?? request.recipient_username ?? "Player";
+}
+
+function requesterHandle(request: ChatDmRequest) {
+  return request.requester_username ? `@${request.requester_username}` : null;
+}
+
+function recipientHandle(request: ChatDmRequest) {
+  return request.recipient_username ? `@${request.recipient_username}` : null;
+}
+
+type RequestDirection = "incoming" | "outgoing" | "unknown";
+
+function requestDirection(request: ChatDmRequest, currentUserId?: string): RequestDirection {
+  if (currentUserId && request.recipient_user_id === currentUserId) return "incoming";
+  if (currentUserId && request.requester_user_id === currentUserId) return "outgoing";
+  return "unknown";
+}
+
+function requestPrimaryLabel(request: ChatDmRequest, direction: RequestDirection) {
+  if (direction === "incoming") return { prefix: "From", name: requesterName(request), handle: requesterHandle(request) };
+  if (direction === "outgoing") return { prefix: "To", name: recipientName(request), handle: recipientHandle(request) };
+  return { prefix: "With", name: peerName(request), handle: request.peer_username ? `@${request.peer_username}` : requesterHandle(request) ?? recipientHandle(request) };
+}
+
 export function DmRequestsScreen() {
   const queryClient = useQueryClient();
+  const { pushFeedback } = useActionFeedback();
+  const currentUserId = useAuthStore((state) => state.user?.id);
   const [recipient, setRecipient] = useState("");
   const [intro, setIntro] = useState("");
-  const [notice, setNotice] = useState<{ tone: "error" | "success" | "info"; message: string } | null>(null);
 
   const requestsQuery = useQuery({ queryKey: ["chat", "dm-requests"], queryFn: listDmRequests, refetchInterval: 30000 });
   const requests = requestsQuery.data ?? [];
@@ -33,22 +65,30 @@ export function DmRequestsScreen() {
       return createDmRequest({ recipient_username: username, intro_message: intro.trim() || undefined });
     },
     onSuccess: async () => {
-      setNotice({ tone: "success", message: "DM request sent." });
+      pushFeedback({ tone: "success", title: "DM request sent." });
       setRecipient("");
       setIntro("");
       await queryClient.invalidateQueries({ queryKey: ["chat", "dm-requests"] });
     },
-    onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "Could not send DM request.") })
+    onError: (error) => pushFeedback({
+      tone: "error",
+      title: "DM request needs attention",
+      message: plainApiError(error, "Could not send DM request.")
+    })
   });
 
   const respondMutation = useMutation({
     mutationFn: ({ requestId, response }: { requestId: string; response: "accepted" | "declined" }) => respondDmRequest(requestId, response),
     onSuccess: async (result) => {
-      setNotice({ tone: "success", message: result.channel ? "DM accepted. Thread is ready." : "DM request updated." });
+      pushFeedback({ tone: "success", title: result.channel ? "DM accepted. Thread is ready." : "DM request updated." });
       await queryClient.invalidateQueries({ queryKey: ["chat", "dm-requests"] });
       await queryClient.invalidateQueries({ queryKey: ["chat", "channels"] });
     },
-    onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "Could not update DM request.") })
+    onError: (error) => pushFeedback({
+      tone: "error",
+      title: "DM request needs attention",
+      message: plainApiError(error, "Could not update DM request.")
+    })
   });
 
   return (
@@ -60,12 +100,11 @@ export function DmRequestsScreen() {
         <Text style={styles.title}>DM Requests</Text>
       </View>
 
-      {notice ? <FormNotice tone={notice.tone} message={notice.message} /> : null}
-
       <SurfaceCard>
         <Badge tone="green">Start DM</Badge>
         <Text style={styles.sectionTitle}>Request a player chat</Text>
-        <TextInput value={recipient} onChangeText={setRecipient} autoCapitalize="none" placeholder="Username" placeholderTextColor={colors.faint} style={styles.input} />
+        <TextInput value={recipient} onChangeText={setRecipient} autoCapitalize="none" placeholder="Recipient username" placeholderTextColor={colors.faint} style={styles.input} />
+        <Text style={styles.fieldHint}>Use the recipient's exact Skillsroom username, not only their display name.</Text>
         <TextInput
           value={intro}
           onChangeText={setIntro}
@@ -84,27 +123,41 @@ export function DmRequestsScreen() {
         <FeedbackState tone="error" title="Requests unavailable" body="Could not load DM requests." actionLabel="Retry" onAction={() => void requestsQuery.refetch()} />
       ) : null}
 
-      {requests.map((request) => (
-        <SurfaceCard key={request.id}>
-          <Badge tone={request.status === "accepted" ? "green" : request.status === "declined" ? "red" : "amber"}>{request.status}</Badge>
-          <Text style={styles.requestName}>{peerName(request)}</Text>
-          {request.intro_message ? <Text style={styles.requestCopy}>{request.intro_message}</Text> : null}
-          {request.channel_slug ? (
-            <AppButton variant="secondary" onPress={() => router.push(`/(app)/chat/${encodeURIComponent(String(request.channel_slug))}`)}>
-              Open thread
-            </AppButton>
-          ) : request.status === "pending" ? (
-            <View style={styles.requestActions}>
-              <AppButton loading={respondMutation.isPending} onPress={() => respondMutation.mutate({ requestId: request.id, response: "accepted" })} style={styles.actionGrow}>
-                Accept
+      {requests.map((request) => {
+        const direction = requestDirection(request, currentUserId);
+        const incoming = direction === "incoming";
+        const outgoing = direction === "outgoing";
+        const pending = request.status === "pending";
+        const canRespond = pending && incoming;
+        const label = requestPrimaryLabel(request, direction);
+        return (
+          <SurfaceCard key={request.id}>
+            <Badge tone={request.status === "accepted" ? "green" : request.status === "declined" ? "red" : "amber"}>
+              {pending ? incoming ? "incoming" : outgoing ? "sent" : "pending" : request.status}
+            </Badge>
+            <Text style={styles.requestLabel}>{label.prefix}</Text>
+            <Text style={styles.requestName}>{label.name}</Text>
+            {label.handle ? <Text style={styles.requestHandle}>{label.handle}</Text> : null}
+            {pending && outgoing ? <Text style={styles.requestCopy}>Waiting for {label.name} to respond.</Text> : null}
+            {pending && incoming ? <Text style={styles.requestCopy}>{label.name} wants to start a direct message with you.</Text> : null}
+            {request.intro_message ? <Text style={styles.requestCopy}>{request.intro_message}</Text> : null}
+            {request.channel_slug ? (
+              <AppButton variant="secondary" onPress={() => router.push(`/(app)/chat/${encodeURIComponent(String(request.channel_slug))}`)}>
+                Open thread
               </AppButton>
-              <AppButton variant="secondary" loading={respondMutation.isPending} onPress={() => respondMutation.mutate({ requestId: request.id, response: "declined" })} style={styles.actionGrow}>
-                Decline
-              </AppButton>
-            </View>
-          ) : null}
-        </SurfaceCard>
-      ))}
+            ) : canRespond ? (
+              <View style={styles.requestActions}>
+                <AppButton loading={respondMutation.isPending} onPress={() => respondMutation.mutate({ requestId: request.id, response: "accepted" })} style={styles.actionGrow}>
+                  Accept
+                </AppButton>
+                <AppButton variant="secondary" loading={respondMutation.isPending} onPress={() => respondMutation.mutate({ requestId: request.id, response: "declined" })} style={styles.actionGrow}>
+                  Decline
+                </AppButton>
+              </View>
+            ) : null}
+          </SurfaceCard>
+        );
+      })}
 
       {!requestsQuery.isLoading && requests.length === 0 ? <FeedbackState title="No requests" body="Incoming and sent DM requests will appear here." /> : null}
     </AppScreen>
@@ -152,16 +205,37 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginTop: spacing.sm
   },
+  fieldHint: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: "700",
+    lineHeight: 17,
+    marginTop: 6
+  },
   textarea: {
     minHeight: 92,
     paddingTop: spacing.md,
     textAlignVertical: "top"
   },
+  requestLabel: {
+    color: colors.faint,
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 1,
+    marginTop: spacing.sm,
+    textTransform: "uppercase"
+  },
   requestName: {
     color: colors.ink,
     fontSize: 18,
     fontWeight: "900",
-    marginTop: spacing.sm
+    marginTop: 3
+  },
+  requestHandle: {
+    color: colors.faint,
+    fontSize: 13,
+    fontWeight: "800",
+    marginTop: 2
   },
   requestCopy: {
     color: colors.muted,

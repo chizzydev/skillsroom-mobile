@@ -13,10 +13,10 @@ import { SurfaceCard } from "../../../components/ui/SurfaceCard";
 import { colors, radius, shadow, spacing } from "../../../constants/theme";
 import type { MatchRoom } from "../../../types/api";
 
-type RoomQueue = "open" | "awaiting_funding" | "funding_review" | "live" | "done";
+type RoomQueue = "draft" | "open" | "funding" | "ready" | "live" | "result" | "review" | "disputed" | "payout" | "done";
 type IconComponent = typeof DoorOpen;
 
-const queues: RoomQueue[] = ["open", "awaiting_funding", "funding_review", "live", "done"];
+const queues: RoomQueue[] = ["draft", "open", "funding", "ready", "live", "result", "review", "disputed", "payout", "done"];
 const roomArtwork = require("../../../../assets/marketing/skillsroom-premium/tournaments-premium.png");
 
 function money(minor?: number, currency = "NGN") {
@@ -24,19 +24,42 @@ function money(minor?: number, currency = "NGN") {
 }
 
 function queueLabel(queue: RoomQueue) {
-  if (queue === "awaiting_funding") return "Entry";
-  if (queue === "funding_review") return "Checking";
+  if (queue === "draft") return "Drafts";
+  if (queue === "funding") return "Funding";
+  if (queue === "ready") return "Ready";
   if (queue === "live") return "Live";
+  if (queue === "result") return "Result";
+  if (queue === "review") return "Review";
+  if (queue === "disputed") return "Disputed";
+  if (queue === "payout") return "Payout";
   if (queue === "done") return "Done";
   return "Open";
 }
 
 function queueFullLabel(queue: RoomQueue) {
-  if (queue === "awaiting_funding") return "Entry Needed";
-  if (queue === "funding_review") return "Entry Review";
-  if (queue === "live") return "Live / Review";
-  if (queue === "done") return "Completed";
-  return "Open Rooms";
+  if (queue === "draft") return "Draft rooms";
+  if (queue === "open") return "Open rooms";
+  if (queue === "funding") return "Funding rooms";
+  if (queue === "ready") return "Ready rooms";
+  if (queue === "live") return "Live rooms";
+  if (queue === "result") return "Result rooms";
+  if (queue === "review") return "Review rooms";
+  if (queue === "disputed") return "Disputed rooms";
+  if (queue === "payout") return "Payout rooms";
+  return "Done rooms";
+}
+
+function queueDescription(queue: RoomQueue) {
+  if (queue === "draft") return "Room drafts you started but have not opened.";
+  if (queue === "funding") return "Rooms waiting for entry payment or funding approval.";
+  if (queue === "ready") return "Rooms funded by both players and waiting for match start.";
+  if (queue === "live") return "Rooms currently in play.";
+  if (queue === "result") return "Rooms waiting for a player to submit the match result.";
+  if (queue === "review") return "Rooms with result evidence waiting for review.";
+  if (queue === "disputed") return "Rooms where players disagree and Skillsroom must review.";
+  if (queue === "payout") return "Approved results waiting for payout or refund completion.";
+  if (queue === "done") return "Completed, refunded, voided, or cancelled rooms.";
+  return "Open rooms that can still be joined.";
 }
 
 function roomStatusLabel(status?: string) {
@@ -64,10 +87,15 @@ function statusTone(status?: string): "cyan" | "green" | "amber" | "red" | "dark
 }
 
 function roomQueue(room: MatchRoom): RoomQueue | "other" {
+  if (room.status === "draft") return "draft";
   if (room.status === "open") return "open";
-  if (room.status === "awaiting_funding") return "awaiting_funding";
-  if (room.status === "funding_review") return "funding_review";
-  if (["funded", "active", "awaiting_results", "under_review", "disputed", "settlement_pending"].includes(String(room.status))) return "live";
+  if (room.status === "awaiting_funding" || room.status === "funding_review") return "funding";
+  if (room.status === "funded") return "ready";
+  if (room.status === "active") return "live";
+  if (room.status === "awaiting_results") return "result";
+  if (room.status === "under_review") return "review";
+  if (room.status === "disputed") return "disputed";
+  if (room.status === "settlement_pending") return "payout";
   if (["completed", "refunded", "voided", "cancelled"].includes(String(room.status))) return "done";
   return "other";
 }
@@ -90,6 +118,7 @@ function nextStep(room: MatchRoom) {
 
 export function RoomsScreen() {
   const [selectedQueue, setSelectedQueue] = useState<RoomQueue>("open");
+  const [queueGridWidth, setQueueGridWidth] = useState(0);
   const roomsQuery = useQuery({ queryKey: ["rooms"], queryFn: () => listRooms(), refetchInterval: 15000 });
 
   const rooms = roomsQuery.data ?? [];
@@ -97,10 +126,15 @@ export function RoomsScreen() {
     return queues.reduce<Record<RoomQueue, number>>((acc, queue) => {
       acc[queue] = rooms.filter((room) => roomQueue(room) === queue).length;
       return acc;
-    }, { open: 0, awaiting_funding: 0, funding_review: 0, live: 0, done: 0 });
+    }, { draft: 0, open: 0, funding: 0, ready: 0, live: 0, result: 0, review: 0, disputed: 0, payout: 0, done: 0 });
   }, [rooms]);
   const selectedRooms = useMemo(() => rooms.filter((room) => roomQueue(room) === selectedQueue), [rooms, selectedQueue]);
   const totalTracked = rooms.length;
+  const queueColumns = queueGridWidth < 220 ? 2 : queueGridWidth < 340 ? 3 : queueGridWidth < 460 ? 4 : 5;
+  const queueGap = 6;
+  const queueGridPadding = 10;
+  const queueButtonWidth =
+    queueGridWidth > 0 ? Math.floor((queueGridWidth - queueGridPadding - queueGap * (queueColumns - 1)) / queueColumns) : undefined;
 
   return (
     <AppScreen>
@@ -118,7 +152,7 @@ export function RoomsScreen() {
 
       <View style={styles.statsGrid}>
         <StatCard icon={DoorOpen} label="Open" value={counts.open} detail="Can be joined" tone="cyan" />
-        <StatCard icon={ShieldCheck} label="Entries" value={counts.awaiting_funding + counts.funding_review} detail="Waiting to play" tone="amber" />
+        <StatCard icon={ShieldCheck} label="Funding" value={counts.funding} detail="Entry check" tone="amber" />
         <StatCard icon={Play} label="Live" value={counts.live} detail="Play or review" tone="green" />
         <StatCard icon={Trophy} label="Tracked" value={totalTracked} detail="All rooms" tone="cyan" />
       </View>
@@ -141,16 +175,23 @@ export function RoomsScreen() {
           <View style={styles.fill}>
             <Badge tone="amber">Rooms</Badge>
             <Text style={styles.sectionTitle}>Room activity</Text>
+            <Text style={styles.copy}>Switch between every room stage, from draft and funding through disputes, payout, and done.</Text>
           </View>
           <Pressable style={styles.searchButton} onPress={() => router.push("/(app)/rooms/join")}>
             <Search size={22} color={colors.ink} />
           </Pressable>
         </View>
-        <View style={styles.queueWrap}>
+        <View style={styles.queueGrid} onLayout={(event) => setQueueGridWidth(event.nativeEvent.layout.width)}>
           {queues.map((queue) => (
-            <Pressable key={queue} onPress={() => setSelectedQueue(queue)} style={[styles.queueButton, selectedQueue === queue && styles.queueButtonOn]}>
-              <Text style={[styles.queueText, selectedQueue === queue && styles.queueTextOn]}>{queueLabel(queue)}</Text>
-              <Text style={[styles.queueCount, selectedQueue === queue && styles.queueTextOn]}>{counts[queue]}</Text>
+            <Pressable
+              key={queue}
+              onPress={() => setSelectedQueue(queue)}
+              style={[styles.queueButton, queueButtonWidth ? { width: queueButtonWidth } : null, selectedQueue === queue && styles.queueButtonOn]}
+            >
+              <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85} style={[styles.queueText, selectedQueue === queue && styles.queueTextOn]}>
+                {queueLabel(queue)}
+              </Text>
+              {counts[queue] ? <Text style={[styles.queueCount, selectedQueue === queue && styles.queueTextOn]}>{counts[queue]}</Text> : null}
             </Pressable>
           ))}
         </View>
@@ -158,7 +199,7 @@ export function RoomsScreen() {
         {roomsQuery.isLoading ? <Text style={styles.copy}>Loading rooms...</Text> : null}
         {roomsQuery.isError ? <FeedbackState tone="error" title="Unable to load rooms" body="Check your connection and try again." actionLabel="Retry" onAction={() => void roomsQuery.refetch()} /> : null}
         {!roomsQuery.isLoading && !roomsQuery.isError && selectedRooms.length === 0 ? (
-          <FeedbackState title={`No ${queueFullLabel(selectedQueue).toLowerCase()}`} body={`Rooms will appear here as soon as they reach ${queueFullLabel(selectedQueue).toLowerCase()}.`} />
+          <FeedbackState title={`No ${queueFullLabel(selectedQueue).toLowerCase()}`} body={queueDescription(selectedQueue)} />
         ) : null}
 
         <View style={styles.roomList}>
@@ -263,22 +304,31 @@ const styles = StyleSheet.create({
   flowList: { gap: spacing.sm },
   flowStep: { flexDirection: "row", gap: spacing.md, alignItems: "center", borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, padding: spacing.md, backgroundColor: colors.surfaceAlt },
   flowIndex: { width: 38, height: 38, borderRadius: 14, textAlign: "center", textAlignVertical: "center", color: colors.cyan, backgroundColor: colors.cyanSoft, fontSize: 18, fontWeight: "900" },
-  queueWrap: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
-  queueButton: {
-    minHeight: 46,
+  queueGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
     borderWidth: 1,
     borderColor: colors.line,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceAlt,
+    padding: 4
+  },
+  queueButton: {
+    minHeight: 44,
+    flexShrink: 0,
+    borderRadius: radius.sm,
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.sm,
-    backgroundColor: colors.white
+    justifyContent: "center",
+    gap: spacing.xs,
+    paddingHorizontal: 4,
+    paddingVertical: spacing.xs
   },
-  queueButtonOn: { borderColor: colors.green, backgroundColor: colors.greenSoft },
-  queueText: { color: colors.muted, fontWeight: "900" },
-  queueTextOn: { color: colors.greenDark },
-  queueCount: { color: colors.faint, fontWeight: "900" },
+  queueButtonOn: { backgroundColor: colors.white, ...shadow.card },
+  queueText: { color: colors.muted, fontWeight: "900", fontSize: 11, textAlign: "center", minWidth: 0 },
+  queueTextOn: { color: colors.ink },
+  queueCount: { color: colors.faint, fontWeight: "900", fontSize: 11 },
   roomList: { gap: spacing.md },
   roomCard: { borderWidth: 1, borderColor: colors.line, borderRadius: radius.lg, padding: spacing.md, backgroundColor: colors.white, gap: spacing.sm, ...shadow.card },
   roomTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },

@@ -36,6 +36,7 @@ export type ChatMessageBubbleProps = {
   channelId: string;
   message: ChatMessage;
   isMine: boolean;
+  canManagePins: boolean;
   reacting: boolean;
   onReact: (messageId: string, reaction: string) => void;
   onReply: (message: ChatMessage) => void;
@@ -134,6 +135,7 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({
   channelId,
   message,
   isMine,
+  canManagePins,
   reacting,
   onReact,
   onReply,
@@ -181,7 +183,7 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({
         <View style={styles.messageActions}>
           <ActionChip label="Reply" icon={<Reply size={14} color={chatCyan} />} onPress={() => onReply(message)} />
           <ActionChip label="Thread" icon={<MessageCircle size={14} color={chatCyan} />} onPress={() => onThread(message)} />
-          <ActionChip label="Pin" icon={<Pin size={14} color={chatCyan} />} onPress={() => onMessageAction("pin", message)} />
+          {(isMine || canManagePins) ? <ActionChip label="Pin" icon={<Pin size={14} color={chatCyan} />} onPress={() => onMessageAction("pin", message)} /> : null}
           <ActionChip label="Save" icon={<Bookmark size={14} color={chatCyan} />} onPress={() => onMessageAction("bookmark", message)} />
           {!isMine ? <ActionChip label="Report" icon={<Flag size={14} color="#ff9aad" />} onPress={() => onMessageAction("report", message)} /> : null}
           {isMine ? <ActionChip label="Delete" icon={<Trash2 size={14} color="#ff9aad" />} onPress={() => onMessageAction("delete", message)} /> : null}
@@ -213,6 +215,7 @@ function areMessageBubblePropsEqual(previous: ChatMessageBubbleProps, next: Chat
   return previous.channelId === next.channelId
     && previous.message.id === next.message.id
     && previous.isMine === next.isMine
+    && previous.canManagePins === next.canManagePins
     && previous.reacting === next.reacting
     && previous.votingPoll === next.votingPoll
     && previous.onReact === next.onReact

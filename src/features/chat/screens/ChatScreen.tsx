@@ -3,11 +3,11 @@ import { router } from "expo-router";
 import { Hash, MessageCircle, Search, ShieldCheck, UserPlus, Users } from "lucide-react-native";
 import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { listChannels, listDmRequests } from "../../../api/chat";
 import { AppScreen } from "../../../components/screen/AppScreen";
 import { FeedbackState } from "../../../components/ui/FeedbackState";
 import { colors, radius, spacing } from "../../../constants/theme";
+import { useAuthStore } from "../../../store/auth-store";
 import type { ChatChannel, ChatDmRequest } from "../../../types/api";
 
 type ChatView = "channels" | "dms";
@@ -57,7 +57,7 @@ function requestPeer(request: ChatDmRequest) {
 }
 
 export function ChatScreen() {
-  const insets = useSafeAreaInsets();
+  const currentUserId = useAuthStore((state) => state.user?.id);
   const [view, setView] = useState<ChatView>("channels");
   const channelsQuery = useQuery({ queryKey: ["chat", "channels"], queryFn: listChannels, refetchInterval: 30000 });
   const dmRequestsQuery = useQuery({ queryKey: ["chat", "dm-requests"], queryFn: listDmRequests, refetchInterval: 30000 });
@@ -68,6 +68,10 @@ export function ChatScreen() {
   const publicChannels = channels.filter((channel) => channel.channel_type !== "dm" && channel.id !== globalChannel?.id);
   const dmChannels = channels.filter((channel) => channel.channel_type === "dm");
   const pendingRequests = useMemo(() => dmRequests.filter((request) => request.status === "pending"), [dmRequests]);
+  const incomingPendingRequests = useMemo(
+    () => pendingRequests.filter((request) => currentUserId && request.recipient_user_id === currentUserId),
+    [currentUserId, pendingRequests]
+  );
   const acceptedRequests = useMemo(() => dmRequests.filter((request) => request.status === "accepted"), [dmRequests]);
   const unreadCount = channels.reduce((sum, channel) => sum + Number(channel.unread_count ?? 0), 0);
   const onlineCount = channels.reduce((sum, channel) => sum + Number(channel.online_count ?? 0), 0);
@@ -95,7 +99,7 @@ export function ChatScreen() {
           <View style={styles.heroStats}>
             <StatPill label="Online" value={loadingChannels ? null : onlineCount} />
             <StatPill label="Unread" value={loadingChannels ? null : unreadCount} alert={unreadCount > 0} />
-            <StatPill label="DM requests" value={dmRequestsQuery.isLoading && !dmRequests.length ? null : pendingRequests.length} alert={pendingRequests.length > 0} />
+            <StatPill label="DM requests" value={dmRequestsQuery.isLoading && !dmRequests.length ? null : incomingPendingRequests.length} alert={incomingPendingRequests.length > 0} />
           </View>
         </View>
 
@@ -134,7 +138,7 @@ export function ChatScreen() {
               </View>
               <View style={styles.dmManagerText}>
                 <Text style={styles.dmManagerTitle}>Direct messages</Text>
-                <Text style={styles.dmManagerCopy}>{pendingRequests.length} pending request{pendingRequests.length === 1 ? "" : "s"}</Text>
+                <Text style={styles.dmManagerCopy}>{incomingPendingRequests.length} incoming request{incomingPendingRequests.length === 1 ? "" : "s"}</Text>
               </View>
               <Pressable onPress={() => router.push("/(app)/chat/dm-requests")} style={styles.manageButton}>
                 <Text style={styles.manageButtonText}>Manage</Text>
@@ -162,8 +166,6 @@ export function ChatScreen() {
             ) : null}
           </View>
         )}
-
-        <View style={[styles.bottomSpacer, { height: spacing.xl + Math.max(insets.bottom, spacing.sm) }]} />
       </View>
     </AppScreen>
   );
@@ -219,9 +221,6 @@ function ChannelRow({ channel, featured, onPress }: { channel: ChatChannel; feat
 const styles = StyleSheet.create({
   shell: {
     gap: spacing.md
-  },
-  bottomSpacer: {
-    flexShrink: 0
   },
   hero: {
     borderRadius: radius.lg,

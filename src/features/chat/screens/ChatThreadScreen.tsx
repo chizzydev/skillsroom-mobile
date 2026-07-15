@@ -61,8 +61,8 @@ import {
 import { plainApiError } from "../../../api/errors";
 import { AppScreen } from "../../../components/screen/AppScreen";
 import { FeedbackState } from "../../../components/ui/FeedbackState";
-import { FormNotice } from "../../../components/ui/FormNotice";
 import { colors, radius, spacing } from "../../../constants/theme";
+import { useActionFeedback } from "../../../providers/ActionFeedbackProvider";
 import { useAuthStore } from "../../../store/auth-store";
 import type { ChatAttachment, ChatChannel, ChatDmRequest, ChatMessage, ChatMessagesResponse, ChatNotificationLevel, ChatPresenceMember } from "../../../types/api";
 import { ChatComposer } from "../components/ChatComposer";
@@ -276,19 +276,28 @@ type SendContext = {
   draft: SendDraft;
 };
 
+type ChatNotice = { tone: "error" | "success" | "info"; message: string };
+
+function noticeTitle(notice: ChatNotice) {
+  if (notice.tone === "success") return notice.message;
+  if (notice.tone === "info") return notice.message;
+  return "Chat action needs attention";
+}
+
 export function ChatThreadScreen() {
   const { channelId } = useLocalSearchParams<{ channelId?: string }>();
   const target = typeof channelId === "string" ? decodeURIComponent(channelId) : "";
   const queryClient = useQueryClient();
+  const { pushFeedback } = useActionFeedback();
   const currentUser = useAuthStore((state) => state.user);
   const currentUserId = currentUser?.id;
+  const canManagePins = ["support", "moderator", "admin", "owner"].includes(String(currentUser?.role ?? ""));
   const listRef = useRef<FlashListRef<ChatMessage>>(null);
   const viewabilityConfigRef = useRef({ itemVisiblePercentThreshold: 35, minimumViewTime: 120 });
   const hydratedMessageIdsRef = useRef(new Set<string>());
   const hydratingMessageIdsRef = useRef(new Set<string>());
   const pendingScrollToLatestRef = useRef(false);
   const [body, setBody] = useState("");
-  const [notice, setNotice] = useState<{ tone: "error" | "success" | "info"; message: string } | null>(null);
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const [showInfo, setShowInfo] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
@@ -373,6 +382,13 @@ export function ChatThreadScreen() {
   const summary = channel?.channel_type === "dm"
     ? "Direct message"
     : `${onlineCount} online / ${channelsQuery.data?.length ?? "?"} channels`;
+  const notify = useCallback((notice: ChatNotice) => {
+    pushFeedback({
+      tone: notice.tone,
+      title: noticeTitle(notice),
+      message: notice.tone === "error" ? notice.message : undefined
+    });
+  }, [pushFeedback]);
 
   const scrollToNewest = useCallback((animated = true) => {
     const run = () => {
@@ -480,7 +496,6 @@ export function ChatThreadScreen() {
       setBody("");
       setReplyTo(null);
       setPendingAttachments([]);
-      setNotice(null);
       void setChatTyping(target, false).catch(() => undefined);
       queryClient.setQueryData<ChatMessagesResponse>(["chat", "messages", target], (current) =>
         current ? { ...current, messages: mergeCachedMessage(current.messages, optimisticMessage) } : current
@@ -489,7 +504,6 @@ export function ChatThreadScreen() {
       return { previousMessages, draft };
     },
     onSuccess: (data, draft) => {
-      setNotice(null);
       void setChatTyping(target, false).catch(() => undefined);
       queryClient.setQueryData<ChatMessagesResponse>(["chat", "messages", target], (current) =>
         current
@@ -521,7 +535,7 @@ export function ChatThreadScreen() {
         attachment,
         state: "ready" as const
       })));
-      setNotice({ tone: "error", message: plainApiError(error, "Could not send message.") });
+      notify({ tone: "error", message: plainApiError(error, "Could not send message.") });
     }
   });
 
@@ -530,7 +544,6 @@ export function ChatThreadScreen() {
       uploadChatAttachment(target, { uri: input.uri, name: input.name, mimeType: input.mimeType }).then((attachment) => ({ attachment, localId: input.localId })),
     onSuccess: ({ attachment, localId }) => {
       setPendingAttachments((current) => current.map((item) => item.localId === localId ? { ...item, attachment, state: "ready", error: undefined } : item));
-      setNotice(null);
     },
     onError: (error, variables) => {
       setPendingAttachments((current) => current.map((item) => item.localId === variables.localId ? { ...item, state: "failed", error: plainApiError(error, "Attachment upload failed.") } : item));
@@ -544,7 +557,7 @@ export function ChatThreadScreen() {
         current ? { ...current, messages: replaceCachedMessage(current.messages, data.message) } : current
       );
     },
-    onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "Reaction could not be saved.") })
+    onError: (error) => notify({ tone: "error", message: plainApiError(error, "Reaction could not be saved.") })
   });
   const reactMessage = reactMutation.mutate;
   const reactingMessageId = reactMutation.isPending ? reactMutation.variables?.messageId ?? null : null;
@@ -558,7 +571,7 @@ export function ChatThreadScreen() {
     },
     onSuccess: (data, variables) => {
       const label = variables.action === "bookmark" ? "Bookmark updated." : variables.action === "pin" ? "Message pinned." : variables.action === "report" ? "Report submitted." : "Message deleted.";
-      setNotice({ tone: "success", message: label });
+      notify({ tone: "success", message: label });
       setReportMessageTarget(null);
       setDeleteMessageTarget(null);
       const maybeMessage = data && typeof data === "object" && "message" in data ? data.message : undefined;
@@ -568,30 +581,29 @@ export function ChatThreadScreen() {
         );
       }
     },
-    onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "Message action could not be completed.") })
+    onError: (error) => notify({ tone: "error", message: plainApiError(error, "Message action could not be completed.") })
   });
   const runMessageAction = messageActionMutation.mutate;
 
   const pollMutation = useMutation({
     mutationFn: (input: { question: string; options: string[]; allow_multiple?: boolean; closes_at?: string }) => createChatPoll(target, input),
     onSuccess: (data) => {
-      setNotice({ tone: "success", message: "Poll posted." });
+      notify({ tone: "success", message: "Poll posted." });
       queryClient.setQueryData<ChatMessagesResponse>(["chat", "messages", target], (current) =>
         current ? { ...current, messages: mergeCachedMessage(current.messages, data.message) } : current
       );
     },
-    onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "Poll could not be posted.") })
+    onError: (error) => notify({ tone: "error", message: plainApiError(error, "Poll could not be posted.") })
   });
 
   const pollVoteMutation = useMutation({
     mutationFn: (input: { messageId: string; optionIds: string[] }) => voteChatPoll(target, input.messageId, input.optionIds),
     onSuccess: (data) => {
-      setNotice(null);
       queryClient.setQueryData<ChatMessagesResponse>(["chat", "messages", target], (current) =>
         current ? { ...current, messages: replaceCachedMessage(current.messages, data.message) } : current
       );
     },
-    onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "Poll vote could not be saved.") })
+    onError: (error) => notify({ tone: "error", message: plainApiError(error, "Poll vote could not be saved.") })
   });
   const votePoll = pollVoteMutation.mutate;
   const pollVoteMessageId = pollVoteMutation.isPending ? pollVoteMutation.variables?.messageId ?? null : null;
@@ -599,15 +611,15 @@ export function ChatThreadScreen() {
   const scheduleMutation = useMutation({
     mutationFn: (input: { body: string; scheduled_for: string }) => scheduleChatAnnouncement(target, input),
     onSuccess: async () => {
-      setNotice({ tone: "success", message: "Announcement scheduled." });
+      notify({ tone: "success", message: "Announcement scheduled." });
       await queryClient.invalidateQueries({ queryKey: ["chat", "scheduled-announcements", target] });
     },
-    onError: (error) => setNotice({ tone: "error", message: plainApiError(error, "Announcement could not be scheduled.") })
+    onError: (error) => notify({ tone: "error", message: plainApiError(error, "Announcement could not be scheduled.") })
   });
 
   function addUploadingAttachment(input: { uri: string; name: string; mimeType: string }) {
     if (pendingAttachments.length >= 4) {
-      setNotice({ tone: "error", message: "You can add up to 4 attachments to one message." });
+      notify({ tone: "error", message: "You can add up to 4 attachments to one message." });
       return;
     }
 
@@ -622,11 +634,11 @@ export function ChatThreadScreen() {
       .filter((attachment) => attachment.state === "ready" && attachment.attachment)
       .map((attachment) => attachment.attachment!);
     if (!text && readyAttachments.length === 0) {
-      setNotice({ tone: "error", message: "Write a message or add an attachment before sending." });
+      notify({ tone: "error", message: "Write a message or add an attachment before sending." });
       return;
     }
     if (pendingAttachments.some((attachment) => attachment.state === "uploading")) {
-      setNotice({ tone: "error", message: "Wait for attachments to finish uploading." });
+      notify({ tone: "error", message: "Wait for attachments to finish uploading." });
       return;
     }
 
@@ -640,12 +652,12 @@ export function ChatThreadScreen() {
       optimisticId: `mobile-pending:${stamp}`,
       createdAt: new Date().toISOString()
     });
-  }, [body, pendingAttachments, replyTo, sendMutation]);
+  }, [body, notify, pendingAttachments, replyTo, sendMutation]);
 
   async function pickPhoto() {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      setNotice({ tone: "error", message: "Allow photo access to choose an image." });
+      notify({ tone: "error", message: "Allow photo access to choose an image." });
       return;
     }
 
@@ -659,7 +671,7 @@ export function ChatThreadScreen() {
     const asset = result.assets[0];
     const mimeType = asset.mimeType ?? mimeFromName(asset.fileName ?? asset.uri);
     if (!mimeType) {
-      setNotice({ tone: "error", message: "Choose a JPG, PNG, or WEBP image." });
+      notify({ tone: "error", message: "Choose a JPG, PNG, or WEBP image." });
       return;
     }
     addUploadingAttachment({ uri: asset.uri, name: asset.fileName ?? "chat-image", mimeType });
@@ -676,7 +688,7 @@ export function ChatThreadScreen() {
     const asset = result.assets[0];
     const mimeType = asset.mimeType ?? mimeFromName(asset.name);
     if (!mimeType) {
-      setNotice({ tone: "error", message: "Choose a supported image, PDF, DOC, DOCX, ODT, or TXT file." });
+      notify({ tone: "error", message: "Choose a supported image, PDF, DOC, DOCX, ODT, or TXT file." });
       return;
     }
     addUploadingAttachment({ uri: asset.uri, name: asset.name, mimeType });
@@ -757,6 +769,7 @@ export function ChatThreadScreen() {
       channelId={target}
       message={message}
       isMine={Boolean(currentUserId && message.sender_user_id === currentUserId)}
+      canManagePins={canManagePins}
       reacting={reactingMessageId === message.id}
       onReact={handleReactMessage}
       onReply={handleReplyMessage}
@@ -766,13 +779,13 @@ export function ChatThreadScreen() {
       votingPoll={pollVoteMessageId === message.id}
       onPreview={setPreview}
     />
-  ), [currentUserId, handleMessageAction, handleReactMessage, handleReplyMessage, handleThreadMessage, handleVotePoll, pollVoteMessageId, reactingMessageId, target]);
+  ), [canManagePins, currentUserId, handleMessageAction, handleReactMessage, handleReplyMessage, handleThreadMessage, handleVotePoll, pollVoteMessageId, reactingMessageId, target]);
 
   return (
     <AppScreen scroll={false}>
       <View style={styles.shell}>
         <View style={styles.header}>
-          <IconButton label="Back" onPress={() => router.back()}>
+          <IconButton label="Back" onPress={() => router.replace("/(app)/(tabs)/chat")}>
             <ArrowLeft size={22} color={colors.white} strokeWidth={2.7} />
           </IconButton>
           <Pressable accessibilityLabel="Open channel details" onPress={() => setShowInfo(true)} style={styles.avatar}>
@@ -795,8 +808,6 @@ export function ChatThreadScreen() {
             <FeedbackState tone="error" title="Messages unavailable" body="This chat could not be loaded right now." actionLabel="Retry" onAction={() => void messagesQuery.refetch()} />
           </View>
         ) : null}
-        {notice ? <FormNotice tone={notice.tone} message={notice.message} /> : null}
-
         <FlashList
           ref={listRef}
           style={styles.messages}
@@ -1257,14 +1268,14 @@ function ChatInfoPanel({
           </View>
 
           <View style={styles.infoTabsWrap}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.infoTabsScroller} contentContainerStyle={styles.infoTabs}>
-            <InfoTabButton tab="members" current={tab} label="Members" onPress={setTab} />
-            <InfoTabButton tab="dms" current={tab} label={`DMs ${dmChannels.length || activeRequests.length || ""}`.trim()} onPress={setTab} />
-            <InfoTabButton tab="channels" current={tab} label="Channels" onPress={setTab} />
-            <InfoTabButton tab="media" current={tab} label="Media" onPress={setTab} />
-            <InfoTabButton tab="pins" current={tab} label="Pins" onPress={setTab} />
-            <InfoTabButton tab="settings" current={tab} label="Settings" onPress={setTab} />
-            </ScrollView>
+            <View style={styles.infoTabs}>
+              <InfoTabButton tab="members" current={tab} label="Members" onPress={setTab} />
+              <InfoTabButton tab="dms" current={tab} label={`DMs ${dmChannels.length || activeRequests.length || ""}`.trim()} onPress={setTab} />
+              <InfoTabButton tab="channels" current={tab} label="Channels" onPress={setTab} />
+              <InfoTabButton tab="media" current={tab} label="Media" onPress={setTab} />
+              <InfoTabButton tab="pins" current={tab} label="Pins" onPress={setTab} />
+              <InfoTabButton tab="settings" current={tab} label="Settings" onPress={setTab} />
+            </View>
           </View>
 
           <ScrollView style={styles.infoBody} contentContainerStyle={styles.infoContent}>
@@ -1463,7 +1474,7 @@ function InfoTabButton({ tab, current, label, onPress }: { tab: InfoTab; current
   const active = tab === current;
   return (
     <Pressable onPress={() => onPress(tab)} style={[styles.infoTab, active && styles.infoTabOn]}>
-      <Text style={[styles.infoTabText, active && styles.infoTabTextOn]}>{label}</Text>
+      <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85} style={[styles.infoTabText, active && styles.infoTabTextOn]}>{label}</Text>
     </Pressable>
   );
 }
@@ -1932,41 +1943,40 @@ const styles = StyleSheet.create({
     fontWeight: "700"
   },
   infoTabsWrap: {
-    height: 66,
     borderBottomWidth: 1,
     borderBottomColor: chatLine,
-    backgroundColor: chatBg
-  },
-  infoTabsScroller: {
-    flexGrow: 0,
-    flexShrink: 0
+    backgroundColor: chatBg,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs
   },
   infoTabs: {
-    minHeight: 66,
-    alignItems: "center",
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6
   },
   infoTab: {
-    height: 42,
-    minWidth: 92,
-    borderRadius: radius.pill,
+    minHeight: 32,
+    flexBasis: "31.5%",
+    flexGrow: 1,
+    borderRadius: radius.sm,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 14,
-    backgroundColor: "#1a2a3b",
+    paddingHorizontal: 6,
+    paddingVertical: 7,
+    backgroundColor: "transparent",
     borderWidth: 1,
-    borderColor: "#22364a"
+    borderColor: "transparent"
   },
   infoTabOn: {
-    backgroundColor: "#244e5d",
-    borderColor: "#3fc9e8"
+    backgroundColor: "#1d3345",
+    borderColor: "#315774"
   },
   infoTabText: {
     color: chatMuted,
     fontWeight: "900",
-    fontSize: 13
+    fontSize: 11,
+    lineHeight: 14,
+    textAlign: "center"
   },
   infoTabTextOn: {
     color: chatCyan
