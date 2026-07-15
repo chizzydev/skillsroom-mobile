@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type { AuthUser } from "../types/api";
 import * as authApi from "../api/auth";
-import { ApiError, setAuthFailureHandler } from "../api/client";
+import { ApiError, refreshAccessToken, setAuthFailureHandler } from "../api/client";
 import { clearStoredTokens, getStoredTokens, getStoredUser, setStoredUser } from "../api/session";
 import { unregisterCurrentPushDevice } from "../features/notifications/pushRegistration";
 import { queryClient } from "../providers/query-client";
@@ -13,12 +13,15 @@ type AuthState = {
   isSignedIn: boolean;
   bootstrapError: string | null;
   bootstrap: () => Promise<void>;
+  validateSession: () => Promise<boolean>;
   signIn: (identifier: string, password: string) => Promise<void>;
   signInWithGoogle: (idToken: string) => Promise<void>;
   signUp: (input: { email: string; username: string; password: string; password_confirm: string }) => Promise<{ signedIn: boolean }>;
   signOut: () => Promise<void>;
   updateUserIdentity: (identity: Partial<Pick<AuthUser, "username" | "display_name" | "email" | "role" | "status">>) => void;
 };
+
+let activeSessionValidation: Promise<boolean> | null = null;
 
 function cleanIdentityValue(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
@@ -79,11 +82,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   bootstrap: async () => {
     try {
       set({ isBootstrapping: true, bootstrapError: null });
-      const { accessToken } = await getStoredTokens();
-      if (!accessToken) {
+      const { accessToken, refreshToken } = await getStoredTokens();
+      if (!accessToken && !refreshToken) {
         useAdminStepUpStore.getState().clearStepUp();
         set({ user: null, isSignedIn: false, isBootstrapping: false });
         return;
+      }
+
+      if (!accessToken && refreshToken) {
+        const nextAccessToken = await refreshAccessToken();
+        if (!nextAccessToken) {
+          useAdminStepUpStore.getState().clearStepUp();
+          set({ user: null, isSignedIn: false, isBootstrapping: false });
+          return;
+        }
       }
 
       const cachedUser = await getStoredUser();
@@ -110,6 +122,58 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       queryClient.clear();
       set({ user: null, isSignedIn: false, isBootstrapping: false, bootstrapError: null });
     }
+  },
+
+  validateSession: async () => {
+    if (activeSessionValidation) return activeSessionValidation;
+
+    activeSessionValidation = (async () => {
+      try {
+        const { accessToken, refreshToken } = await getStoredTokens();
+        if (!accessToken && !refreshToken) {
+          useAdminStepUpStore.getState().clearStepUp();
+          queryClient.clear();
+          set({ user: null, isSignedIn: false, isBootstrapping: false, bootstrapError: null });
+          return false;
+        }
+
+        set({ isBootstrapping: true, bootstrapError: null });
+
+        if (!accessToken && refreshToken) {
+          const nextAccessToken = await refreshAccessToken();
+          if (!nextAccessToken) {
+            useAdminStepUpStore.getState().clearStepUp();
+            queryClient.clear();
+            set({ user: null, isSignedIn: false, isBootstrapping: false, bootstrapError: null });
+            return false;
+          }
+        }
+
+        const cachedUser = await getStoredUser();
+        const user = preferCachedIdentity(await authApi.me(), cachedUser);
+        set({ user, isSignedIn: true, isBootstrapping: false, bootstrapError: null });
+        void setStoredUser(user);
+        return true;
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 0) {
+          set({
+            isBootstrapping: false,
+            bootstrapError: "Skillsroom is not reachable right now. Check your connection and try again."
+          });
+          return false;
+        }
+
+        await clearStoredTokens();
+        useAdminStepUpStore.getState().clearStepUp();
+        queryClient.clear();
+        set({ user: null, isSignedIn: false, isBootstrapping: false, bootstrapError: null });
+        return false;
+      } finally {
+        activeSessionValidation = null;
+      }
+    })();
+
+    return activeSessionValidation;
   },
 
   signIn: async (identifier, password) => {
