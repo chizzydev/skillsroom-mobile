@@ -111,6 +111,7 @@ function inferStreamProvider(input: { provider?: string | null; streamUrl?: stri
 }
 
 function streamTelemetry(event: StreamTelemetryEvent, details: Record<string, unknown>) {
+  if (!__DEV__) return;
   console.warn("[stream-player]", { event, ...details });
 }
 
@@ -223,6 +224,7 @@ function EmbeddedStreamPlayer({
 
   useEffect(() => {
     if (source || missingEmbedLogged.current) return;
+    if (!streamUrl && !embedUrl) return;
     missingEmbedLogged.current = true;
     streamTelemetry("missing_embed", {
       provider: resolvedProvider ?? provider ?? "unknown",
@@ -346,6 +348,7 @@ export function StreamLinkCard({ stream }: { stream: CommunityLivestreamLink }) 
 }
 
 export function ConnectedChannelCard({ account, onRefresh, loading }: { account: StreamingAccount; onRefresh?: () => void; loading?: boolean }) {
+  const hasLivePlayerSource = Boolean(account.live_stream_url || account.live_embed_url);
   const openUrl = async (url: string | null | undefined, label: string) => {
     if (!url) return;
     try {
@@ -368,7 +371,11 @@ export function ConnectedChannelCard({ account, onRefresh, loading }: { account:
       </View>
       <Text style={styles.title}>{account.display_name ?? "Stream channel"}</Text>
       <Text style={styles.copy}>This is your saved profile channel. It is not a room or tournament stream until attached to one.</Text>
-      <EmbeddedStreamPlayer provider={account.provider} title={account.live_title ?? account.display_name} streamUrl={account.live_stream_url} embedUrl={account.live_embed_url} />
+      {hasLivePlayerSource ? (
+        <EmbeddedStreamPlayer provider={account.provider} title={account.live_title ?? account.display_name} streamUrl={account.live_stream_url} embedUrl={account.live_embed_url} />
+      ) : (
+        <Text style={styles.providerNote}>No live video is available for this saved channel right now.</Text>
+      )}
       {account.channel_url ? (
         <AppButton variant="secondary" onPress={() => void openUrl(account.channel_url, "channel")}>
           Open channel

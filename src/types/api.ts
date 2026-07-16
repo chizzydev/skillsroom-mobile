@@ -111,6 +111,9 @@ export type MatchResultClaim = {
   status?: "submitted" | "opponent_agreed" | "opponent_disputed" | "admin_approved" | "admin_rejected" | "withdrawn" | string;
   score_summary?: string | null;
   note?: string | null;
+  opponent_response_due_at?: string | null;
+  opponent_response_reminder_sent_at?: string | null;
+  opponent_response_overdue_at?: string | null;
   created_at?: string;
   updated_at?: string;
   [key: string]: unknown;

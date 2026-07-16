@@ -178,6 +178,22 @@ function shortUser(userId?: string) {
   return userId.length > 12 ? `${userId.slice(0, 6)}...${userId.slice(-4)}` : userId;
 }
 
+function dateTimeLabel(value?: string | null) {
+  if (!value) return "not set";
+  return new Intl.DateTimeFormat("en-NG", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "Africa/Lagos"
+  }).format(new Date(value));
+}
+
+function resultResponseWindowExpired(claim?: MatchResultClaim | null) {
+  if (!claim) return false;
+  if (claim.opponent_response_overdue_at) return true;
+  const dueAt = claim.opponent_response_due_at ? new Date(claim.opponent_response_due_at).getTime() : Number.NaN;
+  return Number.isFinite(dueAt) && dueAt <= Date.now();
+}
+
 function canManageStreams(userRole?: string, room?: MatchRoom, userId?: string) {
   if (!userId) return false;
   if (["support", "moderator", "admin", "owner"].includes(userRole ?? "")) return true;
@@ -305,6 +321,12 @@ export function RoomDetailScreen() {
     claim.submitted_by_participant_id !== ownParticipant.id &&
     claim.claimed_winner_participant_id !== ownParticipant.id
   );
+  const isOwnResultClaim = Boolean(
+    claim &&
+    user?.id &&
+    (claim.claimant_user_id === user.id || claim.submitted_by_user_id === user.id)
+  );
+  const resultResponseExpired = resultResponseWindowExpired(claim);
   const inviteCopy = room?.room_code ? `Join my Skillsroom room with code ${room.room_code}.` : null;
   const playerSlots = useMemo(() => {
     const baseSlots = ["player_a", "player_b"];
@@ -791,6 +813,30 @@ export function RoomDetailScreen() {
           {activeSectionNotice ? <FormNotice tone={activeSectionNotice.tone} message={activeSectionNotice.message} /> : null}
           {resultsQuery.isError ? <FormNotice tone="info" message="Result details are only visible to room participants." /> : null}
           {claim ? <FormNotice tone="info" message={`Latest claim: ${claim.status ?? "submitted"}${claim.score_summary ? `, ${claim.score_summary}` : ""}.`} /> : <Text style={styles.copy}>No result claim has been submitted yet.</Text>}
+          {claim?.status === "submitted" && canRespondToResult ? (
+            <FormNotice
+              tone={resultResponseExpired ? "error" : "info"}
+              message={resultResponseExpired
+                ? "Your response window is overdue. You can still try to agree or dispute while the team has not reviewed the claim."
+                : `Respond by ${dateTimeLabel(claim.opponent_response_due_at)}. Agree if the result is correct, or dispute if it needs review.`}
+            />
+          ) : null}
+          {claim?.status === "submitted" && isOwnResultClaim ? (
+            <FormNotice
+              tone={resultResponseExpired ? "info" : "success"}
+              message={resultResponseExpired
+                ? "The opponent response window is overdue. The team can now review this under the no-response policy."
+                : `Waiting for opponent response until ${dateTimeLabel(claim.opponent_response_due_at)}.`}
+            />
+          ) : null}
+          {claim?.status === "submitted" && !canRespondToResult && !isOwnResultClaim ? (
+            <FormNotice
+              tone={resultResponseExpired ? "info" : "success"}
+              message={resultResponseExpired
+                ? "Opponent response is overdue. Admin review can use the no-response path after checking evidence."
+                : `Opponent response due: ${dateTimeLabel(claim.opponent_response_due_at)}.`}
+            />
+          ) : null}
           {(resultsQuery.data?.evidence_items ?? []).length ? (
             <View style={styles.evidenceList}>
               {(resultsQuery.data?.evidence_items ?? []).slice(0, 4).map((item) => (

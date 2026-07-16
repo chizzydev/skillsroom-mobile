@@ -260,7 +260,7 @@ export type ReviewWalletPayoutInput = {
 };
 
 export type ResultClaimStatus = NonNullable<MatchResultClaim["status"]>;
-export type ResultReviewDecision = "approve_claim" | "reject_claim" | "mark_disputed" | "void_match";
+export type ResultReviewDecision = "approve_claim" | "approve_no_response" | "reject_claim" | "mark_disputed" | "void_match";
 
 export type PlayerTrustSummary = {
   user_id?: string;

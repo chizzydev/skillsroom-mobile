@@ -56,7 +56,7 @@ const queueStatuses: Array<{
   {
     status: "submitted",
     title: "Submitted result claims",
-    description: "Fresh claims waiting for opponent response or team review.",
+    description: "Fresh claims waiting for the opponent to agree or dispute. Approval stays locked at this stage.",
     emptyTitle: "Submitted queue is clear",
     emptyDescription: "No newly submitted result claims are waiting right now."
   },
@@ -78,6 +78,7 @@ const queueStatuses: Array<{
 
 const decisions: Array<{ value: ResultReviewDecision; label: string; tone: "primary" | "secondary" | "danger" }> = [
   { value: "approve_claim", label: "Approve claim", tone: "primary" },
+  { value: "approve_no_response", label: "Approve no response", tone: "secondary" },
   { value: "mark_disputed", label: "Mark disputed", tone: "secondary" },
   { value: "reject_claim", label: "Reject claim", tone: "danger" },
   { value: "void_match", label: "Void match", tone: "danger" }
@@ -85,6 +86,7 @@ const decisions: Array<{ value: ResultReviewDecision; label: string; tone: "prim
 
 const resultSuccessMessages: Record<ResultReviewDecision, string> = {
   approve_claim: "Result claim approved.",
+  approve_no_response: "Result approved after no opponent response.",
   reject_claim: "Result claim rejected.",
   mark_disputed: "Result claim moved to dispute review.",
   void_match: "Match was voided."
@@ -113,6 +115,12 @@ function dateLabel(value?: string | null) {
 
 function scoreSummaryLabel(value?: string | null) {
   return value?.trim() ? value : "No score line supplied";
+}
+
+function responseWindowExpired(claim: MatchResultClaim) {
+  if (claim.opponent_response_overdue_at) return true;
+  const dueAt = claim.opponent_response_due_at ? new Date(claim.opponent_response_due_at).getTime() : Number.NaN;
+  return Number.isFinite(dueAt) && dueAt <= Date.now();
 }
 
 function shortId(value?: string | null) {
@@ -249,6 +257,8 @@ export function AdminResultsScreen() {
   const stepUpToken = stepUpActive ? savedStepUpToken : null;
   const stepUpExpiresAt = stepUpActive ? savedStepUpExpiresAt : null;
   const canReview = Boolean(selectedClaimId.trim() && stepUpToken);
+  const selectedClaimCanApprove = selectedCard ? selectedCard.claim.status === "opponent_agreed" : true;
+  const selectedClaimCanApproveNoResponse = selectedCard ? selectedCard.claim.status === "submitted" && responseWindowExpired(selectedCard.claim) : true;
   const notify = (target: NoticeTarget, nextNotice: NonNullable<Notice>) => {
     setNotice(nextNotice);
     setTargetNotice({ target, notice: nextNotice });
@@ -384,7 +394,7 @@ export function AdminResultsScreen() {
       ) : null}
 
       <View style={styles.metricGrid}>
-        <MetricCard tone="amber" label="Submitted" value={countStatus(claims, "submitted").toString()} detail="Needs review" />
+        <MetricCard tone="amber" label="Submitted" value={countStatus(claims, "submitted").toString()} detail="Awaiting opponent" />
         <MetricCard tone="green" label="Agreed" value={countStatus(claims, "opponent_agreed").toString()} detail="Opponent agrees" />
         <MetricCard tone="red" label="Disputed" value={countStatus(claims, "opponent_disputed").toString()} detail="Needs dispute review" />
         <MetricCard tone="cyan" label="Queue total" value={claims.length.toString()} detail="Active reviews" />
@@ -445,13 +455,24 @@ export function AdminResultsScreen() {
       />
 
       <SurfaceCard>
-        <SectionHeader eyebrow="Decision" title="Review result claim" detail="Unlock first, then move a room toward settlement, dispute resolution, rejection, or void." />
+        <SectionHeader eyebrow="Decision" title="Review result claim" detail="Approve only after the opponent agrees. Submitted claims can be disputed, rejected, voided, or left for the opponent response." />
         {noticeFor("decision") ? <FormNotice tone={noticeFor("decision")!.tone} message={noticeFor("decision")!.message} /> : null}
         {selectedCard ? (
           <View style={styles.selectedPanel}>
             <Badge tone="cyan">Selected claim</Badge>
             <Text style={styles.selectedTitle}>{scoreSummaryLabel(selectedCard.claim.score_summary)}</Text>
             <Text style={styles.rowMeta}>{selectedCard.room?.title ?? "Room"} - {shortId(selectedCard.claim.match_room_id)}</Text>
+            {selectedCard.claim.status !== "opponent_agreed" ? (
+              <FormNotice tone="info" message="Winner approval is locked until the opponent accepts this claim. Mark it disputed if the evidence needs team review before payout." />
+            ) : null}
+            {selectedCard.claim.status === "submitted" ? (
+              <FormNotice
+                tone={responseWindowExpired(selectedCard.claim) ? "warning" : "info"}
+                message={responseWindowExpired(selectedCard.claim)
+                  ? "The opponent response window is overdue. Use no-response approval only after checking evidence and room history."
+                  : `Opponent response due: ${dateLabel(selectedCard.claim.opponent_response_due_at)}.`}
+              />
+            ) : null}
           </View>
         ) : (
           <FormNotice tone="info" message="Tap a result claim above, or paste the claim ID manually after reviewing evidence." />
@@ -465,7 +486,11 @@ export function AdminResultsScreen() {
               <AppButton
                 key={decision.value}
                 variant={decision.tone === "primary" ? "primary" : decision.tone}
-                disabled={!canReview}
+                disabled={
+                  !canReview ||
+                  (decision.value === "approve_claim" && !selectedClaimCanApprove) ||
+                  (decision.value === "approve_no_response" && !selectedClaimCanApproveNoResponse)
+                }
                 loading={reviewMutation.isPending}
                 onPress={() => reviewMutation.mutate(decision.value)}
               >
