@@ -13,7 +13,7 @@ import { FormNotice } from "../../../components/ui/FormNotice";
 import { SurfaceCard } from "../../../components/ui/SurfaceCard";
 import { colors, radius, spacing } from "../../../constants/theme";
 import type { UserNotification } from "../../../types/api";
-import { openNativeCommunity, type CommunityHubTab, openPublicWeb } from "../../public/navigation";
+import { routeFromUserNotification } from "../notificationRouting";
 
 type InboxTab = "unread" | "read";
 
@@ -25,48 +25,6 @@ function formatWhen(value?: string) {
     hour: "2-digit",
     minute: "2-digit"
   });
-}
-
-type NotificationTarget =
-  | { type: "native"; href: string }
-  | { type: "community"; tab: CommunityHubTab }
-  | { type: "public-web"; path: string }
-  | { type: "none" };
-
-function communityTargetFromPath(path: string): NotificationTarget {
-  if (path === "/community" || path === "/community/") return { type: "community", tab: "hub" };
-  if (path.startsWith("/community/highlights")) return { type: "community", tab: "highlights" };
-  const announcement = path.match(/^\/community\/announcements\/([^/?#]+)/);
-  if (announcement?.[1]) return { type: "native", href: `/community/announcements/${encodeURIComponent(announcement[1])}` };
-  if (path.startsWith("/community/announcements")) return { type: "community", tab: "updates" };
-  if (path.startsWith("/community/clans")) return { type: "community", tab: "clans" };
-  if (path.startsWith("/community/players") || path.startsWith("/community/leaderboard")) return { type: "community", tab: "rankings" };
-  if (path.startsWith("/community/winners/")) return { type: "community", tab: "highlights" };
-  return { type: "community", tab: "hub" };
-}
-
-function routeFromNotification(notification: UserNotification): NotificationTarget {
-  const actionUrl = notification.action_url ?? "";
-  const roomId = notification.match_room_id ?? (typeof notification.metadata?.match_room_id === "string" ? notification.metadata.match_room_id : null);
-  if (roomId) return { type: "native", href: `/(app)/rooms/${encodeURIComponent(roomId)}` };
-
-  const matchRoom = actionUrl.match(/^\/(?:matches|rooms)\/([^/?#]+)/);
-  if (matchRoom?.[1]) return { type: "native", href: `/(app)/rooms/${encodeURIComponent(matchRoom[1])}` };
-
-  const tournament = actionUrl.match(/^\/tournaments\/([^/?#]+)/);
-  if (tournament?.[1]) return { type: "native", href: `/(app)/tournaments/${encodeURIComponent(tournament[1])}` };
-
-  const chatChannel = actionUrl.match(/^\/chat\?channel=([^&#]+)/);
-  if (chatChannel?.[1]) return { type: "native", href: `/(app)/chat/${encodeURIComponent(decodeURIComponent(chatChannel[1]))}` };
-
-  if (actionUrl === "/community" || actionUrl.startsWith("/community/")) return communityTargetFromPath(actionUrl);
-  if (actionUrl.startsWith("/chat")) return { type: "native", href: "/(app)/(tabs)/chat" };
-  if (actionUrl.startsWith("/wallet")) return { type: "native", href: "/(app)/(tabs)/wallet" };
-  if (actionUrl.startsWith("/profile")) return { type: "native", href: "/(app)/(tabs)/profile" };
-  if (notification.notification_type.includes("wallet")) return { type: "native", href: "/(app)/(tabs)/wallet" };
-  if (notification.notification_type.includes("tournament")) return { type: "native", href: "/(app)/(tabs)/tournaments" };
-  if (notification.notification_type.includes("chat")) return { type: "native", href: "/(app)/(tabs)/chat" };
-  return { type: "none" };
 }
 
 export function NotificationsScreen() {
@@ -93,17 +51,9 @@ export function NotificationsScreen() {
     if (notification.status === "unread") {
       readMutation.mutate(notification.id);
     }
-    const target = routeFromNotification(notification);
-    if (target.type === "native") {
-      router.push(target.href as never);
-      return;
-    }
-    if (target.type === "community") {
-      openNativeCommunity(target.tab);
-      return;
-    }
-    if (target.type === "public-web") {
-      openPublicWeb(target.path);
+    const target = routeFromUserNotification(notification);
+    if (target) {
+      router.push(target as never);
       return;
     }
     setNotice("Marked as read. This update does not need another screen.");

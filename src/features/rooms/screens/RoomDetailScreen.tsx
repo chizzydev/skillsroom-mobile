@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import { BadgeCheck, Banknote, Clock3, Copy, FileCheck2, KeyRound, Play, Radio, RefreshCw, Send, Share2, ShieldCheck, Trophy, Users } from "lucide-react-native";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { LayoutChangeEvent, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { plainApiError } from "../../../api/errors";
 import { profileTrustSummary } from "../../../api/profile";
 import {
@@ -36,15 +36,27 @@ import { useAuthStore } from "../../../store/auth-store";
 import type { ManualFundingSubmission, MatchParticipant, MatchResultClaim, MatchRoom, PlayerTrustSummary, RoomFundingOverview } from "../../../types/api";
 
 type Section = "overview" | "players" | "funding" | "live" | "result" | "history";
+type RoomFocus = "section" | "players-list" | "funding-action" | "live-action" | "result-claim" | "result-response" | "history";
 type Notice = { tone: "error" | "success" | "info"; message: string } | null;
 type SectionNotice = { section: Section; notice: NonNullable<Notice> } | null;
 
 const sections: Section[] = ["overview", "players", "funding", "live", "result", "history"];
+const roomFocuses: RoomFocus[] = ["section", "players-list", "funding-action", "live-action", "result-claim", "result-response", "history"];
 const collectionAccount = {
   bankName: "Opay",
   accountNumber: "8134979631",
   accountName: "Chizaram Anthony Chukwuka"
 };
+
+function validSection(value?: string | string[]) {
+  const next = Array.isArray(value) ? value[0] : value;
+  return sections.includes(next as Section) ? (next as Section) : null;
+}
+
+function validRoomFocus(value?: string | string[]) {
+  const next = Array.isArray(value) ? value[0] : value;
+  return roomFocuses.includes(next as RoomFocus) ? (next as RoomFocus) : null;
+}
 
 function money(minor?: number, currency = "NGN") {
   return `${currency} ${Math.round((minor ?? 0) / 100).toLocaleString()}`;
@@ -215,8 +227,10 @@ function feedbackTitle(tone: NonNullable<Notice>["tone"], section: Section) {
 }
 
 export function RoomDetailScreen() {
-  const { matchId } = useLocalSearchParams<{ matchId?: string }>();
+  const { matchId, section: sectionParam, focus: focusParam } = useLocalSearchParams<{ matchId?: string; section?: string; focus?: string }>();
   const roomId = String(matchId ?? "");
+  const routedSection = validSection(sectionParam);
+  const routedFocus = validRoomFocus(focusParam);
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
   const { pushFeedback } = useActionFeedback();
@@ -239,6 +253,9 @@ export function RoomDetailScreen() {
   const [fundingUploadResetSignal, setFundingUploadResetSignal] = useState(0);
   const [resultUploadResetSignal, setResultUploadResetSignal] = useState(0);
   const promptedNextStep = useRef<string | null>(null);
+  const scrollRef = useRef<ScrollView | null>(null);
+  const focusLayouts = useRef<Partial<Record<RoomFocus, number>>>({});
+  const lastScrolledFocus = useRef<string | null>(null);
 
   const timelineQuery = useQuery({ queryKey: ["room", roomId, "timeline"], queryFn: () => getRoomTimeline(roomId), enabled: Boolean(roomId), refetchInterval: 10000 });
   const fundingQuery = useQuery({ queryKey: ["room", roomId, "funding"], queryFn: () => getRoomFunding(roomId), enabled: Boolean(roomId), refetchInterval: 10000 });
@@ -350,9 +367,33 @@ export function RoomDetailScreen() {
   };
 
   const activeSectionNotice = sectionNotice?.section === section ? sectionNotice.notice : null;
+  const focusKey = routedFocus ? `${roomId}:${section}:${routedFocus}` : null;
+
+  const scrollToFocus = (focus: RoomFocus) => {
+    const y = focusLayouts.current[focus] ?? focusLayouts.current.section;
+    if (y === undefined || !focusKey || lastScrolledFocus.current === focusKey) return;
+    lastScrolledFocus.current = focusKey;
+    setTimeout(() => {
+      scrollRef.current?.scrollTo({ y: Math.max(0, y - spacing.md), animated: true });
+    }, 120);
+  };
+
+  const registerFocusLayout = (focus: RoomFocus, parent?: RoomFocus) => (event: LayoutChangeEvent) => {
+    const parentY = parent ? focusLayouts.current[parent] ?? 0 : 0;
+    focusLayouts.current[focus] = parentY + event.nativeEvent.layout.y;
+    if (routedFocus === focus || (routedFocus === "section" && focus === "section")) {
+      scrollToFocus(focus);
+    }
+  };
 
   useEffect(() => {
-    if (!roomId) return;
+    if (!roomId || !routedSection) return;
+    promptedNextStep.current = `${roomId}:explicit:${routedSection}`;
+    setSection(routedSection);
+  }, [roomId, routedSection]);
+
+  useEffect(() => {
+    if (!roomId || routedSection) return;
     const promptKey = `${roomId}:${room?.status ?? "loading"}:${claim?.id ?? "none"}`;
     if (promptedNextStep.current === promptKey) return;
 
@@ -370,7 +411,13 @@ export function RoomDetailScreen() {
       promptedNextStep.current = promptKey;
       setSection("result");
     }
-  }, [canRespondToResult, canStartMatch, canSubmitRoomResult, claim?.id, needsOwnEntry, room?.status, roomId]);
+  }, [canRespondToResult, canStartMatch, canSubmitRoomResult, claim?.id, needsOwnEntry, room?.status, roomId, routedSection]);
+
+  useEffect(() => {
+    if (!routedFocus) return;
+    lastScrolledFocus.current = null;
+    setTimeout(() => scrollToFocus(routedFocus), 160);
+  }, [focusKey, routedFocus]);
 
   useEffect(() => {
     setLocalFundingSubmitted(false);
@@ -577,7 +624,7 @@ export function RoomDetailScreen() {
   }
 
   return (
-    <AppScreen>
+    <AppScreen scrollRef={scrollRef}>
       <SurfaceCard dark>
         <View style={styles.heroTop}>
           <Badge tone="dark">Room Detail</Badge>
@@ -629,7 +676,7 @@ export function RoomDetailScreen() {
       </View>
 
       {section === "overview" ? (
-        <>
+        <View onLayout={registerFocusLayout("section")}>
           <SurfaceCard>
             <Badge>Room code</Badge>
             {activeSectionNotice ? <FormNotice tone={activeSectionNotice.tone} message={activeSectionNotice.message} /> : null}
@@ -673,45 +720,48 @@ export function RoomDetailScreen() {
               <AppButton loading={detailJoinMutation.isPending} disabled={!detailJoinCode.trim()} onPress={() => detailJoinMutation.mutate()}>Join this room</AppButton>
             </SurfaceCard>
           ) : null}
-        </>
+        </View>
       ) : null}
 
       {section === "players" ? (
-        <SurfaceCard>
-          <Badge>Players</Badge>
-          <Text style={styles.sectionTitle}>Room players</Text>
-          <Text style={styles.copy}>Confirm who is in the room before entry, play, or result evidence. Use the game handle/UID shown here for the in-game lobby.</Text>
-          {trustQuery.isFetching ? <Text style={styles.helpText}>Loading player identity...</Text> : null}
-          {playerSlots.map(({ slot, participant }) => {
-            const trust = participant ? trustQuery.data?.[participant.user_id] : null;
-            const isYou = Boolean(participant && participant.user_id === user?.id);
-            return (
-              <View key={participant?.id ?? slot} style={styles.playerCard}>
-                <View style={styles.playerCardHeader}>
-                  <View style={styles.fill}>
-                    <Text style={styles.quickLabel}>{slotLabel(participant?.slot ?? slot)}</Text>
-                    <Text style={styles.itemTitle}>{playerDisplayName(participant, trust, user?.id)}</Text>
+        <View onLayout={registerFocusLayout("players-list")}>
+          <SurfaceCard>
+            <Badge>Players</Badge>
+            <Text style={styles.sectionTitle}>Room players</Text>
+            <Text style={styles.copy}>Confirm who is in the room before entry, play, or result evidence. Use the game handle/UID shown here for the in-game lobby.</Text>
+            {trustQuery.isFetching ? <Text style={styles.helpText}>Loading player identity...</Text> : null}
+            {playerSlots.map(({ slot, participant }) => {
+              const trust = participant ? trustQuery.data?.[participant.user_id] : null;
+              const isYou = Boolean(participant && participant.user_id === user?.id);
+              return (
+                <View key={participant?.id ?? slot} style={styles.playerCard}>
+                  <View style={styles.playerCardHeader}>
+                    <View style={styles.fill}>
+                      <Text style={styles.quickLabel}>{slotLabel(participant?.slot ?? slot)}</Text>
+                      <Text style={styles.itemTitle}>{playerDisplayName(participant, trust, user?.id)}</Text>
+                    </View>
+                    <Badge tone={participant ? "green" : "amber"}>{participant ? (isYou ? "You" : "Opponent") : "Open"}</Badge>
                   </View>
-                  <Badge tone={participant ? "green" : "amber"}>{participant ? (isYou ? "You" : "Opponent") : "Open"}</Badge>
+                  <View style={styles.detailList}>
+                    <DetailRow label="Game identity" value={playerHandleLine(participant, trust)} />
+                    <DetailRow label="Trust" value={trustLabel(trust, trustQuery.isFetching)} />
+                    <DetailRow label="Entry" value={participant ? fundingStatusLabel(participant.funding_status) : "Waiting"} />
+                    <DetailRow label="User ref" value={participant ? shortUser(participant.user_id) : "Share the room code"} />
+                  </View>
                 </View>
-                <View style={styles.detailList}>
-                  <DetailRow label="Game identity" value={playerHandleLine(participant, trust)} />
-                  <DetailRow label="Trust" value={trustLabel(trust, trustQuery.isFetching)} />
-                  <DetailRow label="Entry" value={participant ? fundingStatusLabel(participant.funding_status) : "Waiting"} />
-                  <DetailRow label="User ref" value={participant ? shortUser(participant.user_id) : "Share the room code"} />
-                </View>
-              </View>
-            );
-          })}
-          {participants.length < (room?.max_participants ?? 2) ? <FormNotice tone="info" message="An open slot remains. Share the room code with your opponent." /> : null}
-          <SurfaceCard style={styles.embeddedCard}>
-            <Badge tone="cyan">Player safety</Badge>
-            <Text style={styles.copy}>Payment proof, result evidence, and private review notes stay visible only to the players involved and the Skillsroom team.</Text>
+              );
+            })}
+            {participants.length < (room?.max_participants ?? 2) ? <FormNotice tone="info" message="An open slot remains. Share the room code with your opponent." /> : null}
+            <SurfaceCard style={styles.embeddedCard}>
+              <Badge tone="cyan">Player safety</Badge>
+              <Text style={styles.copy}>Payment proof, result evidence, and private review notes stay visible only to the players involved and the Skillsroom team.</Text>
+            </SurfaceCard>
           </SurfaceCard>
-        </SurfaceCard>
+        </View>
       ) : null}
 
       {section === "funding" ? (
+        <View onLayout={registerFocusLayout("funding-action")}>
         <SurfaceCard>
           <Badge tone="amber">Entry</Badge>
           <Text style={styles.sectionTitle}>Entry confirmation</Text>
@@ -791,9 +841,11 @@ export function RoomDetailScreen() {
           ) : null}
           {!ownParticipant ? <FormNotice tone="info" message="Only room participants can submit entry proof for this room." /> : null}
         </SurfaceCard>
+        </View>
       ) : null}
 
       {section === "live" ? (
+        <View onLayout={registerFocusLayout("live-action")}>
         <SurfaceCard>
           <Badge tone="green">Live</Badge>
           <Text style={styles.sectionTitle}>Streams and play</Text>
@@ -804,9 +856,11 @@ export function RoomDetailScreen() {
           {livestreamsQuery.data?.length ? livestreamsQuery.data.map((stream) => <StreamLinkCard key={stream.id} stream={stream} />) : <NoStreamState target="room" />}
           <StreamAttachForm target="room" canAttach={canAttachStream} loading={streamMutation.isPending} onSubmit={(input) => streamMutation.mutate(input)} />
         </SurfaceCard>
+        </View>
       ) : null}
 
       {section === "result" ? (
+        <View onLayout={registerFocusLayout("result-claim")}>
         <SurfaceCard>
           <Badge tone="cyan">Result</Badge>
           <Text style={styles.sectionTitle}>Match result</Text>
@@ -863,18 +917,20 @@ export function RoomDetailScreen() {
             </>
           ) : null}
           {canRespondToResult ? (
-            <>
+            <View onLayout={registerFocusLayout("result-response", "result-claim")} style={styles.focusBlock}>
               <TextInput value={responseNote} onChangeText={setResponseNote} placeholder="Response note, optional" placeholderTextColor={colors.faint} style={styles.input} />
               <View style={styles.actions}>
                 <AppButton style={styles.actionButton} loading={responseMutation.isPending} onPress={() => responseMutation.mutate("agree")}>Agree</AppButton>
                 <AppButton style={styles.actionButton} variant="danger" loading={responseMutation.isPending} onPress={() => responseMutation.mutate("dispute")}>Dispute</AppButton>
               </View>
-            </>
+            </View>
           ) : null}
         </SurfaceCard>
+        </View>
       ) : null}
 
       {section === "history" ? (
+        <View onLayout={registerFocusLayout("history")}>
         <SurfaceCard>
           <Badge tone="dark">History</Badge>
           <Text style={styles.sectionTitle}>Room updates</Text>
@@ -888,6 +944,7 @@ export function RoomDetailScreen() {
             </View>
           )) : <FeedbackState title="No room updates yet" body="Room updates will appear here as the match moves forward." />}
         </SurfaceCard>
+        </View>
       ) : null}
     </AppScreen>
   );
@@ -1100,6 +1157,7 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     color: colors.ink
   },
+  focusBlock: { gap: spacing.md },
   actions: { flexDirection: "row", gap: spacing.md },
   actionButton: { flex: 1 }
 });

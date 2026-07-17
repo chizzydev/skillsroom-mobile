@@ -1,10 +1,10 @@
 import { useSegments } from "expo-router";
-import { ReactNode } from "react";
+import { ReactNode, RefObject } from "react";
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, spacing } from "../../constants/theme";
 
-export function AppScreen({ children, scroll = true }: { children: ReactNode; scroll?: boolean }) {
+export function AppScreen({ children, scroll = true, scrollRef }: { children: ReactNode; scroll?: boolean; scrollRef?: RefObject<ScrollView | null> }) {
   const insets = useSafeAreaInsets();
   const segments = useSegments() as string[];
   const isBottomTabScreen = segments.includes("(tabs)");
@@ -16,7 +16,7 @@ export function AppScreen({ children, scroll = true }: { children: ReactNode; sc
     <SafeAreaView edges={safeEdges} style={styles.safe}>
       <KeyboardAvoidingView style={styles.keyboard} behavior={Platform.OS === "ios" ? "padding" : "height"}>
         {scroll ? (
-          <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+          <ScrollView ref={scrollRef} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
             {content}
           </ScrollView>
         ) : (

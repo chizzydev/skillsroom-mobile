@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
-import { useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { LayoutChangeEvent, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { plainApiError } from "../../../api/errors";
 import { createLivestream } from "../../../api/streaming";
 import {
@@ -27,15 +27,27 @@ import { useAuthStore } from "../../../store/auth-store";
 import type { CommunityLivestreamLink, TournamentDetail, TournamentEntry, TournamentMatch, TournamentMatchSide, TournamentStanding } from "../../../types/api";
 
 type DetailView = "overview" | "entry" | "bracket" | "standings" | "streams";
+type TournamentFocus = "section" | "registration" | "payment" | "check-in" | "entrants" | "bracket" | "standings" | "streams";
 type Notice = { tone: "error" | "success" | "info"; message: string } | null;
 type DetailNotice = { view: DetailView; notice: NonNullable<Notice> } | null;
 
 const views: DetailView[] = ["overview", "entry", "bracket", "standings", "streams"];
+const tournamentFocuses: TournamentFocus[] = ["section", "registration", "payment", "check-in", "entrants", "bracket", "standings", "streams"];
 const collectionAccount = {
   bankName: "Opay",
   accountNumber: "8134979631",
   accountName: "Chizaram Anthony Chukwuka"
 };
+
+function validDetailView(value?: string | string[]) {
+  const next = Array.isArray(value) ? value[0] : value;
+  return views.includes(next as DetailView) ? (next as DetailView) : null;
+}
+
+function validTournamentFocus(value?: string | string[]) {
+  const next = Array.isArray(value) ? value[0] : value;
+  return tournamentFocuses.includes(next as TournamentFocus) ? (next as TournamentFocus) : null;
+}
 
 function money(minor?: number, currency = "NGN") {
   return `${currency} ${Math.round((minor ?? 0) / 100).toLocaleString()}`;
@@ -100,8 +112,10 @@ function feedbackTitle(tone: NonNullable<Notice>["tone"], view: DetailView) {
 }
 
 export function TournamentDetailScreen() {
-  const { tournamentId } = useLocalSearchParams<{ tournamentId?: string }>();
+  const { tournamentId, view: viewParam, focus: focusParam } = useLocalSearchParams<{ tournamentId?: string; view?: string; focus?: string }>();
   const target = typeof tournamentId === "string" ? decodeURIComponent(tournamentId) : "";
+  const routedView = validDetailView(viewParam);
+  const routedFocus = validTournamentFocus(focusParam);
   const queryClient = useQueryClient();
   const { pushFeedback } = useActionFeedback();
   const user = useAuthStore((state) => state.user);
@@ -118,6 +132,9 @@ export function TournamentDetailScreen() {
   const [senderAccount, setSenderAccount] = useState("");
   const [proofNote, setProofNote] = useState("");
   const [proofUploadResetSignal, setProofUploadResetSignal] = useState(0);
+  const scrollRef = useRef<ScrollView | null>(null);
+  const focusLayouts = useRef<Partial<Record<TournamentFocus, number>>>({});
+  const lastScrolledFocus = useRef<string | null>(null);
 
   const detailQuery = useQuery({ queryKey: ["tournaments", "detail", target], queryFn: () => getTournamentDetail(target), enabled: Boolean(target), refetchInterval: 10000 });
   const streamsQuery = useQuery({ queryKey: ["tournaments", "streams", target], queryFn: () => listTournamentLivestreams(target), enabled: Boolean(target), refetchInterval: 15000 });
@@ -151,6 +168,33 @@ export function TournamentDetailScreen() {
   };
 
   const noticeFor = (targetView: DetailView) => localNotice?.view === targetView ? localNotice.notice : null;
+  const focusKey = routedFocus ? `${target}:${view}:${routedFocus}` : null;
+
+  const scrollToFocus = (focus: TournamentFocus) => {
+    const y = focusLayouts.current[focus] ?? focusLayouts.current.section;
+    if (y === undefined || !focusKey || lastScrolledFocus.current === focusKey) return;
+    lastScrolledFocus.current = focusKey;
+    setTimeout(() => {
+      scrollRef.current?.scrollTo({ y: Math.max(0, y - spacing.md), animated: true });
+    }, 120);
+  };
+
+  const registerFocusLayout = (focus: TournamentFocus) => (event: LayoutChangeEvent) => {
+    focusLayouts.current[focus] = event.nativeEvent.layout.y;
+    if (routedFocus === focus || (routedFocus === "section" && focus === "section")) {
+      scrollToFocus(focus);
+    }
+  };
+
+  useEffect(() => {
+    if (routedView) setView(routedView);
+  }, [routedView]);
+
+  useEffect(() => {
+    if (!routedFocus) return;
+    lastScrolledFocus.current = null;
+    setTimeout(() => scrollToFocus(routedFocus), 160);
+  }, [focusKey, routedFocus]);
 
   const registerMutation = useMutation({
     mutationFn: () => {
@@ -264,7 +308,7 @@ export function TournamentDetailScreen() {
   }
 
   return (
-    <AppScreen>
+    <AppScreen scrollRef={scrollRef}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backButton}><Text style={styles.backText}>Back</Text></Pressable>
         <AppButton variant="secondary" onPress={() => void refresh()} style={styles.refreshButton}>Refresh</AppButton>
@@ -291,9 +335,10 @@ export function TournamentDetailScreen() {
         ))}
       </View>
 
-      {view === "overview" ? <Overview tournament={tournament} events={events} /> : null}
+      {view === "overview" ? <View onLayout={registerFocusLayout("section")}><Overview tournament={tournament} events={events} /></View> : null}
       {view === "entry" ? (
         <EntryPanel
+          onFocusLayout={registerFocusLayout}
           notice={noticeFor("entry")}
           tournament={tournament}
           myEntry={myEntry}
@@ -331,17 +376,19 @@ export function TournamentDetailScreen() {
           tournamentId={tournament.id}
         />
       ) : null}
-      {view === "bracket" ? <BracketPanel tournament={tournament} /> : null}
-      {view === "standings" ? <StandingsPanel tournament={tournament} /> : null}
+      {view === "bracket" ? <View onLayout={registerFocusLayout("bracket")}><BracketPanel tournament={tournament} /></View> : null}
+      {view === "standings" ? <View onLayout={registerFocusLayout("standings")}><StandingsPanel tournament={tournament} /></View> : null}
       {view === "streams" ? (
-        <StreamsPanel
-          notice={noticeFor("streams")}
-          streams={streams}
-          loading={streamsQuery.isLoading}
-          canAttach={canAttachStream}
-          attachLoading={streamMutation.isPending}
-          onAttach={(input) => streamMutation.mutate(input)}
-        />
+        <View onLayout={registerFocusLayout("streams")}>
+          <StreamsPanel
+            notice={noticeFor("streams")}
+            streams={streams}
+            loading={streamsQuery.isLoading}
+            canAttach={canAttachStream}
+            attachLoading={streamMutation.isPending}
+            onAttach={(input) => streamMutation.mutate(input)}
+          />
+        </View>
       ) : null}
     </AppScreen>
   );
@@ -374,6 +421,7 @@ function Overview({ tournament, events }: { tournament: TournamentDetail; events
 }
 
 function EntryPanel(props: {
+  onFocusLayout: (focus: TournamentFocus) => (event: LayoutChangeEvent) => void;
   notice?: Notice;
   tournament: TournamentDetail;
   myEntry: TournamentEntry | null;
@@ -412,6 +460,7 @@ function EntryPanel(props: {
 }) {
   return (
     <>
+      <View onLayout={props.onFocusLayout("registration")}>
       <SurfaceCard>
         <Badge tone={props.myEntry ? "green" : "cyan"}>{props.myEntry ? "Entered" : "Register"}</Badge>
         <Text style={styles.sectionTitle}>Entry readiness</Text>
@@ -425,8 +474,10 @@ function EntryPanel(props: {
           {props.myEntry ? "Already registered" : props.registrationOpen ? "Register" : "Registration closed"}
         </AppButton>
       </SurfaceCard>
+      </View>
 
       {props.needsFunding ? (
+        <View onLayout={props.onFocusLayout("payment")}>
         <SurfaceCard>
           <Badge tone={props.canFund ? "amber" : "green"}>{props.myEntry ? paymentLabel(props.myEntry.funding_status) : "Payment"}</Badge>
           <Text style={styles.sectionTitle}>Entry payment</Text>
@@ -450,8 +501,10 @@ function EntryPanel(props: {
             </AppButton>
           </View>
         </SurfaceCard>
+        </View>
       ) : null}
 
+      <View onLayout={props.onFocusLayout("check-in")}>
       <SurfaceCard>
         <Badge tone={props.canCheckIn ? "green" : "cyan"}>Check-in</Badge>
         <Text style={styles.sectionTitle}>{props.myEntry?.checked_in_at ? "You are checked in" : "Ready check"}</Text>
@@ -460,7 +513,9 @@ function EntryPanel(props: {
           {props.myEntry?.checked_in_at ? "Checked in" : checkInOpen(props.tournament.status) ? "Check in" : "Check-in closed"}
         </AppButton>
       </SurfaceCard>
+      </View>
 
+      <View onLayout={props.onFocusLayout("entrants")}>
       <SurfaceCard>
         <Badge>Entrants</Badge>
         {props.tournament.entries.map((entry) => (
@@ -474,6 +529,7 @@ function EntryPanel(props: {
         ))}
         {!props.tournament.entries.length ? <Text style={styles.copy}>Entries will appear as players register.</Text> : null}
       </SurfaceCard>
+      </View>
     </>
   );
 }
