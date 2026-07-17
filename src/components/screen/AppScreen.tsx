@@ -8,11 +8,12 @@ export function AppScreen({ children, scroll = true }: { children: ReactNode; sc
   const insets = useSafeAreaInsets();
   const segments = useSegments() as string[];
   const isBottomTabScreen = segments.includes("(tabs)");
-  const bottomPadding = isBottomTabScreen ? spacing.md : spacing.xl + Math.max(insets.bottom, spacing.sm);
+  const safeEdges = isBottomTabScreen ? (["top", "left", "right"] as const) : (["top", "left", "right", "bottom"] as const);
+  const bottomPadding = isBottomTabScreen ? spacing.md : spacing.xl;
   const content = <View style={[styles.content, { paddingBottom: scroll ? bottomPadding : 0 }]}>{children}</View>;
 
   return (
-    <SafeAreaView edges={["top", "left", "right"]} style={styles.safe}>
+    <SafeAreaView edges={safeEdges} style={styles.safe}>
       <KeyboardAvoidingView style={styles.keyboard} behavior={Platform.OS === "ios" ? "padding" : "height"}>
         {scroll ? (
           <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">

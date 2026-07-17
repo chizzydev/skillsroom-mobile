@@ -17,6 +17,7 @@ type ApiRequestOptions = {
 };
 
 let authFailureHandler: (() => void) | null = null;
+let activeRefreshRequest: Promise<string | null> | null = null;
 
 export function setAuthFailureHandler(handler: (() => void) | null) {
   authFailureHandler = handler;
@@ -41,7 +42,7 @@ function unwrap<T>(payload: ApiEnvelope<T> | T): T {
   return payload as T;
 }
 
-export async function refreshAccessToken() {
+async function requestFreshAccessToken() {
   const { refreshToken } = await getStoredTokens();
   if (!refreshToken) return null;
 
@@ -61,6 +62,17 @@ export async function refreshAccessToken() {
   }
 
   if (!response.ok) {
+    const contentType = response.headers.get("content-type") ?? "";
+    const payload = contentType.includes("application/json") ? await response.json() : null;
+    const message =
+      payload?.error?.message ??
+      payload?.message ??
+      "Skillsroom could not refresh your session right now. Try again.";
+
+    if (response.status !== 401 && response.status !== 403) {
+      throw new ApiError(message, response.status, payload?.error?.code);
+    }
+
     await clearStoredTokens();
     return null;
   }
@@ -73,6 +85,16 @@ export async function refreshAccessToken() {
 
   await setStoredTokens(accessToken, nextRefreshToken);
   return accessToken;
+}
+
+export async function refreshAccessToken() {
+  if (activeRefreshRequest) return activeRefreshRequest;
+
+  activeRefreshRequest = requestFreshAccessToken().finally(() => {
+    activeRefreshRequest = null;
+  });
+
+  return activeRefreshRequest;
 }
 
 export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {

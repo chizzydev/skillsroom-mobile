@@ -23,6 +23,10 @@ type AuthState = {
 
 let activeSessionValidation: Promise<boolean> | null = null;
 
+function isSessionRejected(error: unknown) {
+  return error instanceof ApiError && (error.status === 401 || error.status === 403);
+}
+
 function cleanIdentityValue(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
@@ -80,6 +84,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   bootstrapError: null,
 
   bootstrap: async () => {
+    let cachedUser: AuthUser | null = null;
+
     try {
       set({ isBootstrapping: true, bootstrapError: null });
       const { accessToken, refreshToken } = await getStoredTokens();
@@ -98,7 +104,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
       }
 
-      const cachedUser = await getStoredUser();
+      cachedUser = await getStoredUser();
       if (cachedUser) {
         set({ user: cachedUser, isSignedIn: true, isBootstrapping: true });
       }
@@ -108,11 +114,31 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       void setStoredUser(user);
     } catch (error) {
       if (error instanceof ApiError && error.status === 0) {
+        if (cachedUser) {
+          set({ user: cachedUser, isSignedIn: true, isBootstrapping: false, bootstrapError: null });
+          return;
+        }
+
         set({
           user: null,
           isSignedIn: false,
           isBootstrapping: false,
           bootstrapError: "Skillsroom is not reachable right now. Check your connection and try again."
+        });
+        return;
+      }
+
+      if (!isSessionRejected(error)) {
+        if (cachedUser) {
+          set({ user: cachedUser, isSignedIn: true, isBootstrapping: false, bootstrapError: null });
+          return;
+        }
+
+        set({
+          user: null,
+          isSignedIn: false,
+          isBootstrapping: false,
+          bootstrapError: "Skillsroom could not confirm your session right now. Try again."
         });
         return;
       }
@@ -137,7 +163,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           return false;
         }
 
-        set({ isBootstrapping: true, bootstrapError: null });
+        set({ bootstrapError: null });
 
         if (!accessToken && refreshToken) {
           const nextAccessToken = await refreshAccessToken();
@@ -156,10 +182,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         return true;
       } catch (error) {
         if (error instanceof ApiError && error.status === 0) {
-          set({
-            isBootstrapping: false,
-            bootstrapError: "Skillsroom is not reachable right now. Check your connection and try again."
-          });
+          set({ isBootstrapping: false, bootstrapError: null });
+          return false;
+        }
+
+        if (!isSessionRejected(error)) {
+          set({ isBootstrapping: false, bootstrapError: null });
           return false;
         }
 
