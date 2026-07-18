@@ -1,4 +1,4 @@
-import type { MobilePushDevice, UserNotification } from "../types/api";
+import type { MobilePushDevice, RoomInvite, UserNotification } from "../types/api";
 import { apiRequest } from "./client";
 
 export async function listNotifications(status: "unread" | "read" | "archived" = "unread") {
@@ -12,6 +12,19 @@ export async function markNotificationRead(notificationId: string) {
     body: {}
   });
   return data.notification;
+}
+
+export async function listRoomInvites(status: RoomInvite["status"] = "pending") {
+  const data = await apiRequest<{ invites: RoomInvite[] }>(`/community/invites?status=${encodeURIComponent(status)}`);
+  return data.invites ?? [];
+}
+
+export async function respondToRoomInvite(inviteId: string, response: "accepted" | "declined") {
+  const data = await apiRequest<{ invite: RoomInvite }>(`/community/invites/${encodeURIComponent(inviteId)}/respond`, {
+    method: "POST",
+    body: { response }
+  });
+  return data.invite;
 }
 
 export async function registerMobilePushDevice(input: {

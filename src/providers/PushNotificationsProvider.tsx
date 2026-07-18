@@ -24,6 +24,13 @@ function dataString(data: Record<string, unknown>, key: string) {
   return typeof value === "string" && value.length > 0 ? value : null;
 }
 
+function dataMetadata(data: Record<string, unknown>) {
+  const value = data.metadata;
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : data;
+}
+
 function invalidateFromPush(queryClient: ReturnType<typeof useQueryClient>, data: Record<string, unknown>) {
   const type = dataString(data, "notification_type") ?? "";
   const roomId = dataString(data, "match_room_id");
@@ -67,7 +74,7 @@ async function handleNotificationResponse(
       matchRoomId: dataString(data, "match_room_id"),
       notificationType: dataString(data, "notification_type"),
       tournamentId: dataString(data, "tournament_id"),
-      metadata: data
+      metadata: dataMetadata(data)
     }) ?? routeFromActionUrl(dataString(data, "action_url"))
   );
 }

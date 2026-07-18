@@ -125,7 +125,6 @@ export function HomeScreen() {
         <Text style={styles.heroCopy}>Jump into open rooms, accept a challenge, enter a tournament, or post a new challenge for another player.</Text>
         <View style={styles.heroActions}>
           <AppButton style={styles.heroAction} onPress={() => router.push(challengesHref)}>Create challenge</AppButton>
-          <AppButton style={styles.heroAction} variant="secondary" onPress={() => router.push("/(app)/rooms/join")}>Join code</AppButton>
         </View>
       </SurfaceCard>
 

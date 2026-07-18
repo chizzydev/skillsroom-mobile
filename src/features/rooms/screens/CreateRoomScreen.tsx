@@ -14,6 +14,7 @@ import { FormNotice } from "../../../components/ui/FormNotice";
 import { SurfaceCard } from "../../../components/ui/SurfaceCard";
 import { colors, radius, shadow, spacing } from "../../../constants/theme";
 import { useActionFeedback } from "../../../providers/ActionFeedbackProvider";
+import { fallbackRoomIssueRules } from "../roomIssueRules";
 
 type Notice = { tone: "error" | "success" | "info"; message: string } | null;
 
@@ -152,6 +153,13 @@ export function CreateRoomScreen() {
           <Text style={styles.copy}>{selectedGame?.name ?? "Game"} / {selectedRuleset?.name ?? "Rules"} / {moneyPreview(entryAmount)} entry</Text>
           <Text style={styles.copy}>The room opens right away. Share the code, wait for your opponent to join, then both entries are confirmed before play starts.</Text>
         </View>
+        <View style={styles.rulesBox}>
+          <Text style={styles.label}>Fair play rules</Text>
+          <Text style={styles.copy}>Every room includes clear rules for late opponents, no-shows, disconnects, action timeouts, and proof that cannot be verified.</Text>
+          <View style={styles.ruleChips}>
+            {fallbackRoomIssueRules.map((rule) => <Text key={rule.key} style={styles.ruleChip}>{rule.title}</Text>)}
+          </View>
+        </View>
         {notice ? <FormNotice tone={notice.tone} message={notice.message} /> : null}
         <AppButton loading={createMutation.isPending} disabled={!profileReady || gamesQuery.isLoading} onPress={() => createMutation.mutate()}>Create room</AppButton>
         <AppButton variant="secondary" onPress={() => router.back()}>Back to rooms</AppButton>
@@ -255,6 +263,9 @@ const styles = StyleSheet.create({
   optionTextOn: { color: colors.greenDark },
   summaryCard: { borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, padding: spacing.md, backgroundColor: colors.surfaceAlt, ...shadow.card },
   summaryTitle: { color: colors.ink, fontSize: 18, fontWeight: "900" },
+  rulesBox: { borderWidth: 1, borderColor: colors.cyan, borderRadius: radius.md, padding: spacing.md, backgroundColor: colors.cyanSoft, gap: spacing.sm },
+  ruleChips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
+  ruleChip: { borderWidth: 1, borderColor: "#bae6fd", borderRadius: radius.pill, paddingHorizontal: spacing.sm, paddingVertical: 6, color: colors.cyan, backgroundColor: colors.white, fontSize: 12, fontWeight: "900" },
   lifecycleRow: { flexDirection: "row", gap: spacing.md, alignItems: "center", borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, padding: spacing.md, backgroundColor: colors.surfaceAlt },
   lifecycleIndex: { width: 38, height: 38, borderRadius: 14, textAlign: "center", textAlignVertical: "center", color: colors.cyan, backgroundColor: colors.cyanSoft, fontSize: 18, fontWeight: "900" }
 });

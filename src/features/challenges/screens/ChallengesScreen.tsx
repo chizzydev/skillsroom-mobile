@@ -16,6 +16,7 @@ import { colors, radius, shadow, spacing } from "../../../constants/theme";
 import { useActionFeedback } from "../../../providers/ActionFeedbackProvider";
 import { useAuthStore } from "../../../store/auth-store";
 import type { MatchChallengeListRow, MatchChallengeSkillLevel, MatchChallengeVisibility } from "../../../types/api";
+import { fallbackRoomIssueRules } from "../../rooms/roomIssueRules";
 import { PlayerTrustBadgeStrip, trustBadgesForChallenge, trustLabel } from "../../trust/components/PlayerTrustBadgeStrip";
 
 type Notice = { tone: "error" | "success" | "info"; message: string } | null;
@@ -253,6 +254,13 @@ export function ChallengesScreen() {
             <Text style={styles.itemTitle}>{selectedGame?.name ?? "Game"} challenge</Text>
             <Text style={styles.copy}>{rulesetName({ ruleset_title: selectedRuleset?.name ?? null } as MatchChallengeListRow)} - {money(moneyFromInput(entryAmount))} entry - {displayLabel(skillLevel)}</Text>
           </View>
+          <View style={styles.rulesBox}>
+            <Text style={styles.label}>Fair play rules</Text>
+            <Text style={styles.copy}>Accepted challenges become rooms with rules for late opponents, no-shows, disconnects, timeouts, and unclear proof.</Text>
+            <View style={styles.ruleChips}>
+              {fallbackRoomIssueRules.map((rule) => <Text key={rule.key} style={styles.ruleChip}>{rule.title}</Text>)}
+            </View>
+          </View>
           <AppButton loading={createMutation.isPending} disabled={!profileReady || gamesQuery.isLoading} onPress={() => createMutation.mutate()}>Post challenge</AppButton>
         </SurfaceCard>
       ) : (
@@ -473,6 +481,9 @@ const styles = StyleSheet.create({
   chipText: { color: colors.muted, fontWeight: "900" },
   chipTextOn: { color: colors.greenDark },
   preview: { borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, padding: spacing.md, backgroundColor: colors.surfaceAlt, ...shadow.card },
+  rulesBox: { borderWidth: 1, borderColor: colors.cyan, borderRadius: radius.md, padding: spacing.md, backgroundColor: colors.cyanSoft, gap: spacing.sm },
+  ruleChips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
+  ruleChip: { borderWidth: 1, borderColor: "#bae6fd", borderRadius: radius.pill, paddingHorizontal: spacing.sm, paddingVertical: 6, color: colors.cyan, backgroundColor: colors.white, fontSize: 12, fontWeight: "900" },
   challengeCard: { borderWidth: 1, borderColor: colors.line, borderRadius: radius.lg, padding: spacing.md, backgroundColor: colors.white, gap: spacing.md, ...shadow.card },
   challengeTop: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: spacing.sm },
   badgeRow: { flex: 1, flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },

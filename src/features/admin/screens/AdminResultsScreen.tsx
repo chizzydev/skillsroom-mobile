@@ -78,18 +78,19 @@ const queueStatuses: Array<{
 
 const decisions: Array<{ value: ResultReviewDecision; label: string; tone: "primary" | "secondary" | "danger" }> = [
   { value: "approve_claim", label: "Approve claim", tone: "primary" },
-  { value: "approve_no_response", label: "Approve no response", tone: "secondary" },
+  { value: "opponent_timeout_awarded", label: "Award after no response", tone: "secondary" },
   { value: "mark_disputed", label: "Mark disputed", tone: "secondary" },
   { value: "reject_claim", label: "Reject claim", tone: "danger" },
-  { value: "void_match", label: "Void match", tone: "danger" }
+  { value: "void_match", label: "Void and refund", tone: "danger" }
 ];
 
 const resultSuccessMessages: Record<ResultReviewDecision, string> = {
   approve_claim: "Result claim approved.",
   approve_no_response: "Result approved after no opponent response.",
+  opponent_timeout_awarded: "Result awarded after no opponent response.",
   reject_claim: "Result claim rejected.",
   mark_disputed: "Result claim moved to dispute review.",
-  void_match: "Match was voided."
+  void_match: "Match closed without a winner. Refunds were queued."
 };
 
 function displayLabel(value?: string | null) {
@@ -455,7 +456,7 @@ export function AdminResultsScreen() {
       />
 
       <SurfaceCard>
-        <SectionHeader eyebrow="Decision" title="Review result claim" detail="Approve only after the opponent agrees. Submitted claims can be disputed, rejected, voided, or left for the opponent response." />
+        <SectionHeader eyebrow="Decision" title="Review result claim" detail="Approve only after the opponent agrees. Submitted claims can be disputed, rejected, closed without a winner, or left for the opponent response." />
         {noticeFor("decision") ? <FormNotice tone={noticeFor("decision")!.tone} message={noticeFor("decision")!.message} /> : null}
         {selectedCard ? (
           <View style={styles.selectedPanel}>
@@ -489,7 +490,7 @@ export function AdminResultsScreen() {
                 disabled={
                   !canReview ||
                   (decision.value === "approve_claim" && !selectedClaimCanApprove) ||
-                  (decision.value === "approve_no_response" && !selectedClaimCanApproveNoResponse)
+                  ((decision.value === "approve_no_response" || decision.value === "opponent_timeout_awarded") && !selectedClaimCanApproveNoResponse)
                 }
                 loading={reviewMutation.isPending}
                 onPress={() => reviewMutation.mutate(decision.value)}

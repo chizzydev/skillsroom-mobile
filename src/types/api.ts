@@ -31,6 +31,7 @@ export type MatchRoom = {
   game_id?: string;
   ruleset_slug?: string;
   ruleset_id?: string;
+  ruleset_rules?: Record<string, unknown> | null;
   creator_user_id?: string;
   player_a_user_id?: string | null;
   player_b_user_id?: string | null;
@@ -39,6 +40,23 @@ export type MatchRoom = {
   created_at?: string;
   updated_at?: string;
   [key: string]: unknown;
+};
+
+export type RoomInvite = {
+  id: string;
+  match_room_id: string;
+  inviter_user_id: string;
+  invitee_user_id: string;
+  status: "pending" | "accepted" | "declined" | "expired" | "cancelled";
+  message?: string | null;
+  expires_at?: string;
+  responded_at?: string | null;
+  room_code?: string;
+  room_title?: string | null;
+  currency?: string;
+  entry_amount_minor?: number;
+  inviter_username?: string | null;
+  inviter_display_name?: string | null;
 };
 
 export type MatchChallengeVisibility = "public" | "private";

@@ -5,14 +5,16 @@ import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { listDmRequests } from "../../../api/chat";
 import { plainApiError } from "../../../api/errors";
-import { listNotifications, markNotificationRead } from "../../../api/notifications";
+import { listNotifications, listRoomInvites, markNotificationRead, respondToRoomInvite } from "../../../api/notifications";
 import { AppScreen } from "../../../components/screen/AppScreen";
+import { AppButton } from "../../../components/ui/AppButton";
 import { Badge } from "../../../components/ui/Badge";
 import { FeedbackState } from "../../../components/ui/FeedbackState";
 import { FormNotice } from "../../../components/ui/FormNotice";
 import { SurfaceCard } from "../../../components/ui/SurfaceCard";
 import { colors, radius, spacing } from "../../../constants/theme";
-import type { UserNotification } from "../../../types/api";
+import { useActionFeedback } from "../../../providers/ActionFeedbackProvider";
+import type { RoomInvite, UserNotification } from "../../../types/api";
 import { routeFromUserNotification } from "../notificationRouting";
 
 type InboxTab = "unread" | "read";
@@ -27,11 +29,21 @@ function formatWhen(value?: string) {
   });
 }
 
+function money(minor?: number, currency = "NGN") {
+  return `${currency} ${Math.round((minor ?? 0) / 100).toLocaleString()}`;
+}
+
+function inviteSender(invite: RoomInvite) {
+  return invite.inviter_display_name || invite.inviter_username || "A Skillsroom player";
+}
+
 export function NotificationsScreen() {
   const [tab, setTab] = useState<InboxTab>("unread");
   const [notice, setNotice] = useState<string | null>(null);
   const queryClient = useQueryClient();
+  const { pushFeedback } = useActionFeedback();
   const notificationsQuery = useQuery({ queryKey: ["notifications", tab], queryFn: () => listNotifications(tab) });
+  const invitesQuery = useQuery({ queryKey: ["notifications", "room-invites"], queryFn: () => listRoomInvites("pending") });
   const dmRequestsQuery = useQuery({ queryKey: ["notifications", "dm-requests"], queryFn: listDmRequests });
   const pendingDmRequests = useMemo(() => (dmRequestsQuery.data ?? []).filter((request) => request.status === "pending"), [dmRequestsQuery.data]);
 
@@ -45,6 +57,29 @@ export function NotificationsScreen() {
       ]);
     },
     onError: (error) => setNotice(plainApiError(error, "Could not mark this notification as read."))
+  });
+
+  const inviteMutation = useMutation({
+    mutationFn: (input: { inviteId: string; response: "accepted" | "declined" }) =>
+      respondToRoomInvite(input.inviteId, input.response),
+    onSuccess: async (invite, input) => {
+      const accepted = input.response === "accepted";
+      setNotice(null);
+      pushFeedback({
+        tone: "success",
+        title: accepted ? "Invite accepted" : "Invite declined",
+        message: accepted ? "Open the room to complete the next step." : "The invite has been declined."
+      });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+        queryClient.invalidateQueries({ queryKey: ["home"] }),
+        queryClient.invalidateQueries({ queryKey: ["rooms"] })
+      ]);
+      if (accepted) {
+        router.push(`/(app)/rooms/${encodeURIComponent(invite.match_room_id)}?section=funding&focus=section` as never);
+      }
+    },
+    onError: (error) => setNotice(plainApiError(error, "Could not respond to this invite."))
   });
 
   async function openNotification(notification: UserNotification) {
@@ -100,6 +135,51 @@ export function NotificationsScreen() {
             <ChevronRight color={colors.ink} size={20} />
           </Pressable>
         </View>
+      </SurfaceCard>
+
+      <SurfaceCard>
+        <View style={styles.sectionHeader}>
+          <View style={styles.sectionIcon}>
+            <Bell color={colors.cyan} size={21} />
+          </View>
+          <View style={styles.main}>
+            <Text style={styles.sectionTitle}>Room invites</Text>
+            <Text style={styles.copy}>{(invitesQuery.data ?? []).length ? `${(invitesQuery.data ?? []).length} invite${(invitesQuery.data ?? []).length === 1 ? "" : "s"} waiting.` : "No room invites waiting."}</Text>
+          </View>
+        </View>
+        {invitesQuery.isLoading ? <Text style={styles.copy}>Loading room invites...</Text> : null}
+        {invitesQuery.isError ? (
+          <FeedbackState tone="error" title="Unable to load room invites" body="Check your connection and try again." actionLabel="Retry" onAction={() => void invitesQuery.refetch()} />
+        ) : null}
+        {(invitesQuery.data ?? []).map((invite) => (
+          <View key={invite.id} style={styles.inviteCard}>
+            <Badge tone="green">Room invite</Badge>
+            <Text style={styles.notificationTitle}>{invite.room_title || "Private room"}</Text>
+            <Text style={styles.notificationBody}>{inviteSender(invite)} invited you to {invite.room_code || "a room"}.</Text>
+            <View style={styles.inviteFacts}>
+              <Text style={styles.inviteFact}>Entry {money(invite.entry_amount_minor, invite.currency)}</Text>
+              <Text style={styles.inviteFact}>Expires {formatWhen(invite.expires_at)}</Text>
+            </View>
+            {invite.message ? <Text style={styles.inviteMessage}>{invite.message}</Text> : null}
+            <View style={styles.inviteActions}>
+              <AppButton
+                loading={inviteMutation.isPending}
+                onPress={() => inviteMutation.mutate({ inviteId: invite.id, response: "accepted" })}
+                style={styles.inviteButton}
+              >
+                Accept
+              </AppButton>
+              <AppButton
+                disabled={inviteMutation.isPending}
+                onPress={() => inviteMutation.mutate({ inviteId: invite.id, response: "declined" })}
+                style={styles.inviteButton}
+                variant="secondary"
+              >
+                Decline
+              </AppButton>
+            </View>
+          </View>
+        ))}
       </SurfaceCard>
 
       <SurfaceCard>
@@ -173,5 +253,11 @@ const styles = StyleSheet.create({
   notificationTitle: { color: colors.ink, fontSize: 16, lineHeight: 21, fontWeight: "900" },
   notificationBody: { color: colors.muted, fontSize: 14, lineHeight: 20, marginTop: 4, flexShrink: 1 },
   notificationTime: { color: colors.faint, fontSize: 11, fontWeight: "900", textTransform: "uppercase", letterSpacing: 1, marginTop: spacing.sm },
-  readButton: { width: 36, height: 36, borderRadius: radius.pill, backgroundColor: colors.greenSoft, alignItems: "center", justifyContent: "center" }
+  readButton: { width: 36, height: 36, borderRadius: radius.pill, backgroundColor: colors.greenSoft, alignItems: "center", justifyContent: "center" },
+  inviteCard: { borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, backgroundColor: colors.surfaceAlt, padding: spacing.md, gap: spacing.sm },
+  inviteFacts: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  inviteFact: { color: colors.ink, fontSize: 12, fontWeight: "900", backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, borderRadius: radius.pill, paddingHorizontal: spacing.sm, paddingVertical: 6 },
+  inviteMessage: { color: colors.muted, fontSize: 14, lineHeight: 20, borderLeftWidth: 3, borderLeftColor: colors.cyan, paddingLeft: spacing.sm },
+  inviteActions: { flexDirection: "row", gap: spacing.sm },
+  inviteButton: { flex: 1 }
 });

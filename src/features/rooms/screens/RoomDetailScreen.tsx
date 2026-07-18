@@ -34,6 +34,7 @@ import { NoStreamState, StreamAttachForm, StreamLinkCard } from "../../streaming
 import { useActionFeedback } from "../../../providers/ActionFeedbackProvider";
 import { useAuthStore } from "../../../store/auth-store";
 import type { ManualFundingSubmission, MatchParticipant, MatchResultClaim, MatchRoom, PlayerTrustSummary, RoomFundingOverview } from "../../../types/api";
+import { roomIssueRulesFromRuleset } from "../roomIssueRules";
 
 type Section = "overview" | "players" | "funding" | "live" | "result" | "history";
 type RoomFocus = "section" | "players-list" | "funding-action" | "live-action" | "result-claim" | "result-response" | "history";
@@ -231,13 +232,26 @@ function resultStatusCopy(claim?: MatchResultClaim | null, room?: MatchRoom) {
   return { label: "Opponent response", detail: "Waiting for the other player to agree or dispute.", tone: "cyan" as const };
 }
 
-function finalDecisionSummary(claim?: MatchResultClaim | null, room?: MatchRoom) {
+function latestReviewForClaim(reviews?: Array<Record<string, unknown>>, claim?: MatchResultClaim | null) {
+  if (!claim) return null;
+  const claimReviews = (reviews ?? []).filter((review) => review.result_claim_id === claim.id);
+  return claimReviews[claimReviews.length - 1] ?? null;
+}
+
+function finalDecisionSummary(claim?: MatchResultClaim | null, room?: MatchRoom, reviews?: Array<Record<string, unknown>>) {
+  const review = latestReviewForClaim(reviews, claim);
+  if (review?.decision === "opponent_timeout_awarded" || review?.decision === "approve_no_response") {
+    return "Final decision: winner awarded after the opponent did not respond in time.";
+  }
+  if (review?.decision === "approve_claim") return "Final decision: winner confirmed after both players responded.";
+  if (review?.decision === "reject_claim") return "Final decision: this result was not accepted after review.";
+  if (review?.decision === "void_match") return "Final decision: match closed without a winner. Entries are being returned.";
   if (claim?.status === "admin_approved") return "Final decision: winner confirmed from the submitted proof.";
   if (claim?.status === "admin_rejected") return "Final decision: this result claim was rejected.";
   if (room?.status === "completed") return "Final decision is complete for this room.";
   if (room?.status === "settlement_pending") return "Final decision is ready for prize review.";
   if (room?.status === "refunded") return "Final decision: refund path was used.";
-  if (room?.status === "voided") return "Final decision: room was voided.";
+  if (room?.status === "voided") return "Final decision: match closed without a winner.";
   return "No final decision yet.";
 }
 
@@ -298,6 +312,7 @@ export function RoomDetailScreen() {
   const livestreamsQuery = useQuery({ queryKey: ["room", roomId, "livestreams"], queryFn: () => listRoomLivestreams(roomId), enabled: Boolean(roomId), refetchInterval: 15000 });
 
   const room = timelineQuery.data?.room;
+  const roomIssueRules = roomIssueRulesFromRuleset(room?.ruleset_rules);
   const participants = fundingQuery.data?.participants ?? timelineQuery.data?.participants ?? [];
   const startConfirmations = timelineQuery.data?.start_confirmations ?? [];
   const participantUserIds = useMemo(
@@ -326,7 +341,8 @@ export function RoomDetailScreen() {
   const [actionTitle, actionBody] = nextAction(room, participantCount);
   const canAttachStream = canManageStreams(user?.role, room, user?.id);
   const isCreator = Boolean(user?.id && room?.creator_user_id === user.id);
-  const canInvite = Boolean(room?.status === "open" && isCreator && participantCount < (room?.max_participants ?? 2));
+  const canManageRoomInvites = Boolean(isCreator || ["moderator", "admin", "owner"].includes(String(user?.role ?? "")));
+  const canInvite = Boolean(room?.status === "open" && canManageRoomInvites && participantCount < (room?.max_participants ?? 2));
   const canJoinFromDetail = Boolean(room?.status === "open" && !ownParticipant && participantCount < (room?.max_participants ?? 2));
   const ownFundingSubmission = useMemo(() => {
     const submissions = fundingQuery.data?.submissions ?? [];
@@ -488,7 +504,7 @@ export function RoomDetailScreen() {
       });
     },
     onSuccess: async () => {
-      notify("overview", { tone: "success", message: "Invite sent." });
+      notify("overview", { tone: "success", message: `Invite sent to ${inviteUsername.trim()}.` });
       setInviteUsername("");
       setInviteMessage("");
       await refreshRoom();
@@ -718,12 +734,35 @@ export function RoomDetailScreen() {
             <Text style={styles.bigCode}>{room?.room_code ?? "..."}</Text>
             <CopyButton value={room?.room_code} label="Copy room code" copiedLabel="Room code copied" />
             <Text style={styles.copy}>Share this code with your opponent. The room will show when they join, complete entry, and submit a result.</Text>
-            {canInvite ? (
+            {canManageRoomInvites ? (
               <View style={styles.inviteBox}>
                 <Text style={styles.itemTitle}>Invite by username</Text>
-                <TextInput value={inviteUsername} onChangeText={setInviteUsername} autoCapitalize="none" placeholder="player_username" placeholderTextColor={colors.faint} style={styles.input} />
-                <TextInput value={inviteMessage} onChangeText={setInviteMessage} placeholder={`Join ${room?.room_code ?? "my room"} on Skillsroom.`} placeholderTextColor={colors.faint} style={styles.input} />
-                <AppButton loading={inviteMutation.isPending} onPress={() => inviteMutation.mutate()}>Send invite</AppButton>
+                <Text style={styles.copy}>Send a direct room invite to a Skillsroom username. They can accept it from Notifications.</Text>
+                <TextInput
+                  value={inviteUsername}
+                  onChangeText={setInviteUsername}
+                  autoCapitalize="none"
+                  editable={canInvite}
+                  placeholder="player_username"
+                  placeholderTextColor={colors.faint}
+                  style={[styles.input, !canInvite && styles.inputDisabled]}
+                />
+                <TextInput
+                  value={inviteMessage}
+                  onChangeText={setInviteMessage}
+                  editable={canInvite}
+                  placeholder={`Join ${room?.room_code ?? "my room"} on Skillsroom.`}
+                  placeholderTextColor={colors.faint}
+                  style={[styles.input, !canInvite && styles.inputDisabled]}
+                />
+                <AppButton disabled={!canInvite} loading={inviteMutation.isPending} onPress={() => inviteMutation.mutate()}>Send invite</AppButton>
+                {room?.status !== "open" ? (
+                  <Text style={styles.helpText}>Open the room before inviting another player.</Text>
+                ) : participantCount >= (room?.max_participants ?? 2) ? (
+                  <Text style={styles.helpText}>This room already has all players.</Text>
+                ) : (
+                  <Text style={styles.helpText}>Room code sharing still works. Direct invite is best when you already know the player.</Text>
+                )}
               </View>
             ) : null}
           </SurfaceCard>
@@ -734,6 +773,19 @@ export function RoomDetailScreen() {
             <InstructionStep index="2" title="Create game lobby" detail="One player creates the private game lobby and shares the in-game room code if needed." />
             <InstructionStep index="3" title="Capture proof" detail="Screenshot the lobby and final scoreboard. Keep usernames visible." />
             <InstructionStep index="4" title="Wait for ready status" detail="Do not play until the room says the match is ready." />
+          </SurfaceCard>
+          <SurfaceCard>
+            <Badge tone="cyan">Fair play rules</Badge>
+            <Text style={styles.sectionTitle}>When play does not go cleanly</Text>
+            <Text style={styles.copy}>These room rules cover late opponents, no-shows, disconnects, timeouts, and proof that cannot be verified.</Text>
+            <View style={styles.ruleGrid}>
+              {roomIssueRules.map((rule) => (
+                <View key={rule.key} style={styles.ruleCard}>
+                  <Text style={styles.ruleTitle}>{rule.title}</Text>
+                  <Text style={styles.ruleBody}>{rule.body}</Text>
+                </View>
+              ))}
+            </View>
           </SurfaceCard>
           {canJoinFromDetail ? (
             <SurfaceCard>
@@ -914,7 +966,7 @@ export function RoomDetailScreen() {
             <FormNotice
               tone={resultResponseExpired ? "info" : "success"}
               message={resultResponseExpired
-                ? "The opponent response window is overdue. The team can now review this under the no-response policy."
+                ? "The opponent response window is overdue. Skillsroom can now review this under the no-response policy."
                 : `Waiting for opponent response until ${dateTimeLabel(claim.opponent_response_due_at)}.`}
             />
           ) : null}
@@ -922,7 +974,7 @@ export function RoomDetailScreen() {
             <FormNotice
               tone={resultResponseExpired ? "info" : "success"}
               message={resultResponseExpired
-                ? "Opponent response is overdue. Admin review can use the no-response path after checking evidence."
+                ? "Opponent response is overdue. Skillsroom review can use the no-response path after checking evidence."
                 : `Opponent response due: ${dateTimeLabel(claim.opponent_response_due_at)}.`}
             />
           ) : null}
@@ -962,7 +1014,7 @@ export function RoomDetailScreen() {
               </View>
             </View>
           ) : null}
-          <FinalDecisionCard claim={claim} room={room} />
+          <FinalDecisionCard claim={claim} room={room} reviews={resultsQuery.data?.reviews} />
         </SurfaceCard>
         </View>
       ) : null}
@@ -1057,13 +1109,13 @@ function ResponseDecisionGuide({ overdue }: { overdue: boolean }) {
   );
 }
 
-function FinalDecisionCard({ claim, room }: { claim: MatchResultClaim | null; room?: MatchRoom }) {
+function FinalDecisionCard({ claim, room, reviews }: { claim: MatchResultClaim | null; room?: MatchRoom; reviews?: Array<Record<string, unknown>> }) {
   return (
     <View style={styles.finalCard}>
       <Trophy color={colors.amber} size={22} />
       <View style={styles.fill}>
         <Text style={styles.itemTitle}>Final decision summary</Text>
-        <Text style={styles.copy}>{finalDecisionSummary(claim, room)}</Text>
+        <Text style={styles.copy}>{finalDecisionSummary(claim, room, reviews)}</Text>
       </View>
     </View>
   );
@@ -1171,6 +1223,10 @@ const styles = StyleSheet.create({
   summaryGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   summaryTile: { flexBasis: "45%", flexGrow: 1, borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, padding: spacing.md, backgroundColor: colors.surfaceAlt, gap: 4 },
   summaryValue: { color: colors.ink, fontSize: 24, fontWeight: "900" },
+  ruleGrid: { gap: spacing.sm },
+  ruleCard: { borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, padding: spacing.md, backgroundColor: colors.surfaceAlt },
+  ruleTitle: { color: colors.ink, fontSize: 16, fontWeight: "900" },
+  ruleBody: { color: colors.muted, fontSize: 14, lineHeight: 20, marginTop: 6, fontWeight: "700" },
   flowList: { gap: spacing.sm },
   flowRow: { flexDirection: "row", gap: spacing.md, alignItems: "center", borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, padding: spacing.md, backgroundColor: colors.surfaceAlt },
   flowMarker: { width: 38, height: 38, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: colors.cyanSoft },
@@ -1269,6 +1325,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.ink,
     backgroundColor: colors.surfaceAlt
+  },
+  inputDisabled: {
+    color: colors.faint,
+    backgroundColor: colors.white,
+    opacity: 0.72
   },
   joinCodeShell: {
     minHeight: 68,
