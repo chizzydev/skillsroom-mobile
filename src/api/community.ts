@@ -37,6 +37,8 @@ export type CommunityHighlight = {
   champion_username: string | null;
   champion_display_name: string | null;
   runner_up_entry_name: string | null;
+  runner_up_username?: string | null;
+  runner_up_display_name?: string | null;
   starts_at: string | null;
   ends_at: string | null;
 };
@@ -63,6 +65,113 @@ export type CommunityClan = {
   };
   captain_username?: string | null;
   captain_display_name?: string | null;
+};
+
+export type OrganizerKind = "clan" | "host";
+
+export type OrganizerBrand = {
+  id: string;
+  slug: string;
+  kind: OrganizerKind;
+  name: string;
+  tag: string | null;
+  description: string | null;
+  region: string | null;
+  city: string | null;
+  campus: string | null;
+  avatar_url: string | null;
+  banner_url: string | null;
+  reputation_score: number;
+  game_focus: string[];
+  captain_user_id: string | null;
+  captain_username: string | null;
+  captain_display_name: string | null;
+  created_at: string;
+  share_path: string;
+};
+
+export type OrganizerRecord = {
+  events_hosted: number;
+  completed_events: number;
+  tournament_wins: number;
+  podium_finishes: number;
+  match_wins: number;
+  match_losses: number;
+  match_draws: number;
+};
+
+export type OrganizerEvent = {
+  tournament_id: string;
+  tournament_slug: string;
+  title: string;
+  status: string;
+  format: string;
+  game_slug: string;
+  game_name: string;
+  currency: string;
+  entry_fee_amount_minor: number;
+  prize_pool_minor: number;
+  registered_entry_count: number;
+  starts_at: string | null;
+  ends_at: string | null;
+  role_label: string;
+};
+
+export type OrganizerMember = {
+  user_id: string;
+  role: string;
+  username: string | null;
+  display_name: string | null;
+  reputation_score: number | null;
+  city: string | null;
+  campus: string | null;
+  joined_at: string | null;
+};
+
+export type OrganizerLivestream = {
+  id: string;
+  tournament_id: string | null;
+  tournament_title: string | null;
+  tournament_slug: string | null;
+  provider: string;
+  title: string;
+  stream_url: string;
+  embed_url: string | null;
+  is_featured: boolean;
+  created_at: string;
+};
+
+export type OrganizerAnnouncement = {
+  id: string;
+  tournament_id: string | null;
+  tournament_title: string | null;
+  tournament_slug: string | null;
+  category: string;
+  priority: string;
+  title: string;
+  summary: string;
+  published_at: string | null;
+};
+
+export type OrganizerHighlight = {
+  tournament_id: string;
+  tournament_slug: string;
+  title: string;
+  game_name: string;
+  champion_entry_name: string | null;
+  completed_match_count: number;
+  projected_prize_minor: number;
+  ends_at: string | null;
+};
+
+export type OrganizerSpace = {
+  organizer: OrganizerBrand;
+  record: OrganizerRecord;
+  events: OrganizerEvent[];
+  members: OrganizerMember[];
+  livestreams: OrganizerLivestream[];
+  announcements: OrganizerAnnouncement[];
+  highlights: OrganizerHighlight[];
 };
 
 export type CommunityLeaderboardRow = {
@@ -96,13 +205,22 @@ export type CommunityLeaderboardSummary = {
 };
 
 export type CommunitySocialProofMetrics = {
+  rooms_created?: number;
   matches_completed: number;
   tournaments_hosted: number;
   winners_crowned: number;
+  disputes_resolved?: number;
   payout_queue_count: number;
+  payout_queue_minor?: number;
+  refund_queue_count?: number;
+  refund_queue_minor?: number;
   prize_reservations_minor: number;
+  prize_reservations_count?: number;
   players_registered: number;
   clans_created: number;
+  entries_checked_in?: number;
+  verified_payouts_completed_count?: number | null;
+  verified_payouts_completed_minor?: number | null;
 };
 
 export async function communitySocialProof() {
@@ -128,6 +246,10 @@ export async function communityHighlights(limit = 8) {
 export async function communityClans(limit = 5) {
   const data = await apiRequest<{ clans: CommunityClan[] }>(`/community/clans?limit=${encodeURIComponent(limit)}`);
   return data.clans ?? [];
+}
+
+export async function organizerSpace(organizerIdOrSlug: string) {
+  return apiRequest<OrganizerSpace>(`/community/organizers/${encodeURIComponent(organizerIdOrSlug)}`);
 }
 
 export async function communityLeaderboard(limit = 10) {

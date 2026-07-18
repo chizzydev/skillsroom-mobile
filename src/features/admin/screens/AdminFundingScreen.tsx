@@ -202,7 +202,7 @@ export function AdminFundingScreen() {
       <SurfaceCard style={styles.hero}>
         <Badge tone="amber">Funding</Badge>
         <Text style={styles.heroTitle}>Manual Funding Queue</Text>
-        <Text style={styles.copy}>Confirm exact transfer amount, sender identity, room, and reference before approval writes ledger entries.</Text>
+        <Text style={styles.copy}>Confirm exact transfer amount, sender identity, room, and reference before approval creates payment records.</Text>
       </SurfaceCard>
 
       <View style={styles.livePill}>
@@ -301,7 +301,7 @@ export function AdminFundingScreen() {
       </SurfaceCard>
 
       <SurfaceCard>
-        <SectionHeader eyebrow="Decision" title="Approve or reject funding" detail="Approvals create balanced ledger entries into platform cash and match escrow." />
+        <SectionHeader eyebrow="Decision" title="Approve or reject funding" detail="Approvals create balanced payment records for platform cash and room prize handling." />
         {noticeFor("decision") ? <FormNotice tone={noticeFor("decision")!.tone} message={noticeFor("decision")!.message} /> : null}
         {selectedSubmission ? (
           <View style={styles.selectedPanel}>

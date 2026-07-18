@@ -41,6 +41,55 @@ export type MatchRoom = {
   [key: string]: unknown;
 };
 
+export type MatchChallengeVisibility = "public" | "private";
+export type MatchChallengeStatus = "open" | "accepted" | "cancelled" | "expired";
+export type MatchChallengeSkillLevel = "beginner" | "casual" | "competitive" | "expert" | "any";
+
+export type MatchChallenge = {
+  id: string;
+  match_room_id: string;
+  creator_user_id: string;
+  visibility: MatchChallengeVisibility;
+  status: MatchChallengeStatus;
+  platform: string;
+  region: string;
+  skill_level: MatchChallengeSkillLevel;
+  creator_trust_score: number;
+  accepted_by_user_id?: string | null;
+  accepted_at?: string | null;
+  expires_at?: string | null;
+  cancelled_at?: string | null;
+  metadata?: Record<string, unknown>;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type MatchChallengeListRow = MatchChallenge & {
+  room_code?: string;
+  room_status?: string;
+  currency?: string;
+  entry_amount_minor?: number;
+  commission_bps?: number;
+  title?: string | null;
+  game_slug?: string;
+  game_name?: string;
+  ruleset_slug?: string | null;
+  ruleset_title?: string | null;
+  creator_username?: string | null;
+  creator_display_name?: string | null;
+  creator_profile_verified?: boolean;
+  creator_game_handle_verified?: boolean;
+  creator_completed_matches?: number;
+  creator_wins?: number;
+  creator_losses?: number;
+  creator_dispute_rate?: number;
+  creator_no_show_rate?: number;
+  creator_funding_reliability?: number | null;
+  creator_evidence_quality?: number | null;
+  creator_trust_warning?: boolean;
+  participant_count?: number;
+};
+
 export type MatchParticipant = {
   id: string;
   match_room_id: string;

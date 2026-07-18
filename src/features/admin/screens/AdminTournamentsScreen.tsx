@@ -268,6 +268,7 @@ export function AdminTournamentsScreen() {
   const { pushFeedback } = useActionFeedback();
   const [notice, setNotice] = useState<Notice>(null);
   const [targetNotice, setTargetNotice] = useState<{ target: NoticeTarget; notice: NonNullable<Notice> } | null>(null);
+  const [showTournamentAdvanced, setShowTournamentAdvanced] = useState(false);
   const [password, setPassword] = useState("");
   const savedStepUpToken = useAdminStepUpStore((state) => state.token);
   const savedStepUpExpiresAt = useAdminStepUpStore((state) => state.expiresAt);
@@ -636,39 +637,58 @@ export function AdminTournamentsScreen() {
         <SectionHeader eyebrow="Create" title="Create tournament" detail="Start with the event details players will see. Publishing, seeding, bracket setup, and money actions stay separate." />
         <SurfaceCard style={styles.formStack}>
           {noticeFor("create")}
+          <View style={styles.simpleCreateHeader}>
+            <View style={styles.fill}>
+              <Badge tone="green">Simple setup</Badge>
+              <Text style={styles.rowTitle}>Choose the basics first</Text>
+              <Text style={styles.rowMeta}>Game, format, entry mode, prize model, registration window, and ruleset are enough to create a clean draft.</Text>
+            </View>
+            <CalendarClock color={colors.greenDark} size={28} />
+          </View>
           <LabeledInput label="Title" value={form.title} onChangeText={(title) => setForm({ ...form, title })} placeholder="T26 Visual QA Bracket" />
           <LabeledInput label="Description" value={form.description} onChangeText={(description) => setForm({ ...form, description })} multiline minHeight={96} placeholder="What players should know before entering" />
           <Selector label="Game" value={form.gameSlug ? slugLabel(form.gameSlug) : "Choose game"} selected={form.gameSlug} options={(tournamentsQuery.data?.catalog.games ?? []).map((game) => ({ value: game.slug, label: game.name, detail: "Tournament game" }))} onSelect={(gameSlug) => setForm({ ...form, gameSlug })} />
-          <Selector label="Ruleset" value={form.rulesetSlug ? slugLabel(form.rulesetSlug) : "Optional"} selected={form.rulesetSlug} options={(tournamentsQuery.data?.catalog.rulesets ?? []).filter((ruleset) => !form.gameSlug || ruleset.game_slug === form.gameSlug).map((ruleset) => ({ value: ruleset.slug, label: ruleset.name || slugLabel(ruleset.slug), detail: slugLabel(ruleset.game_slug) }))} onSelect={(rulesetSlug) => setForm({ ...form, rulesetSlug })} />
           <Selector label="Format" value={label(form.format)} selected={form.format} options={formatOptions.map((item) => ({ value: item.value, label: item.label, detail: item.detail }))} onSelect={(format) => setForm({ ...form, format: format as TournamentFormat })} />
-          <ChipRow label="Entry type" values={entryTypes} selected={form.entryType} onSelect={(entryType) => setForm({ ...form, entryType: entryType as TournamentEntryType, teamMin: entryType === "solo" ? "1" : form.teamMin, teamMax: entryType === "solo" ? "1" : form.teamMax })} />
-          <ChipRow label="Fee mode" values={feeModes} selected={form.feeMode} onSelect={(feeMode) => setForm({ ...form, feeMode: feeMode as TournamentFeeMode })} />
-          <ChipRow label="Scoring" values={scoringModes} selected={form.scoringMode} onSelect={(scoringMode) => setForm({ ...form, scoringMode: scoringMode as TournamentScoringMode })} />
-          <ChipRow label="Prize split" values={prizeModes} selected={form.prizeMode} onSelect={(prizeMode) => setForm({ ...form, prizeMode: prizeMode as TournamentPrizeDistributionMode })} />
+          <ChipRow label="Entry mode" values={feeModes} selected={form.feeMode} onSelect={(feeMode) => setForm({ ...form, feeMode: feeMode as TournamentFeeMode, entryFee: feeMode === "free" || feeMode === "sponsored" ? "0" : form.entryFee })} />
+          <ChipRow label="Prize model" values={prizeModes} selected={form.prizeMode} onSelect={(prizeMode) => setForm({ ...form, prizeMode: prizeMode as TournamentPrizeDistributionMode })} />
+          <Selector label="Ruleset" value={form.rulesetSlug ? slugLabel(form.rulesetSlug) : "Optional"} selected={form.rulesetSlug} options={(tournamentsQuery.data?.catalog.rulesets ?? []).filter((ruleset) => !form.gameSlug || ruleset.game_slug === form.gameSlug).map((ruleset) => ({ value: ruleset.slug, label: ruleset.name || slugLabel(ruleset.slug), detail: slugLabel(ruleset.game_slug) }))} onSelect={(rulesetSlug) => setForm({ ...form, rulesetSlug })} />
           <View style={styles.twoCol}>
             <LabeledInput label="Entry fee (NGN)" value={form.entryFee} onChangeText={(entryFee) => setForm({ ...form, entryFee })} />
-            <LabeledInput label="Commission bps" value={form.commissionBps} onChangeText={(commissionBps) => setForm({ ...form, commissionBps })} />
+            <LabeledInput label="Max entries" value={form.maxEntries} onChangeText={(maxEntries) => setForm({ ...form, maxEntries })} />
           </View>
           <View style={styles.twoCol}>
             <LabeledInput label="Sponsor pool" value={form.sponsoredPool} onChangeText={(sponsoredPool) => setForm({ ...form, sponsoredPool })} />
             <LabeledInput label="Guaranteed pool" value={form.guaranteedPool} onChangeText={(guaranteedPool) => setForm({ ...form, guaranteedPool })} />
           </View>
-          <View style={styles.twoCol}>
-            <LabeledInput label="Min entries" value={form.minEntries} onChangeText={(minEntries) => setForm({ ...form, minEntries })} />
-            <LabeledInput label="Max entries" value={form.maxEntries} onChangeText={(maxEntries) => setForm({ ...form, maxEntries })} />
-          </View>
-          <View style={styles.twoCol}>
-            <LabeledInput label="Team min" value={form.teamMin} onChangeText={(teamMin) => setForm({ ...form, teamMin })} />
-            <LabeledInput label="Team max" value={form.teamMax} onChangeText={(teamMax) => setForm({ ...form, teamMax })} />
-          </View>
           <LabeledInput label="Registration opens" optional value={form.registrationOpens} onChangeText={(registrationOpens) => setForm({ ...form, registrationOpens })} placeholder="2026-08-01 18:00" />
           <LabeledInput label="Registration closes" optional value={form.registrationCloses} onChangeText={(registrationCloses) => setForm({ ...form, registrationCloses })} placeholder="2026-08-04 18:00" />
-          <LabeledInput label="Starts" optional value={form.startsAt} onChangeText={(startsAt) => setForm({ ...form, startsAt })} placeholder="2026-08-05 20:00" />
-          <LabeledInput label="Ends" optional value={form.endsAt} onChangeText={(endsAt) => setForm({ ...form, endsAt })} placeholder="2026-08-05 23:00" />
-          <ToggleRow label="Match check-in required" detail="Players must check in before event matches count." value={form.matchCheckIn} onPress={() => setForm({ ...form, matchCheckIn: !form.matchCheckIn })} />
-          <ToggleRow label="Evidence required" detail="Results require evidence before settlement." value={form.evidenceRequired} onPress={() => setForm({ ...form, evidenceRequired: !form.evidenceRequired })} />
-          <ToggleRow label="Allow waitlist" detail="Players can queue when capacity is full." value={form.allowWaitlist} onPress={() => setForm({ ...form, allowWaitlist: !form.allowWaitlist })} />
-          <LabeledInput label="Tiebreakers" optional value={form.tiebreakers} onChangeText={(tiebreakers) => setForm({ ...form, tiebreakers })} multiline minHeight={90} placeholder="One tiebreaker per line" />
+          <Pressable style={styles.advancedToggle} onPress={() => setShowTournamentAdvanced((value) => !value)}>
+            <View style={styles.fill}>
+              <Text style={styles.rowTitle}>{showTournamentAdvanced ? "Hide advanced controls" : "Show advanced controls"}</Text>
+              <Text style={styles.rowMeta}>Team sizing, scoring, check-in, proof rules, waitlist, dates, and fee details.</Text>
+            </View>
+            <Badge tone={showTournamentAdvanced ? "amber" : "cyan"}>{showTournamentAdvanced ? "Open" : "Hidden"}</Badge>
+          </Pressable>
+          {showTournamentAdvanced ? (
+            <>
+              <ChipRow label="Entry type" values={entryTypes} selected={form.entryType} onSelect={(entryType) => setForm({ ...form, entryType: entryType as TournamentEntryType, teamMin: entryType === "solo" ? "1" : form.teamMin, teamMax: entryType === "solo" ? "1" : form.teamMax })} />
+              <ChipRow label="Scoring" values={scoringModes} selected={form.scoringMode} onSelect={(scoringMode) => setForm({ ...form, scoringMode: scoringMode as TournamentScoringMode })} />
+              <View style={styles.twoCol}>
+                <LabeledInput label="Min entries" value={form.minEntries} onChangeText={(minEntries) => setForm({ ...form, minEntries })} />
+                <LabeledInput label="Commission bps" value={form.commissionBps} onChangeText={(commissionBps) => setForm({ ...form, commissionBps })} />
+              </View>
+              <View style={styles.twoCol}>
+                <LabeledInput label="Team min" value={form.teamMin} onChangeText={(teamMin) => setForm({ ...form, teamMin })} />
+                <LabeledInput label="Team max" value={form.teamMax} onChangeText={(teamMax) => setForm({ ...form, teamMax })} />
+              </View>
+              <LabeledInput label="Starts" optional value={form.startsAt} onChangeText={(startsAt) => setForm({ ...form, startsAt })} placeholder="2026-08-05 20:00" />
+              <LabeledInput label="Ends" optional value={form.endsAt} onChangeText={(endsAt) => setForm({ ...form, endsAt })} placeholder="2026-08-05 23:00" />
+              <ToggleRow label="Match check-in required" detail="Players must check in before event matches count." value={form.matchCheckIn} onPress={() => setForm({ ...form, matchCheckIn: !form.matchCheckIn })} />
+              <ToggleRow label="Proof required" detail="Results require proof before prize review." value={form.evidenceRequired} onPress={() => setForm({ ...form, evidenceRequired: !form.evidenceRequired })} />
+              <ToggleRow label="Allow waitlist" detail="Players can queue when capacity is full." value={form.allowWaitlist} onPress={() => setForm({ ...form, allowWaitlist: !form.allowWaitlist })} />
+              <LabeledInput label="Tiebreakers" optional value={form.tiebreakers} onChangeText={(tiebreakers) => setForm({ ...form, tiebreakers })} multiline minHeight={90} placeholder="One tiebreaker per line" />
+            </>
+          ) : null}
           <AppButton loading={createMutation.isPending} onPress={() => createMutation.mutate()}>Create tournament</AppButton>
         </SurfaceCard>
 
@@ -1020,6 +1040,8 @@ const styles = StyleSheet.create({
   rowTitle: { color: colors.ink, fontSize: 17, lineHeight: 22, fontWeight: "900", flexShrink: 1 },
   rowMeta: { color: colors.muted, fontSize: 14, lineHeight: 21, fontWeight: "700", flexShrink: 1 },
   formStack: { gap: spacing.sm },
+  simpleCreateHeader: { borderRadius: radius.md, borderWidth: 1, borderColor: "#b6f4db", backgroundColor: colors.greenSoft, padding: spacing.md, flexDirection: "row", alignItems: "flex-start", gap: spacing.md },
+  advancedToggle: { minHeight: 76, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surfaceAlt, padding: spacing.md, flexDirection: "row", alignItems: "center", gap: spacing.md },
   queueBlock: { gap: spacing.sm },
   commandCard: { gap: spacing.md },
   commandTop: { flexDirection: "row", alignItems: "flex-start", gap: spacing.md },

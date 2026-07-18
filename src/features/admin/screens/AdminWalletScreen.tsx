@@ -6,9 +6,12 @@ import {
   Banknote,
   ClipboardCheck,
   ExternalLink,
+  Link2,
   LockKeyhole,
   Radio,
+  SearchCheck,
   ShieldAlert,
+  ShieldCheck,
   WalletCards
 } from "lucide-react-native";
 import { useMemo, useState } from "react";
@@ -83,6 +86,46 @@ function totalAmount(rows: Array<{ amount_minor?: number }>) {
 
 function duplicateLabel(row: SuspiciousWalletTopupGroup) {
   return row.duplicate_type === "proof_url" ? "Same proof file" : "Same transfer reference";
+}
+
+function sourceLabel(value?: string | null) {
+  if (!value) return "Payment record";
+  if (value.includes("topup")) return "Wallet top-up";
+  if (value.includes("payout")) return "Payout";
+  if (value.includes("refund")) return "Refund";
+  if (value.includes("hold")) return "Room hold";
+  if (value.includes("settlement")) return "Prize queue";
+  if (value.includes("tournament")) return "Tournament payment";
+  if (value.includes("match")) return "Room payment";
+  return value.replaceAll("_", " ");
+}
+
+function paymentRecordLabel(value?: string | null) {
+  if (!value) return "Payment record";
+  if (value.includes("topup")) return "Top-up record";
+  if (value.includes("payout")) return "Payout record";
+  if (value.includes("refund")) return "Refund record";
+  if (value.includes("hold")) return "Reserved balance";
+  if (value.includes("entry")) return "Entry payment";
+  if (value.includes("settlement")) return "Prize review";
+  return value.replaceAll("_", " ");
+}
+
+function statusLabel(value?: string | null) {
+  if (!value) return "Recorded";
+  const labels: Record<string, string> = {
+    submitted: "Waiting for review",
+    approved: "Approved",
+    rejected: "Rejected",
+    requested: "Requested",
+    paid: "Paid",
+    completed: "Completed",
+    queued: "Queued",
+    active: "Active",
+    released: "Released",
+    payout_pending: "Payout queued"
+  };
+  return labels[value] ?? value.replaceAll("_", " ");
 }
 
 function timelineRows(dashboard?: AdminWalletDashboard) {
@@ -353,6 +396,14 @@ export function AdminWalletScreen() {
         <MetricCard tone="green" label="Locked funds" value={money("NGN", totalAmount(activeHolds))} detail={`${activeHolds.length} active locks`} />
       </View>
 
+      <ProviderReadinessPanel
+        topups={topups}
+        payouts={payouts}
+        duplicateCount={suspiciousDuplicates.length}
+        paymentHistoryCount={financeTimeline.length + ledgerEntries.length}
+        guardrails={dashboard?.guardrails ?? []}
+      />
+
       <SurfaceCard>
         <SectionHeader eyebrow="Search" title="Find wallet history" detail="Read-only lookup for user, room, or tournament payment history. It helps you see what happened without changing money." />
         <View style={styles.formStack}>
@@ -430,7 +481,7 @@ export function AdminWalletScreen() {
       />
 
       <SurfaceCard>
-        <SectionHeader eyebrow="Decision" title="Approve or reject top-up" detail="Approval writes wallet ledger entries. Rejection leaves the player balance unchanged." />
+        <SectionHeader eyebrow="Decision" title="Approve or reject top-up" detail="Approval creates wallet payment records. Rejection leaves the player balance unchanged." />
         {noticeFor("topupDecision") ? <FormNotice tone={noticeFor("topupDecision")!.tone} message={noticeFor("topupDecision")!.message} /> : null}
         {selectedTopup ? (
           <SelectedMoneyPanel label="Selected top-up" amount={money(selectedTopup.currency, selectedTopup.amount_minor)} detail={`Player ${shortId(selectedTopup.user_id as string | undefined)} - ${shortId(selectedTopup.transfer_reference)}`} />
@@ -513,6 +564,59 @@ function MetricCard({ tone, label, value, detail }: { tone: Tone; label: string;
       <Text style={[styles.metricValue, styles[`${tone}Text`]]}>{value}</Text>
       <Text style={styles.metricDetail}>{detail}</Text>
     </SurfaceCard>
+  );
+}
+
+function ProviderReadinessPanel({
+  topups,
+  payouts,
+  duplicateCount,
+  paymentHistoryCount,
+  guardrails
+}: {
+  topups: WalletTopup[];
+  payouts: WalletPayoutRequest[];
+  duplicateCount: number;
+  paymentHistoryCount: number;
+  guardrails: string[];
+}) {
+  const matchedReferenceCount = topups.filter((row) => Boolean(row.transfer_reference?.trim())).length;
+  const payoutReferenceNeeded = payouts.filter((row) => row.status === "requested").length;
+  return (
+    <SurfaceCard style={styles.providerPanel}>
+      <SectionHeader
+        eyebrow="Automation ready"
+        title="Provider boundary"
+        detail="Kora, Monnify, or another approved provider can plug into this same review flow later. Until then, admins still match bank alerts, proof, references, and payouts clearly."
+      />
+      <View style={styles.readinessGrid}>
+        <ReadinessItem icon={<ShieldCheck color={colors.greenDark} size={19} />} title="Payment status" detail={`${topups.length} top-up(s), ${payouts.length} payout request(s)`} tone="green" />
+        <ReadinessItem icon={<SearchCheck color={colors.cyan} size={19} />} title="Matching queue" detail={`${paymentHistoryCount} payment record(s) visible`} tone="cyan" />
+        <ReadinessItem icon={<ShieldAlert color={colors.red} size={19} />} title="Duplicate checks" detail={duplicateCount ? `${duplicateCount} warning(s) to review` : "No active duplicate warning"} tone={duplicateCount ? "red" : "green"} />
+        <ReadinessItem icon={<Link2 color={colors.amber} size={19} />} title="Bank reference matching" detail={`${matchedReferenceCount} submitted reference(s), ${payoutReferenceNeeded} payout reference(s) needed`} tone="amber" />
+      </View>
+      <View style={styles.operatorAuditPanel}>
+        <Text style={styles.rowTitle}>Operator review trail</Text>
+        <Text style={styles.rowMeta}>Every approval, rejection, payout, refund, and payment proof check stays tied to a player, room, tournament, note, and time.</Text>
+        {guardrails.length ? (
+          guardrails.slice(0, 3).map((item) => <Text key={item} style={styles.guardrailText}>{item}</Text>)
+        ) : (
+          <Text style={styles.guardrailText}>Provider automation is not live yet. Manual review remains the approved path.</Text>
+        )}
+      </View>
+    </SurfaceCard>
+  );
+}
+
+function ReadinessItem({ icon, title, detail, tone }: { icon: React.ReactNode; title: string; detail: string; tone: Tone }) {
+  return (
+    <View style={[styles.readinessItem, styles[`${tone}SoftBorder`]]}>
+      <View style={styles.readinessIcon}>{icon}</View>
+      <View style={styles.fill}>
+        <Text style={styles.readinessTitle}>{title}</Text>
+        <Text style={styles.rowMeta}>{detail}</Text>
+      </View>
+    </View>
   );
 }
 
@@ -613,7 +717,7 @@ function HoldRow({ hold }: { hold: WalletHold }) {
         <View style={styles.fill}>
           <Badge tone="green">{hold.status ?? "active"}</Badge>
           <Text style={styles.rowTitle}>{money(hold.currency, hold.amount_minor)}</Text>
-          <Text style={styles.rowMeta}>{hold.source_type ?? "source"}: {shortId(hold.source_id)}</Text>
+          <Text style={styles.rowMeta}>{sourceLabel(hold.source_type)}: {shortId(hold.source_id)}</Text>
         </View>
         <Text style={styles.dateText}>{dateLabel(hold.created_at)}</Text>
       </View>
@@ -684,13 +788,13 @@ function LedgerRow({ entry }: { entry: WalletLedgerEntry }) {
     <View style={styles.simpleRow}>
       <View style={styles.cardHeader}>
         <View style={styles.fill}>
-          <Badge tone={entry.direction === "credit" ? "green" : "amber"}>{entry.direction ?? "entry"}</Badge>
+          <Badge tone={entry.direction === "credit" ? "green" : "amber"}>{entry.direction === "credit" ? "Credit" : entry.direction === "debit" ? "Debit" : "Record"}</Badge>
           <Text style={styles.rowTitle}>{money(entry.currency, entry.amount_minor)}</Text>
-          <Text style={styles.rowMeta}>{entry.entry_type ?? "entry"} / {entry.bucket ?? "wallet"}</Text>
+          <Text style={styles.rowMeta}>{paymentRecordLabel(entry.entry_type)} / Wallet</Text>
         </View>
         <Text style={styles.dateText}>{dateLabel(entry.created_at)}</Text>
       </View>
-      <Text style={styles.mutedMono}>{entry.source_type ?? "source"}: {entry.source_id ?? "none"}</Text>
+      <Text style={styles.mutedMono}>{sourceLabel(entry.source_type)}: {entry.source_id ?? "none"}</Text>
     </View>
   );
 }
@@ -700,9 +804,9 @@ function TimelineRow({ row }: { row: WalletFinancialTimelineItem }) {
     <View style={styles.simpleRow}>
       <View style={styles.cardHeader}>
         <View style={styles.fill}>
-          <Badge tone="cyan">{row.source_table}</Badge>
-          <Text style={styles.rowTitle}>{row.event_type}</Text>
-          <Text style={styles.rowMeta}>{row.status ?? "recorded"}{row.detail ? ` - ${row.detail}` : ""}</Text>
+          <Badge tone="cyan">{sourceLabel(row.source_table)}</Badge>
+          <Text style={styles.rowTitle}>{paymentRecordLabel(row.event_type)}</Text>
+          <Text style={styles.rowMeta}>{statusLabel(row.status)}{row.detail ? ` - ${row.detail}` : ""}</Text>
         </View>
         <Text style={styles.rowStrong}>{row.currency ? money(row.currency, row.amount_minor ?? 0) : "No amount"}</Text>
       </View>
@@ -868,6 +972,17 @@ const styles = StyleSheet.create({
   sectionTitle: { marginTop: spacing.xs, color: colors.ink, fontSize: 24, lineHeight: 30, fontWeight: "900" },
   formStack: { gap: spacing.sm },
   warningPanel: { borderColor: "#ffc6d0" },
+  providerPanel: { borderColor: "#b6f4db" },
+  readinessGrid: { gap: spacing.sm },
+  readinessItem: { flexDirection: "row", alignItems: "center", gap: spacing.md, borderWidth: 1, borderRadius: radius.md, backgroundColor: colors.surfaceAlt, padding: spacing.md },
+  readinessIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.white, alignItems: "center", justifyContent: "center" },
+  readinessTitle: { color: colors.ink, fontSize: 15, lineHeight: 20, fontWeight: "900" },
+  cyanSoftBorder: { borderColor: "#b9eef8" },
+  greenSoftBorder: { borderColor: "#b6f4db" },
+  amberSoftBorder: { borderColor: "#ffdf9d" },
+  redSoftBorder: { borderColor: "#ffc6d0" },
+  operatorAuditPanel: { borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, backgroundColor: colors.white, padding: spacing.md, gap: spacing.xs },
+  guardrailText: { color: colors.muted, fontSize: 13, lineHeight: 20, fontWeight: "800" },
   duplicateCard: { borderRadius: radius.lg, borderWidth: 1, borderColor: "#ffc6d0", backgroundColor: colors.redSoft, padding: spacing.md, gap: spacing.sm },
   rowBetween: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },
   redStrong: { color: colors.red, fontSize: 18, fontWeight: "900" },

@@ -23,6 +23,8 @@ function encoded(value: string) {
 
 function matchSection(actionUrl: string, notificationType: string) {
   if (notificationType.startsWith("match_result_response")) return "result";
+  if (notificationType.startsWith("match_result_")) return "result";
+  if (notificationType.startsWith("room_invite_")) return "players";
   if (actionUrl.includes("#result")) return "result";
   if (actionUrl.includes("#funding")) return "funding";
   if (actionUrl.includes("#live")) return "live";
@@ -33,6 +35,8 @@ function matchSection(actionUrl: string, notificationType: string) {
 
 function matchFocus(actionUrl: string, notificationType: string) {
   if (notificationType.startsWith("match_result_response") || actionUrl.includes("#result-response")) return "result-response";
+  if (notificationType.startsWith("match_result_")) return "result-claim";
+  if (notificationType.startsWith("room_invite_")) return "players-list";
   if (actionUrl.includes("#result")) return "result-claim";
   if (actionUrl.includes("#funding")) return "funding-action";
   if (actionUrl.includes("#live")) return "live-action";
@@ -67,6 +71,20 @@ export function routeFromNotificationPayload(input: NotificationRouteInput): Hre
   const actionUrl = input.actionUrl ?? "";
   const notificationType = input.notificationType ?? "";
   const announcementId = metadataText(input, "announcement_id");
+
+  if (notificationType === "chat_dm_request" || notificationType === "chat_dm_request_declined") {
+    return "/(app)/chat/dm-requests" as Href;
+  }
+
+  if (notificationType === "chat_dm_request_accepted") {
+    const channelSlug = metadataText(input, "channel_slug");
+    if (channelSlug) return `/(app)/chat/${encoded(channelSlug)}` as Href;
+    return "/(app)/(tabs)/chat" as Href;
+  }
+
+  if (notificationType === "room_invite") {
+    return "/(app)/notifications" as Href;
+  }
 
   if (notificationType.includes("announcement") && announcementId) {
     return `/community/announcements/${encoded(announcementId)}` as Href;

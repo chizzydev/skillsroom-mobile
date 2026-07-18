@@ -1,12 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
-import { Bell, ChevronRight, ExternalLink, MessageCircle, Plus, ShieldCheck, Swords, Trophy, Wallet } from "lucide-react-native";
+import { Bell, ChevronRight, Clock3, ExternalLink, MessageCircle, Plus, ShieldCheck, Swords, Trophy, Wallet } from "lucide-react-native";
 import { useEffect, useMemo } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { listChannels, listDmRequests } from "../../../api/chat";
 import { listNotifications } from "../../../api/notifications";
+import { playerEngagement } from "../../../api/player";
 import { profileOverview } from "../../../api/profile";
-import { listRooms } from "../../../api/rooms";
+import { listMatchChallenges, listRooms } from "../../../api/rooms";
 import { listTournaments } from "../../../api/tournaments";
 import { walletOverview } from "../../../api/wallet";
 import { AppScreen } from "../../../components/screen/AppScreen";
@@ -17,12 +18,14 @@ import { SurfaceCard } from "../../../components/ui/SurfaceCard";
 import { env } from "../../../config/env";
 import { colors, radius, shadow, spacing } from "../../../constants/theme";
 import { useAuthStore } from "../../../store/auth-store";
-import type { MatchRoom } from "../../../types/api";
+import type { MatchChallengeListRow, MatchRoom } from "../../../types/api";
 import { openNativeCommunity, openNativeGuide, openPublicWeb } from "../../public/navigation";
 
 type Tone = "cyan" | "green" | "amber" | "red";
 
 const liveRoomStatuses = ["funded", "active", "awaiting_results", "under_review", "disputed", "settlement_pending"];
+const challengesHref = "/challenges" as unknown as Parameters<typeof router.push>[0];
+const laddersHref = "/ladders" as unknown as Parameters<typeof router.push>[0];
 const roomSteps = [
   ["Open", "Find an opponent or share the room code."],
   ["Confirm", "Both players confirm entry before play starts."],
@@ -68,6 +71,8 @@ export function HomeScreen() {
   const profileQuery = useQuery({ queryKey: ["home", "profile"], queryFn: profileOverview });
   const walletQuery = useQuery({ queryKey: ["home", "wallet"], queryFn: walletOverview });
   const tournamentsQuery = useQuery({ queryKey: ["home", "tournaments"], queryFn: () => listTournaments({ limit: 6 }) });
+  const challengesQuery = useQuery({ queryKey: ["home", "challenges"], queryFn: () => listMatchChallenges({ limit: 6 }) });
+  const engagementQuery = useQuery({ queryKey: ["home", "engagement"], queryFn: () => playerEngagement() });
   const channelsQuery = useQuery({ queryKey: ["home", "channels"], queryFn: listChannels });
   const dmRequestsQuery = useQuery({ queryKey: ["home", "dm-requests"], queryFn: listDmRequests });
   const notificationsQuery = useQuery({ queryKey: ["notifications", "unread"], queryFn: () => listNotifications("unread") });
@@ -76,7 +81,12 @@ export function HomeScreen() {
   const openRooms = rooms.filter((room) => room.status === "open");
   const fundingRooms = rooms.filter((room) => room.status === "awaiting_funding" || room.status === "funding_review");
   const liveRooms = rooms.filter((room) => liveRoomStatuses.includes(String(room.status)));
+  const activeDisputes = rooms.filter((room) => room.status === "disputed" || room.status === "under_review");
   const priorityRooms = useMemo(() => [...rooms].sort((left, right) => roomRank(left) - roomRank(right)).slice(0, 3), [rooms]);
+  const challenges = challengesQuery.data ?? [];
+  const recommendedChallenges = useMemo(() => {
+    return [...challenges].sort((left, right) => (right.creator_trust_score ?? 0) - (left.creator_trust_score ?? 0)).slice(0, 2);
+  }, [challenges]);
   const unreadChannels = (channelsQuery.data ?? []).reduce((sum, channel) => sum + (channel.unread_count ?? 0), 0);
   const dmRequests = (dmRequestsQuery.data ?? []).filter((request) => request.status === "pending").length;
   const unreadNotifications = notificationsQuery.data?.length ?? 0;
@@ -87,6 +97,10 @@ export function HomeScreen() {
   const missingProfileItems = profile?.completion?.missing?.length ?? 0;
   const readinessCopy = missingProfileItems === 0 ? "Ready for rooms, prizes, and tournaments." : `${missingProfileItems} setup item${missingProfileItems === 1 ? "" : "s"} left.`;
   const tournaments = tournamentsQuery.data ?? [];
+  const openTournaments = tournaments.filter((tournament) => tournament.status === "published" || tournament.status === "registration_open").slice(0, 2);
+  const missions = engagementQuery.data?.missions ?? [];
+  const nextMission = missions.find((mission) => !mission.completed) ?? missions[0];
+  const dailyLeader = engagementQuery.data?.daily_ladders?.[0];
 
   useEffect(() => {
     const identity = profile?.profile ?? profile?.user;
@@ -107,19 +121,19 @@ export function HomeScreen() {
             {unreadNotifications + dmRequests > 0 ? <Text style={styles.inboxCount}>{unreadNotifications + dmRequests}</Text> : null}
           </Pressable>
         </View>
-        <Text style={styles.heroTitle}>Welcome back, {firstName(profileName)}.</Text>
-        <Text style={styles.heroCopy}>Find a fair room, confirm entry once, play under clear rules, and keep every result easy to prove.</Text>
+        <Text style={styles.heroTitle}>What can you play now, {firstName(profileName)}?</Text>
+        <Text style={styles.heroCopy}>Jump into open rooms, accept a challenge, enter a tournament, or post a new challenge for another player.</Text>
         <View style={styles.heroActions}>
-          <AppButton style={styles.heroAction} onPress={() => router.push("/(app)/rooms/new")}>Create room</AppButton>
+          <AppButton style={styles.heroAction} onPress={() => router.push(challengesHref)}>Create challenge</AppButton>
           <AppButton style={styles.heroAction} variant="secondary" onPress={() => router.push("/(app)/rooms/join")}>Join code</AppButton>
         </View>
       </SurfaceCard>
 
       <View style={styles.statsGrid}>
-        <MetricCard label="Open" value={openRooms.length} detail="Can be joined" tone="cyan" icon={<Swords color={colors.cyan} size={20} />} />
-        <MetricCard label="Entries" value={fundingRooms.length} detail="Needs confirmation" tone="amber" icon={<ShieldCheck color={colors.amber} size={20} />} />
-        <MetricCard label="Live" value={liveRooms.length} detail="Play or finish" tone="green" icon={<Trophy color={colors.greenDark} size={20} />} />
-        <MetricCard label="Unread" value={unreadChannels} detail="Chat signals" tone="red" icon={<MessageCircle color={colors.red} size={20} />} />
+        <MetricCard label="Rooms" value={openRooms.length} detail="Open now" tone="cyan" icon={<Swords color={colors.cyan} size={20} />} />
+        <MetricCard label="Challenges" value={challenges.length} detail="Ready to accept" tone="green" icon={<ShieldCheck color={colors.greenDark} size={20} />} />
+        <MetricCard label="Tourneys" value={openTournaments.length} detail="Open entries" tone="amber" icon={<Trophy color={colors.amber} size={20} />} />
+        <MetricCard label="Disputes" value={activeDisputes.length} detail="Needs review" tone="red" icon={<MessageCircle color={colors.red} size={20} />} />
       </View>
 
       {roomsQuery.isError || walletQuery.isError || profileQuery.isError ? (
@@ -134,6 +148,63 @@ export function HomeScreen() {
         <ActionTile title="Balance" value={money(availableBalance, currency)} detail="Available for entry" icon={<Wallet color={colors.greenDark} size={20} />} onPress={() => router.push("/(app)/(tabs)/wallet")} />
         <ActionTile title="Readiness" value={missingProfileItems === 0 ? "Ready" : "Setup"} detail={readinessCopy} icon={<ShieldCheck color={colors.cyan} size={20} />} onPress={() => router.push("/(app)/(tabs)/profile")} />
       </View>
+
+      <SurfaceCard>
+        <SectionHeader eyebrow="Play now" title="Best things to join" action="Challenges" onPress={() => router.push(challengesHref)} />
+        {challengesQuery.isLoading || tournamentsQuery.isLoading ? <Text style={styles.copy}>Checking what is open now...</Text> : null}
+        {!challengesQuery.isLoading && !tournamentsQuery.isLoading && recommendedChallenges.length === 0 && openRooms.length === 0 && openTournaments.length === 0 ? (
+          <EmptyPanel title="Nothing open yet" body="Create a challenge and share it, or open a private room with a room code." action="Create challenge" onPress={() => router.push(challengesHref)} />
+        ) : null}
+        {recommendedChallenges.map((challenge) => <PlayNowChallenge key={challenge.id} challenge={challenge} />)}
+        {openRooms.slice(0, 2).map((room) => (
+          <PlayNowRow
+            action="Open room"
+            detail={`${money(room.entry_amount_minor, room.currency)} entry - ${room.participant_count ?? 0}/${room.max_participants ?? 2} players`}
+            icon={<Swords color={colors.cyan} size={20} />}
+            key={room.id}
+            onPress={() => router.push(`/(app)/rooms/${room.id}`)}
+            title={room.title ?? "Open room"}
+          />
+        ))}
+        {openTournaments.map((tournament) => (
+          <PlayNowRow
+            action="View"
+            detail={`${tournament.game_name ?? tournament.game_slug ?? "Tournament"} - ${tournament.registered_entry_count ?? 0}/${tournament.max_entries} entries`}
+            icon={<Trophy color={colors.amber} size={20} />}
+            key={tournament.id}
+            onPress={() => router.push(`/(app)/tournaments/${tournament.id}`)}
+            title={tournament.title}
+          />
+        ))}
+        {activeDisputes.length ? (
+          <View style={styles.disputePanel}>
+            <Clock3 color={colors.red} size={20} />
+            <View style={styles.roomMain}>
+              <Text style={styles.roomTitle}>{activeDisputes.length} active review{activeDisputes.length === 1 ? "" : "s"}</Text>
+              <Text style={styles.roomMeta}>Open the room, check proof, and follow the dispute status.</Text>
+            </View>
+          </View>
+        ) : null}
+      </SurfaceCard>
+
+      <SurfaceCard>
+        <SectionHeader eyebrow="Progress" title="Ladders and missions" action="Open" onPress={() => router.push(laddersHref)} />
+        {engagementQuery.isLoading ? <Text style={styles.copy}>Loading progress...</Text> : null}
+        {dailyLeader ? (
+          <PlayNowRow
+            action="Daily"
+            detail={`${dailyLeader.game_name} - ${dailyLeader.wins} wins - ${dailyLeader.score} points`}
+            icon={<Trophy color={colors.amber} size={20} />}
+            onPress={() => router.push(laddersHref)}
+            title={`#${dailyLeader.rank} ${dailyLeader.display_name ?? dailyLeader.username ?? "Skillsroom player"}`}
+          />
+        ) : null}
+        {nextMission ? (
+          <MissionPreview mission={nextMission} onPress={() => router.push(laddersHref)} />
+        ) : !engagementQuery.isLoading ? (
+          <EmptyPanel title="No missions yet" body="Finish your setup and play activity will start turning into missions." action="Open ladders" onPress={() => router.push(laddersHref)} />
+        ) : null}
+      </SurfaceCard>
 
       <SurfaceCard>
         <SectionHeader eyebrow="Lobby" title="Rooms needing action" action="View all" onPress={() => router.push("/(app)/(tabs)/rooms")} />
@@ -251,6 +322,60 @@ function SectionHeader({ eyebrow, title, action, onPress }: { eyebrow: string; t
         <Text style={styles.sectionActionText}>{action}</Text>
       </Pressable>
     </View>
+  );
+}
+
+function PlayNowChallenge({ challenge }: { challenge: MatchChallengeListRow }) {
+  return (
+    <PlayNowRow
+      action="Accept"
+      detail={`${money(challenge.entry_amount_minor, challenge.currency)} entry - ${challenge.platform} - ${challenge.region}`}
+      icon={<ShieldCheck color={colors.greenDark} size={20} />}
+      onPress={() => router.push(challengesHref)}
+      title={challenge.title || `${challenge.game_name ?? "Game"} challenge`}
+    />
+  );
+}
+
+function PlayNowRow({
+  action,
+  detail,
+  icon,
+  onPress,
+  title
+}: {
+  action: string;
+  detail: string;
+  icon: React.ReactNode;
+  onPress: () => void;
+  title: string;
+}) {
+  return (
+    <Pressable style={styles.playRow} onPress={onPress}>
+      <View style={styles.playIcon}>{icon}</View>
+      <View style={styles.roomMain}>
+        <Text style={styles.roomTitle}>{title}</Text>
+        <Text style={styles.roomMeta}>{detail}</Text>
+      </View>
+      <Text style={styles.playAction}>{action}</Text>
+    </Pressable>
+  );
+}
+
+function MissionPreview({ mission, onPress }: { mission: { title: string; detail: string; progress: number; target: number; completed: boolean }; onPress: () => void }) {
+  const percent = mission.target > 0 ? Math.max(0, Math.min(100, Math.round((mission.progress / mission.target) * 100))) : 0;
+  return (
+    <Pressable style={styles.missionPreview} onPress={onPress}>
+      <View style={styles.missionTop}>
+        <Badge tone={mission.completed ? "green" : "cyan"}>{mission.completed ? "Done" : "Next mission"}</Badge>
+        <Text style={styles.missionCount}>{mission.progress}/{mission.target}</Text>
+      </View>
+      <Text style={styles.roomTitle}>{mission.title}</Text>
+      <Text style={styles.roomMeta}>{mission.detail}</Text>
+      <View style={styles.progressTrack}>
+        <View style={[styles.progressFill, { width: `${percent}%` }]} />
+      </View>
+    </Pressable>
   );
 }
 
@@ -384,6 +509,15 @@ const styles = StyleSheet.create({
   eventRow: { borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, padding: spacing.md, gap: spacing.md, backgroundColor: colors.surfaceAlt },
   eventText: { gap: spacing.xs },
   communityRow: { flexDirection: "row", gap: spacing.md, alignItems: "flex-start", borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, padding: spacing.md, backgroundColor: colors.surfaceAlt },
+  playRow: { flexDirection: "row", gap: spacing.md, alignItems: "center", borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, padding: spacing.md, backgroundColor: colors.surfaceAlt },
+  playIcon: { width: 40, height: 40, borderRadius: radius.md, backgroundColor: colors.white, alignItems: "center", justifyContent: "center" },
+  playAction: { color: colors.ink, fontSize: 12, fontWeight: "900", textTransform: "uppercase" },
+  disputePanel: { flexDirection: "row", gap: spacing.md, alignItems: "flex-start", borderWidth: 1, borderColor: "#ffc6d0", borderRadius: radius.md, padding: spacing.md, backgroundColor: colors.redSoft },
+  missionPreview: { borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, backgroundColor: colors.surfaceAlt, padding: spacing.md, gap: spacing.sm },
+  missionTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing.sm },
+  missionCount: { color: colors.faint, fontSize: 12, fontWeight: "900" },
+  progressTrack: { height: 10, borderRadius: radius.pill, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, overflow: "hidden" },
+  progressFill: { height: "100%", borderRadius: radius.pill, backgroundColor: colors.green },
   emptyPanel: { borderWidth: 1, borderColor: colors.line, borderStyle: "dashed", borderRadius: radius.md, backgroundColor: colors.surfaceAlt, padding: spacing.lg, gap: spacing.sm },
   emptyAction: { alignSelf: "flex-start", minHeight: 38, borderRadius: radius.pill, backgroundColor: colors.green, flexDirection: "row", alignItems: "center", gap: spacing.xs, paddingHorizontal: spacing.md },
   emptyActionText: { color: colors.navy, fontWeight: "900" },

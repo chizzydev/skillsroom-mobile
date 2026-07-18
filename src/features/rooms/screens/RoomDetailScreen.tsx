@@ -206,6 +206,41 @@ function resultResponseWindowExpired(claim?: MatchResultClaim | null) {
   return Number.isFinite(dueAt) && dueAt <= Date.now();
 }
 
+function responseCountdown(claim?: MatchResultClaim | null) {
+  if (!claim?.opponent_response_due_at) return "No response deadline shown";
+  const due = new Date(claim.opponent_response_due_at).getTime();
+  const diff = due - Date.now();
+  if (!Number.isFinite(due)) return "No response deadline shown";
+  if (diff <= 0) return "Response time is overdue";
+  const minutes = Math.ceil(diff / 60000);
+  if (minutes < 60) return `${minutes}m left`;
+  const hours = Math.ceil(minutes / 60);
+  if (hours < 24) return `${hours}h left`;
+  return `${Math.ceil(hours / 24)}d left`;
+}
+
+function resultStatusCopy(claim?: MatchResultClaim | null, room?: MatchRoom) {
+  if (!claim) return { label: "Waiting for result", detail: "A player still needs to submit the winner, score, and proof.", tone: "amber" as const };
+  if (claim.status === "opponent_agreed") return { label: "Opponent agreed", detail: "The result can move to final review and prize handling.", tone: "green" as const };
+  if (claim.status === "opponent_disputed") return { label: "Dispute open", detail: "The result needs team review before a winner or refund decision.", tone: "red" as const };
+  if (claim.status === "admin_approved") return { label: "Winner confirmed", detail: "A final result decision has been made.", tone: "green" as const };
+  if (claim.status === "admin_rejected") return { label: "Result rejected", detail: "The result claim was not accepted after review.", tone: "red" as const };
+  if (claim.status === "withdrawn") return { label: "Result withdrawn", detail: "The claim was withdrawn. A fresh result may be needed.", tone: "amber" as const };
+  if (room?.status === "under_review") return { label: "Team review", detail: "Proof and responses are being checked.", tone: "amber" as const };
+  if (room?.status === "disputed") return { label: "Dispute review", detail: "The room is paused while the dispute is reviewed.", tone: "red" as const };
+  return { label: "Opponent response", detail: "Waiting for the other player to agree or dispute.", tone: "cyan" as const };
+}
+
+function finalDecisionSummary(claim?: MatchResultClaim | null, room?: MatchRoom) {
+  if (claim?.status === "admin_approved") return "Final decision: winner confirmed from the submitted proof.";
+  if (claim?.status === "admin_rejected") return "Final decision: this result claim was rejected.";
+  if (room?.status === "completed") return "Final decision is complete for this room.";
+  if (room?.status === "settlement_pending") return "Final decision is ready for prize review.";
+  if (room?.status === "refunded") return "Final decision: refund path was used.";
+  if (room?.status === "voided") return "Final decision: room was voided.";
+  return "No final decision yet.";
+}
+
 function canManageStreams(userRole?: string, room?: MatchRoom, userId?: string) {
   if (!userId) return false;
   if (["support", "moderator", "admin", "owner"].includes(userRole ?? "")) return true;
@@ -866,7 +901,7 @@ export function RoomDetailScreen() {
           <Text style={styles.sectionTitle}>Match result</Text>
           {activeSectionNotice ? <FormNotice tone={activeSectionNotice.tone} message={activeSectionNotice.message} /> : null}
           {resultsQuery.isError ? <FormNotice tone="info" message="Result details are only visible to room participants." /> : null}
-          {claim ? <FormNotice tone="info" message={`Latest claim: ${claim.status ?? "submitted"}${claim.score_summary ? `, ${claim.score_summary}` : ""}.`} /> : <Text style={styles.copy}>No result claim has been submitted yet.</Text>}
+          <ResultReviewPanel claim={claim} room={room} evidenceCount={resultsQuery.data?.evidence_items?.length ?? 0} />
           {claim?.status === "submitted" && canRespondToResult ? (
             <FormNotice
               tone={resultResponseExpired ? "error" : "info"}
@@ -891,6 +926,7 @@ export function RoomDetailScreen() {
                 : `Opponent response due: ${dateTimeLabel(claim.opponent_response_due_at)}.`}
             />
           ) : null}
+          <EvidenceChecklist hasScore={Boolean(scoreSummary.trim() || claim?.score_summary)} hasProof={Boolean(evidenceUrl.trim() || (resultsQuery.data?.evidence_items ?? []).length)} />
           {(resultsQuery.data?.evidence_items ?? []).length ? (
             <View style={styles.evidenceList}>
               {(resultsQuery.data?.evidence_items ?? []).slice(0, 4).map((item) => (
@@ -918,6 +954,7 @@ export function RoomDetailScreen() {
           ) : null}
           {canRespondToResult ? (
             <View onLayout={registerFocusLayout("result-response", "result-claim")} style={styles.focusBlock}>
+              <ResponseDecisionGuide overdue={resultResponseExpired} />
               <TextInput value={responseNote} onChangeText={setResponseNote} placeholder="Response note, optional" placeholderTextColor={colors.faint} style={styles.input} />
               <View style={styles.actions}>
                 <AppButton style={styles.actionButton} loading={responseMutation.isPending} onPress={() => responseMutation.mutate("agree")}>Agree</AppButton>
@@ -925,6 +962,7 @@ export function RoomDetailScreen() {
               </View>
             </View>
           ) : null}
+          <FinalDecisionCard claim={claim} room={room} />
         </SurfaceCard>
         </View>
       ) : null}
@@ -947,6 +985,87 @@ export function RoomDetailScreen() {
         </View>
       ) : null}
     </AppScreen>
+  );
+}
+
+function ResultReviewPanel({ claim, room, evidenceCount }: { claim: MatchResultClaim | null; room?: MatchRoom; evidenceCount: number }) {
+  const status = resultStatusCopy(claim, room);
+  return (
+    <View style={styles.resultPanel}>
+      <View style={styles.playerCardHeader}>
+        <View style={styles.fill}>
+          <Text style={styles.quickLabel}>Review status</Text>
+          <Text style={styles.itemTitle}>{status.label}</Text>
+          <Text style={styles.copy}>{status.detail}</Text>
+        </View>
+        <Badge tone={status.tone}>{claim ? status.label : "Waiting"}</Badge>
+      </View>
+      <View style={styles.resultStepGrid}>
+        <ResultStep done={Boolean(claim)} label="Result claim" detail={claim?.score_summary ?? "Winner and score not submitted yet"} />
+        <ResultStep done={evidenceCount > 0} label="Proof saved" detail={`${evidenceCount} file${evidenceCount === 1 ? "" : "s"} attached`} />
+        <ResultStep done={Boolean(claim && claim.status !== "submitted")} label="Opponent response" detail={claim ? responseCountdown(claim) : "Starts after result claim"} />
+        <ResultStep done={["admin_approved", "admin_rejected"].includes(String(claim?.status)) || ["completed", "refunded", "voided"].includes(String(room?.status))} label="Final decision" detail={finalDecisionSummary(claim, room)} />
+      </View>
+    </View>
+  );
+}
+
+function ResultStep({ done, label, detail }: { done: boolean; label: string; detail: string }) {
+  return (
+    <View style={[styles.resultStep, done && styles.resultStepDone]}>
+      <BadgeCheck color={done ? colors.greenDark : colors.faint} size={18} />
+      <View style={styles.fill}>
+        <Text style={styles.resultStepLabel}>{label}</Text>
+        <Text style={styles.resultStepDetail}>{detail}</Text>
+      </View>
+    </View>
+  );
+}
+
+function EvidenceChecklist({ hasProof, hasScore }: { hasProof: boolean; hasScore: boolean }) {
+  return (
+    <View style={styles.checklist}>
+      <Text style={styles.quickLabel}>Proof checklist</Text>
+      <ChecklistRow done={hasScore} text="Score summary is clear." />
+      <ChecklistRow done={hasProof} text="Screenshot or video proof is attached." />
+      <ChecklistRow done={hasProof} text="Player names, game handles, and final scoreboard are visible." />
+      <ChecklistRow done={hasProof} text="Upload before leaving the room so review can move quickly." />
+    </View>
+  );
+}
+
+function ChecklistRow({ done, text }: { done: boolean; text: string }) {
+  return (
+    <View style={styles.checklistRow}>
+      <View style={[styles.checkDot, done && styles.checkDotDone]}>
+        {done ? <BadgeCheck color={colors.white} size={14} /> : null}
+      </View>
+      <Text style={styles.copy}>{text}</Text>
+    </View>
+  );
+}
+
+function ResponseDecisionGuide({ overdue }: { overdue: boolean }) {
+  return (
+    <View style={[styles.responseGuide, overdue && styles.responseGuideLate]}>
+      <Clock3 color={overdue ? colors.red : colors.cyan} size={20} />
+      <View style={styles.fill}>
+        <Text style={styles.itemTitle}>{overdue ? "Response time is overdue" : "Choose your response"}</Text>
+        <Text style={styles.copy}>Tap Agree only if the winner, score, and proof are correct. Tap Dispute if proof is missing, unclear, or the score is wrong.</Text>
+      </View>
+    </View>
+  );
+}
+
+function FinalDecisionCard({ claim, room }: { claim: MatchResultClaim | null; room?: MatchRoom }) {
+  return (
+    <View style={styles.finalCard}>
+      <Trophy color={colors.amber} size={22} />
+      <View style={styles.fill}>
+        <Text style={styles.itemTitle}>Final decision summary</Text>
+        <Text style={styles.copy}>{finalDecisionSummary(claim, room)}</Text>
+      </View>
+    </View>
   );
 }
 
@@ -1062,6 +1181,19 @@ const styles = StyleSheet.create({
   instructionIndex: { width: 38, height: 38, borderRadius: 14, textAlign: "center", textAlignVertical: "center", color: colors.cyan, backgroundColor: colors.cyanSoft, fontSize: 18, fontWeight: "900" },
   inviteBox: { borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, padding: spacing.md, backgroundColor: colors.surfaceAlt, gap: spacing.sm },
   embeddedCard: { backgroundColor: colors.surfaceAlt, shadowOpacity: 0, elevation: 0 },
+  resultPanel: { borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, backgroundColor: colors.surfaceAlt, padding: spacing.md, gap: spacing.md },
+  resultStepGrid: { gap: spacing.sm },
+  resultStep: { flexDirection: "row", gap: spacing.sm, alignItems: "flex-start", borderWidth: 1, borderColor: colors.line, borderRadius: radius.sm, backgroundColor: colors.white, padding: spacing.sm },
+  resultStepDone: { borderColor: "#b6f4db", backgroundColor: colors.greenSoft },
+  resultStepLabel: { color: colors.ink, fontSize: 13, fontWeight: "900" },
+  resultStepDetail: { color: colors.muted, fontSize: 12, lineHeight: 17, fontWeight: "700" },
+  checklist: { borderWidth: 1, borderColor: "#aeefff", borderRadius: radius.md, backgroundColor: colors.cyanSoft, padding: spacing.md, gap: spacing.sm },
+  checklistRow: { flexDirection: "row", gap: spacing.sm, alignItems: "flex-start" },
+  checkDot: { width: 22, height: 22, borderRadius: 11, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white, alignItems: "center", justifyContent: "center", marginTop: 1 },
+  checkDotDone: { backgroundColor: colors.greenDark, borderColor: colors.greenDark },
+  responseGuide: { flexDirection: "row", gap: spacing.md, alignItems: "flex-start", borderWidth: 1, borderColor: "#aeefff", borderRadius: radius.md, backgroundColor: colors.cyanSoft, padding: spacing.md },
+  responseGuideLate: { borderColor: "#ffc6d0", backgroundColor: colors.redSoft },
+  finalCard: { flexDirection: "row", gap: spacing.md, alignItems: "flex-start", borderWidth: 1, borderColor: "#ffdf9d", borderRadius: radius.md, backgroundColor: colors.amberSoft, padding: spacing.md },
   evidenceList: { gap: spacing.sm },
   evidenceRow: { borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, padding: spacing.md, flexDirection: "row", gap: spacing.md, alignItems: "center", backgroundColor: colors.surfaceAlt },
   sectionNav: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },

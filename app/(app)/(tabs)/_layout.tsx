@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { MessageCircle, Trophy, UserRound, Wallet, House, Swords } from "lucide-react-native";
+import { MessageCircle, Trophy, UserRound, Wallet, House, Swords, Target } from "lucide-react-native";
 import { useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "../../../src/constants/theme";
@@ -42,6 +42,7 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen name="home" options={{ title: "Home", tabBarIcon: ({ color }) => <House color={color} size={iconSize} strokeWidth={2.35} /> }} />
+      <Tabs.Screen name="challenges" options={{ title: compact ? "Play" : "Challenges", tabBarIcon: ({ color }) => <Target color={color} size={iconSize} strokeWidth={2.35} /> }} />
       <Tabs.Screen name="rooms" options={{ title: "Rooms", tabBarIcon: ({ color }) => <Swords color={color} size={iconSize} strokeWidth={2.35} /> }} />
       <Tabs.Screen name="chat" options={{ title: "Chat", tabBarIcon: ({ color }) => <MessageCircle color={color} size={iconSize} strokeWidth={2.35} /> }} />
       <Tabs.Screen name="tournaments" options={{ title: compact ? "Tour." : "Tourneys", tabBarIcon: ({ color }) => <Trophy color={color} size={iconSize} strokeWidth={2.35} /> }} />

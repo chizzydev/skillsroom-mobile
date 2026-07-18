@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
-import { ArrowLeft, Bell, ShieldCheck, Star, Trophy } from "lucide-react-native";
+import { ArrowLeft, Bell, CheckCircle2, MessageCircle, ShieldCheck, Star, Trophy } from "lucide-react-native";
 import { useMemo, useState } from "react";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Linking, Pressable, Share, StyleSheet, Text, View } from "react-native";
 import {
   communityAnnouncements,
   communityClans,
@@ -18,14 +18,16 @@ import { AppScreen } from "../../../components/screen/AppScreen";
 import { Badge } from "../../../components/ui/Badge";
 import { FeedbackState } from "../../../components/ui/FeedbackState";
 import { SurfaceCard } from "../../../components/ui/SurfaceCard";
+import { env } from "../../../config/env";
 import { colors, radius, shadow, spacing } from "../../../constants/theme";
 
-type CommunityTab = "hub" | "highlights" | "updates" | "clans" | "rankings";
+type CommunityTab = "hub" | "proof" | "highlights" | "updates" | "clans" | "rankings";
 type Tone = "cyan" | "green" | "amber" | "red";
 
 const communityArtwork = require("../../../../assets/marketing/skillsroom-premium/community-premium.png");
 const tabs: Array<{ key: CommunityTab; label: string }> = [
   { key: "hub", label: "Hub" },
+  { key: "proof", label: "Proof" },
   { key: "highlights", label: "Highlights" },
   { key: "updates", label: "Updates" },
   { key: "clans", label: "Clans" },
@@ -64,6 +66,33 @@ function readable(value?: string | null) {
 
 function winnerName(item: CommunityHighlight) {
   return item.champion_display_name ?? item.champion_username ?? item.champion_entry_name ?? "Winner pending";
+}
+
+function runnerUpName(item: CommunityHighlight) {
+  return item.runner_up_display_name ?? item.runner_up_username ?? item.runner_up_entry_name ?? "Runner-up pending";
+}
+
+function publicTournamentUrl(item: CommunityHighlight) {
+  return `${env.webAppUrl}/tournaments/${encodeURIComponent(item.tournament_slug || item.tournament_id)}`;
+}
+
+function highlightShareText(item: CommunityHighlight) {
+  return `${winnerName(item)} won ${item.title} on Skillsroom. Prize: ${money(item.projected_prize_minor, item.currency)}. ${publicTournamentUrl(item)}`;
+}
+
+async function shareHighlight(item: CommunityHighlight) {
+  const message = highlightShareText(item);
+  try {
+    await Share.share({ message, title: `${item.title} result` });
+  } catch {
+    const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
+    void Linking.openURL(url);
+  }
+}
+
+function openWhatsAppShare(item: CommunityHighlight) {
+  const url = `https://wa.me/?text=${encodeURIComponent(highlightShareText(item))}`;
+  void Linking.openURL(url);
 }
 
 export function CommunityHubScreen() {
@@ -166,6 +195,31 @@ export function CommunityHubScreen() {
             <SectionTitle eyebrow="Highlights" title="Winners and completed events" action="View all" onPress={() => setTab("highlights")} />
             {highlights.slice(0, 2).map((item) => <HighlightCard key={item.tournament_id} item={item} compact />)}
             {!highlights.length && !loading ? <EmptyPanel title="No winner highlights yet" body="Completed tournaments and winner moments will appear here." /> : null}
+          </SurfaceCard>
+        </>
+      ) : null}
+
+      {tab === "proof" ? (
+        <>
+          <SurfaceCard>
+            <SectionTitle eyebrow="Proof" title="Public proof board" />
+            <View style={styles.metricGrid}>
+              <MetricTile label="Completed rooms" value={compactNumber(metrics?.matches_completed)} detail="Finished matches" tone="green" />
+              <MetricTile label="Verified winners" value={compactNumber(metrics?.winners_crowned)} detail="Approved results" tone="amber" />
+              <MetricTile label="Reviews closed" value={compactNumber(metrics?.disputes_resolved)} detail="Resolved fairly" tone="cyan" />
+              <MetricTile label="Active clans" value={compactNumber(metrics?.clans_created)} detail="Groups to follow" tone="red" />
+            </View>
+            <ProofNote />
+          </SurfaceCard>
+          <SurfaceCard>
+            <SectionTitle eyebrow="Result cards" title="Shareable winner cards" />
+            {highlights.map((item) => <PublicResultCard key={item.tournament_id} item={item} />)}
+            {!highlights.length && !loading ? <EmptyPanel title="No public result cards yet" body="Approved completed events will create shareable proof cards." /> : null}
+          </SurfaceCard>
+          <SurfaceCard>
+            <SectionTitle eyebrow="Tournament history" title="Completed event trail" />
+            {highlights.map((item) => <TournamentHistoryRow key={`${item.tournament_id}:history`} item={item} />)}
+            {!highlights.length && !loading ? <EmptyPanel title="No completed event history yet" body="Finished tournaments will appear here once results are approved." /> : null}
           </SurfaceCard>
         </>
       ) : null}
@@ -273,7 +327,79 @@ function HighlightCard({ item, compact }: { item: CommunityHighlight; compact?: 
       <View style={styles.detailGrid}>
         <MiniSummary label="Prize" value={money(item.projected_prize_minor, item.currency)} />
         <MiniSummary label="Entries" value={String(item.registered_entry_count)} />
+        <MiniSummary label="Matches" value={String(item.completed_match_count)} />
       </View>
+      <View style={styles.shareActions}>
+        <Pressable style={styles.shareButton} onPress={() => void shareHighlight(item)}>
+          <MessageCircle color={colors.ink} size={16} />
+          <Text style={styles.shareButtonText}>Share result</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+function PublicResultCard({ item }: { item: CommunityHighlight }) {
+  return (
+    <SurfaceCard dark style={styles.resultCard}>
+      <View style={styles.itemTop}>
+        <Badge tone="green">Verified winner</Badge>
+        <Text style={styles.darkDate}>{formatDate(item.ends_at ?? item.starts_at)}</Text>
+      </View>
+      <Text style={styles.resultCardTitle}>{winnerName(item)}</Text>
+      <Text style={styles.resultCardCopy}>won {item.title} on Skillsroom</Text>
+      <View style={styles.resultCardStats}>
+        <DarkStat label="Prize" value={money(item.projected_prize_minor, item.currency)} />
+        <DarkStat label="Entries" value={String(item.registered_entry_count)} />
+        <DarkStat label="Matches" value={String(item.completed_match_count)} />
+      </View>
+      <View style={styles.resultCardFooter}>
+        <Text style={styles.resultCardMeta}>{item.game_name} - {readable(item.format)}</Text>
+        <Pressable style={styles.whatsappButton} onPress={() => openWhatsAppShare(item)}>
+          <MessageCircle color={colors.navy} size={16} />
+          <Text style={styles.whatsappButtonText}>WhatsApp</Text>
+        </Pressable>
+      </View>
+    </SurfaceCard>
+  );
+}
+
+function TournamentHistoryRow({ item }: { item: CommunityHighlight }) {
+  return (
+    <View style={styles.historyRow}>
+      <View style={styles.historyIcon}>
+        <CheckCircle2 color={colors.greenDark} size={18} />
+      </View>
+      <View style={styles.main}>
+        <Text style={styles.itemTitle}>{item.title}</Text>
+        <Text style={styles.copy}>{winnerName(item)} beat the field. Runner-up: {runnerUpName(item)}.</Text>
+        <View style={styles.detailGrid}>
+          <MiniSummary label="Game" value={item.game_name} />
+          <MiniSummary label="Prize" value={money(item.projected_prize_minor, item.currency)} />
+          <MiniSummary label="Finished" value={formatDate(item.ends_at ?? item.starts_at)} />
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function ProofNote() {
+  return (
+    <View style={styles.proofNote}>
+      <ShieldCheck color={colors.greenDark} size={20} />
+      <View style={styles.main}>
+        <Text style={styles.proofNoteTitle}>Only approved activity becomes public proof.</Text>
+        <Text style={styles.copy}>Unfinished matches, open disputes, private proof files, and admin notes stay out of public result cards.</Text>
+      </View>
+    </View>
+  );
+}
+
+function DarkStat({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.darkStat}>
+      <Text style={styles.darkStatLabel}>{label}</Text>
+      <Text style={styles.darkStatValue}>{value}</Text>
     </View>
   );
 }
@@ -281,7 +407,10 @@ function HighlightCard({ item, compact }: { item: CommunityHighlight; compact?: 
 function ClanCard({ item }: { item: CommunityClan }) {
   const record = item.match_record;
   return (
-    <View style={styles.itemCard}>
+    <Pressable style={styles.itemCard} onPress={() => router.push({
+      pathname: "/community/organizers/[organizerIdOrSlug]",
+      params: { organizerIdOrSlug: item.slug }
+    } as never)}>
       <View style={styles.itemTop}>
         <Badge tone="cyan">{item.tag ?? "Clan"}</Badge>
         <Text style={styles.dateText}>{item.region}{item.city ? `, ${item.city}` : ""}</Text>
@@ -293,7 +422,8 @@ function ClanCard({ item }: { item: CommunityClan }) {
         <MiniSummary label="Record" value={`${record.wins}-${record.losses}-${record.draws}`} />
         <MiniSummary label="Wins" value={String(item.tournament_wins)} />
       </View>
-    </View>
+      <Text style={styles.contextText}>Open organizer space</Text>
+    </Pressable>
   );
 }
 
@@ -407,5 +537,24 @@ const styles = StyleSheet.create({
   scorePill: { flexDirection: "row", alignItems: "center", gap: 4, borderRadius: radius.pill, backgroundColor: colors.cyanSoft, paddingHorizontal: spacing.sm, minHeight: 32 },
   scoreText: { color: colors.ink, fontWeight: "900", fontSize: 12 },
   emptyPanel: { flexDirection: "row", alignItems: "flex-start", gap: spacing.md, borderWidth: 1, borderColor: colors.line, borderStyle: "dashed", borderRadius: radius.md, backgroundColor: colors.surfaceAlt, padding: spacing.md },
-  emptyTitle: { color: colors.ink, fontSize: 16, fontWeight: "900" }
+  emptyTitle: { color: colors.ink, fontSize: 16, fontWeight: "900" },
+  shareActions: { flexDirection: "row", justifyContent: "flex-start" },
+  shareButton: { minHeight: 42, borderRadius: radius.pill, backgroundColor: colors.cyanSoft, paddingHorizontal: spacing.md, flexDirection: "row", alignItems: "center", gap: spacing.xs },
+  shareButtonText: { color: colors.ink, fontSize: 13, fontWeight: "900" },
+  resultCard: { gap: spacing.md, overflow: "hidden" },
+  darkDate: { color: "#9fb0c2", fontSize: 11, fontWeight: "900", textTransform: "uppercase", letterSpacing: 1 },
+  resultCardTitle: { color: colors.white, fontSize: 30, lineHeight: 35, fontWeight: "900" },
+  resultCardCopy: { color: "#d7e2ed", fontSize: 16, lineHeight: 23, fontWeight: "800" },
+  resultCardStats: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  darkStat: { flexGrow: 1, flexBasis: "30%", borderWidth: 1, borderColor: "#1d3147", borderRadius: radius.md, backgroundColor: colors.navySoft, padding: spacing.md },
+  darkStatLabel: { color: "#9fb0c2", fontSize: 10, fontWeight: "900", textTransform: "uppercase", letterSpacing: 1 },
+  darkStatValue: { color: colors.white, fontSize: 15, lineHeight: 20, fontWeight: "900", marginTop: 4 },
+  resultCardFooter: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, alignItems: "center", justifyContent: "space-between" },
+  resultCardMeta: { color: "#b8c6d6", fontSize: 13, lineHeight: 19, fontWeight: "800", flexShrink: 1 },
+  whatsappButton: { minHeight: 42, borderRadius: radius.pill, backgroundColor: colors.green, paddingHorizontal: spacing.md, flexDirection: "row", alignItems: "center", gap: spacing.xs },
+  whatsappButtonText: { color: colors.navy, fontSize: 13, fontWeight: "900" },
+  historyRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.md, borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, backgroundColor: colors.surfaceAlt, padding: spacing.md },
+  historyIcon: { width: 38, height: 38, borderRadius: radius.md, backgroundColor: colors.greenSoft, alignItems: "center", justifyContent: "center" },
+  proofNote: { flexDirection: "row", alignItems: "flex-start", gap: spacing.md, borderWidth: 1, borderColor: "#b6f4db", borderRadius: radius.md, backgroundColor: colors.greenSoft, padding: spacing.md },
+  proofNoteTitle: { color: colors.ink, fontSize: 16, lineHeight: 21, fontWeight: "900" }
 });

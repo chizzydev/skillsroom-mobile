@@ -2,6 +2,10 @@ import type {
   CommunityLivestreamLink,
   GameCatalog,
   ManualFundingSubmission,
+  MatchChallenge,
+  MatchChallengeListRow,
+  MatchChallengeSkillLevel,
+  MatchChallengeVisibility,
   MatchParticipant,
   MatchResultClaim,
   MatchRoom,
@@ -19,6 +23,26 @@ export async function listRooms(status?: RoomListStatus) {
   return data.rooms ?? [];
 }
 
+export async function listMatchChallenges(input: {
+  game_slug?: string;
+  platform?: string;
+  region?: string;
+  skill_level?: MatchChallengeSkillLevel;
+  visibility?: MatchChallengeVisibility;
+  limit?: number;
+} = {}) {
+  const params = new URLSearchParams();
+  if (input.game_slug) params.set("game_slug", input.game_slug);
+  if (input.platform) params.set("platform", input.platform);
+  if (input.region) params.set("region", input.region);
+  if (input.skill_level) params.set("skill_level", input.skill_level);
+  if (input.visibility) params.set("visibility", input.visibility);
+  if (input.limit) params.set("limit", String(input.limit));
+  const query = params.toString() ? `?${params.toString()}` : "";
+  const data = await apiRequest<{ challenges: MatchChallengeListRow[] }>(`/match-rooms/challenges${query}`);
+  return data.challenges ?? [];
+}
+
 export async function createRoom(input: {
   game_slug: string;
   ruleset_slug: string;
@@ -32,6 +56,34 @@ export async function createRoom(input: {
     body: input
   });
   return data.room;
+}
+
+export async function createMatchChallenge(input: {
+  game_slug: string;
+  ruleset_slug: string;
+  entry_amount_minor: number;
+  commission_bps: number;
+  title?: string;
+  visibility: MatchChallengeVisibility;
+  platform: string;
+  region: string;
+  skill_level: MatchChallengeSkillLevel;
+  expires_at?: string;
+}) {
+  return apiRequest<{ room: MatchRoom; challenge: MatchChallenge }>("/match-rooms/challenges", {
+    method: "POST",
+    body: input
+  });
+}
+
+export async function acceptMatchChallenge(challengeId: string) {
+  return apiRequest<{ room: MatchRoom; participant: MatchParticipant; challenge: MatchChallenge }>(
+    `/match-rooms/challenges/${encodeURIComponent(challengeId)}/accept`,
+    {
+      method: "POST",
+      body: {}
+    }
+  );
 }
 
 export async function joinRoom(roomCode: string) {
