@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, ViewStyle } from "react-native";
+import { ActivityIndicator, Pressable, StyleProp, StyleSheet, Text, ViewStyle } from "react-native";
 import { colors, radius, shadow } from "../../constants/theme";
 
 export function AppButton({
@@ -17,7 +17,7 @@ export function AppButton({
   disabled?: boolean;
   loading?: boolean;
   loadingLabel?: string;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }) {
   const isDisabled = Boolean(disabled || loading);
   const visuallyDisabled = Boolean(disabled && !loading);

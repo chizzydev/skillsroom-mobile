@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { CheckCircle2, Clock3, Filter, Gamepad2, MapPin, Plus, ShieldCheck, Swords, Trophy, Users } from "lucide-react-native";
-import { useEffect, useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View, type LayoutChangeEvent } from "react-native";
 import { plainApiError } from "../../../api/errors";
 import { profileOverview } from "../../../api/profile";
 import { acceptMatchChallenge, createMatchChallenge, getGames, listMatchChallenges } from "../../../api/rooms";
@@ -37,6 +37,19 @@ const visibilityOptions: Array<{ value: MatchChallengeVisibility; label: string 
 
 const defaultPlatforms = ["Mobile", "PlayStation", "Xbox", "PC", "Cross-play"];
 const defaultRegions = ["Nigeria", "West Africa", "Africa", "Europe", "North America", "Any region"];
+const marketplacePlatforms = ["", ...defaultPlatforms];
+const marketplaceRegions = ["", ...defaultRegions.filter((region) => region.toLowerCase() !== "any region")];
+const marketplaceSkills: Array<{ value: "" | MatchChallengeSkillLevel; label: string }> = [
+  { value: "", label: "All skills" },
+  ...skillLevels
+];
+
+type MarketplaceFilters = {
+  game_slug?: string;
+  platform?: string;
+  region?: string;
+  skill_level?: MatchChallengeSkillLevel;
+};
 
 function money(minor?: number, currency = "NGN") {
   return `${currency} ${Math.round((minor ?? 0) / 100).toLocaleString()}`;
@@ -82,9 +95,29 @@ function missingText(key: string) {
   return displayLabel(key);
 }
 
+function cleanMarketplaceValue(value: string) {
+  const next = value.trim();
+  const normalized = next.toLowerCase();
+  if (!next || normalized === "any" || normalized === "all" || normalized === "any region" || normalized === "all regions") return undefined;
+  return next;
+}
+
+function filterSummary(filters: MarketplaceFilters, games: Array<{ slug?: string; name?: string }>) {
+  const active = [
+    filters.game_slug ? games.find((game) => game.slug === filters.game_slug)?.name ?? filters.game_slug : null,
+    filters.platform,
+    filters.region,
+    filters.skill_level ? displayLabel(filters.skill_level) : null
+  ].filter(Boolean);
+  return active.length ? `Filters: ${active.join(" / ")}` : "No filters selected";
+}
+
 export function ChallengesScreen() {
   const queryClient = useQueryClient();
   const { pushFeedback } = useActionFeedback();
+  const scrollRef = useRef<ScrollView | null>(null);
+  const marketplaceResultsYRef = useRef(0);
+  const shouldScrollToResultsRef = useRef(false);
   const currentUserId = useAuthStore((state) => state.user?.id);
   const [mode, setMode] = useState<ChallengeMode>("browse");
   const [selectedGameSlug, setSelectedGameSlug] = useState("");
@@ -97,8 +130,17 @@ export function ChallengesScreen() {
   const [entryAmount, setEntryAmount] = useState("2000");
   const [expiresInHours, setExpiresInHours] = useState("24");
   const [notice, setNotice] = useState<Notice>(null);
+  const [marketplaceGameSlug, setMarketplaceGameSlug] = useState("");
+  const [marketplacePlatform, setMarketplacePlatform] = useState("");
+  const [marketplaceRegion, setMarketplaceRegion] = useState("");
+  const [marketplaceSkillLevel, setMarketplaceSkillLevel] = useState<"" | MatchChallengeSkillLevel>("");
+  const [appliedMarketplaceFilters, setAppliedMarketplaceFilters] = useState<MarketplaceFilters>({});
 
-  const challengesQuery = useQuery({ queryKey: ["challenges", "open"], queryFn: () => listMatchChallenges({ limit: 40 }) });
+  const challengesQuery = useQuery({ queryKey: ["challenges", "open", "recommended"], queryFn: () => listMatchChallenges({ limit: 40 }) });
+  const marketplaceQuery = useQuery({
+    queryKey: ["challenges", "open", "marketplace", appliedMarketplaceFilters],
+    queryFn: () => listMatchChallenges({ ...appliedMarketplaceFilters, limit: 40 })
+  });
   const gamesQuery = useQuery({ queryKey: ["games"], queryFn: getGames });
   const profileQuery = useQuery({ queryKey: ["profile"], queryFn: profileOverview });
 
@@ -115,6 +157,7 @@ export function ChallengesScreen() {
   const profileReady = Boolean(profileQuery.data?.completion?.complete);
   const missing = profileQuery.data?.completion?.missing ?? [];
   const challenges = challengesQuery.data ?? [];
+  const marketplaceChallenges = marketplaceQuery.data ?? [];
   const recommended = challenges
     .filter((challenge) => challenge.visibility === "public")
     .sort((left, right) => (right.creator_trust_score ?? 0) - (left.creator_trust_score ?? 0))
@@ -128,12 +171,63 @@ export function ChallengesScreen() {
     setSelectedRulesetSlug(selectedRulesets[0]?.slug ?? "");
   }, [selectedGameSlug, selectedRulesets]);
 
+  useEffect(() => {
+    if (!marketplaceQuery.isFetching && shouldScrollToResultsRef.current) {
+      shouldScrollToResultsRef.current = false;
+      requestAnimationFrame(() => {
+        scrollRef.current?.scrollTo({ y: Math.max(0, marketplaceResultsYRef.current - spacing.sm), animated: true });
+      });
+    }
+  }, [marketplaceQuery.data, marketplaceQuery.isFetching]);
+
   const notify = (nextNotice: NonNullable<Notice>) => {
     setNotice(nextNotice);
     pushFeedback({
       tone: nextNotice.tone,
       title: nextNotice.tone === "error" ? "Challenge needs attention" : "Challenge updated",
       message: nextNotice.message
+    });
+  };
+
+  const handleMarketplaceResultsLayout = (event: LayoutChangeEvent) => {
+    marketplaceResultsYRef.current = event.nativeEvent.layout.y;
+  };
+
+  const scrollToMarketplaceResults = () => {
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({ y: Math.max(0, marketplaceResultsYRef.current - spacing.sm), animated: true });
+    });
+  };
+
+  const applyMarketplaceFilters = () => {
+    const nextFilters: MarketplaceFilters = {
+      game_slug: cleanMarketplaceValue(marketplaceGameSlug),
+      platform: cleanMarketplaceValue(marketplacePlatform),
+      region: cleanMarketplaceValue(marketplaceRegion),
+      skill_level: marketplaceSkillLevel || undefined
+    };
+    shouldScrollToResultsRef.current = true;
+    setAppliedMarketplaceFilters(nextFilters);
+    scrollToMarketplaceResults();
+    pushFeedback({
+      tone: "info",
+      title: "Matches updated",
+      message: "Showing matching open challenges below."
+    });
+  };
+
+  const clearMarketplaceFilters = () => {
+    setMarketplaceGameSlug("");
+    setMarketplacePlatform("");
+    setMarketplaceRegion("");
+    setMarketplaceSkillLevel("");
+    shouldScrollToResultsRef.current = true;
+    setAppliedMarketplaceFilters({});
+    scrollToMarketplaceResults();
+    pushFeedback({
+      tone: "info",
+      title: "Filters cleared",
+      message: "Showing all open challenges below."
     });
   };
 
@@ -185,7 +279,7 @@ export function ChallengesScreen() {
   });
 
   return (
-    <AppScreen>
+    <AppScreen scrollRef={scrollRef}>
       <SurfaceCard dark style={styles.hero}>
         <Badge tone="dark">Challenges</Badge>
         <Text style={styles.heroTitle}>Find a challenge to play now.</Text>
@@ -295,10 +389,56 @@ export function ChallengesScreen() {
               <View style={styles.fill}>
                 <Badge tone="cyan">Marketplace</Badge>
                 <Text style={styles.sectionTitle}>Open H2H challenges</Text>
+                <Text style={styles.copy}>Filter by the kind of match you want to play now.</Text>
               </View>
               <Users color={colors.cyan} size={24} />
             </View>
-            {challenges.slice(0, 20).map((challenge) => (
+            <View style={styles.marketplaceFilter}>
+              <Text style={styles.label}>Game</Text>
+              <OptionGroup
+                values={["", ...games.map((game) => game.slug)]}
+                selected={marketplaceGameSlug}
+                labelFor={(slug) => slug ? games.find((game) => game.slug === slug)?.name ?? slug : "All games"}
+                onSelect={setMarketplaceGameSlug}
+              />
+              <Text style={styles.label}>Platform</Text>
+              <OptionGroup
+                values={marketplacePlatforms}
+                selected={marketplacePlatform}
+                labelFor={(value) => value || "Any platform"}
+                onSelect={setMarketplacePlatform}
+              />
+              <Text style={styles.label}>Region</Text>
+              <OptionGroup
+                values={marketplaceRegions}
+                selected={marketplaceRegion}
+                labelFor={(value) => value || "Any region"}
+                onSelect={setMarketplaceRegion}
+              />
+              <Text style={styles.label}>Skill</Text>
+              <OptionGroup
+                values={marketplaceSkills.map((item) => item.value)}
+                selected={marketplaceSkillLevel}
+                labelFor={(value) => marketplaceSkills.find((item) => item.value === value)?.label ?? displayLabel(value)}
+                onSelect={setMarketplaceSkillLevel}
+              />
+              <View style={styles.marketplaceActions}>
+                <AppButton style={styles.marketplaceAction} onPress={applyMarketplaceFilters}>Show matches</AppButton>
+                <AppButton style={styles.marketplaceAction} variant="secondary" onPress={clearMarketplaceFilters}>Clear</AppButton>
+              </View>
+            </View>
+            <View style={styles.resultSummary} onLayout={handleMarketplaceResultsLayout}>
+              <Text style={styles.resultTitle}>
+                Showing {marketplaceChallenges.length} open {marketplaceChallenges.length === 1 ? "challenge" : "challenges"}
+              </Text>
+              <Text style={styles.copy}>{filterSummary(appliedMarketplaceFilters, games)}</Text>
+            </View>
+            {marketplaceQuery.isLoading ? <Text style={styles.copy}>Loading open challenges...</Text> : null}
+            {marketplaceQuery.isError ? <FeedbackState tone="error" title="Marketplace unavailable" body="We could not load open challenges." actionLabel="Retry" onAction={() => void marketplaceQuery.refetch()} /> : null}
+            {!marketplaceQuery.isLoading && marketplaceChallenges.length === 0 ? (
+              <EmptyChallenge onPress={() => setMode("create")} />
+            ) : null}
+            {marketplaceChallenges.slice(0, 20).map((challenge) => (
               <ChallengeCard
                 challenge={challenge}
                 compact
@@ -336,7 +476,7 @@ function ChallengeCard({
   const badges = trustBadgesForChallenge(challenge);
 
   return (
-    <View style={styles.challengeCard}>
+    <View style={[styles.challengeCard, compact && styles.compactChallengeCard]}>
       <View style={styles.challengeTop}>
         <View style={styles.badgeRow}>
           <Badge tone={isMine ? "amber" : "cyan"}>{isMine ? "Your challenge" : "Open challenge"}</Badge>
@@ -344,32 +484,32 @@ function ChallengeCard({
         </View>
         <Text style={styles.timeText}>{timeLeft(challenge.expires_at)}</Text>
       </View>
-      <Text style={styles.challengeTitle}>{challenge.title || `${challenge.game_name ?? "Game"} challenge`}</Text>
-      <Text style={styles.copy}>{challenge.game_name ?? "Game"} - {rulesetName(challenge)} - {challenge.platform} - {challenge.region}</Text>
+      <Text style={[styles.challengeTitle, compact && styles.compactChallengeTitle]}>{challenge.title || `${challenge.game_name ?? "Game"} challenge`}</Text>
+      <Text style={[styles.copy, compact && styles.compactCopy]}>{challenge.game_name ?? "Game"} - {rulesetName(challenge)} - {challenge.platform} - {challenge.region}</Text>
       <View style={styles.infoGrid}>
-        <InfoPill icon={Trophy} label="Entry" value={money(challenge.entry_amount_minor, challenge.currency)} />
-        <InfoPill icon={Gamepad2} label="Skill" value={displayLabel(challenge.skill_level)} />
-        <InfoPill icon={ShieldCheck} label="Trust" value={`${trustLabel(challenge.creator_trust_score)} (${challenge.creator_trust_score ?? 0})`} />
-        <InfoPill icon={MapPin} label="Record" value={creatorRecord} />
+        <InfoPill compact={compact} icon={Trophy} label="Entry" value={money(challenge.entry_amount_minor, challenge.currency)} />
+        <InfoPill compact={compact} icon={Gamepad2} label="Skill" value={displayLabel(challenge.skill_level)} />
+        <InfoPill compact={compact} icon={ShieldCheck} label="Trust" value={`${trustLabel(challenge.creator_trust_score)} (${challenge.creator_trust_score ?? 0})`} />
+        <InfoPill compact={compact} icon={MapPin} label="Record" value={creatorRecord} />
       </View>
       {!compact ? <PlayerTrustBadgeStrip badges={badges} /> : <PlayerTrustBadgeStrip badges={badges.slice(0, 4)} compact />}
-      <Text style={styles.creatorText}>Created by {creatorName(challenge)}.</Text>
-      <View style={styles.cardActions}>
+      <Text style={[styles.creatorText, compact && styles.compactCreatorText]}>Created by {creatorName(challenge)}.</Text>
+      <View style={[styles.cardActions, compact && styles.compactCardActions]}>
         {isMine ? (
-          <AppButton style={styles.cardAction} variant="secondary" onPress={() => router.push(`/(app)/rooms/${challenge.match_room_id}`)}>Open room</AppButton>
+          <AppButton style={[styles.cardAction, compact && styles.compactCardAction]} variant="secondary" onPress={() => router.push(`/(app)/rooms/${challenge.match_room_id}`)}>{compact ? "Open" : "Open room"}</AppButton>
         ) : (
-          <AppButton style={styles.cardAction} loading={accepting} disabled={!profileReady} onPress={onAccept}>{profileReady ? "Accept challenge" : "Finish Profile first"}</AppButton>
+          <AppButton style={[styles.cardAction, compact && styles.compactCardAction]} loading={accepting} disabled={!profileReady} onPress={onAccept}>{profileReady ? (compact ? "Accept" : "Accept challenge") : (compact ? "Finish setup" : "Finish Profile first")}</AppButton>
         )}
-        <AppButton style={styles.cardAction} variant="secondary" onPress={() => router.push(`/(app)/rooms/${challenge.match_room_id}`)}>View details</AppButton>
+        <AppButton style={[styles.cardAction, compact && styles.compactCardAction]} variant="secondary" onPress={() => router.push(`/(app)/rooms/${challenge.match_room_id}`)}>{compact ? "Details" : "View details"}</AppButton>
       </View>
     </View>
   );
 }
 
-function InfoPill({ icon: Icon, label, value }: { icon: typeof Trophy; label: string; value: string }) {
+function InfoPill({ compact = false, icon: Icon, label, value }: { compact?: boolean; icon: typeof Trophy; label: string; value: string }) {
   return (
-    <View style={styles.infoPill}>
-      <Icon color={colors.cyan} size={16} strokeWidth={2.4} />
+    <View style={[styles.infoPill, compact && styles.compactInfoPill]}>
+      <Icon color={colors.cyan} size={compact ? 14 : 16} strokeWidth={2.4} />
       <Text style={styles.infoLabel}>{label}</Text>
       <Text style={styles.infoValue} numberOfLines={1}>{value}</Text>
     </View>
@@ -484,17 +624,29 @@ const styles = StyleSheet.create({
   rulesBox: { borderWidth: 1, borderColor: colors.cyan, borderRadius: radius.md, padding: spacing.md, backgroundColor: colors.cyanSoft, gap: spacing.sm },
   ruleChips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
   ruleChip: { borderWidth: 1, borderColor: "#bae6fd", borderRadius: radius.pill, paddingHorizontal: spacing.sm, paddingVertical: 6, color: colors.cyan, backgroundColor: colors.white, fontSize: 12, fontWeight: "900" },
+  marketplaceFilter: { borderWidth: 1, borderColor: colors.line, borderRadius: radius.lg, backgroundColor: colors.surfaceAlt, padding: spacing.md, gap: spacing.sm },
+  marketplaceActions: { gap: spacing.sm, marginTop: spacing.xs },
+  marketplaceAction: { width: "100%" },
+  resultSummary: { borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, backgroundColor: colors.cyanSoft, padding: spacing.md, gap: spacing.xs },
+  resultTitle: { color: colors.ink, fontSize: 16, fontWeight: "900" },
   challengeCard: { borderWidth: 1, borderColor: colors.line, borderRadius: radius.lg, padding: spacing.md, backgroundColor: colors.white, gap: spacing.md, ...shadow.card },
+  compactChallengeCard: { gap: spacing.sm },
   challengeTop: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: spacing.sm },
   badgeRow: { flex: 1, flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
   timeText: { color: colors.faint, fontSize: 12, fontWeight: "900" },
   challengeTitle: { color: colors.ink, fontSize: 21, lineHeight: 26, fontWeight: "900" },
-  infoGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
-  infoPill: { width: "48%", borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, backgroundColor: colors.surfaceAlt, padding: spacing.sm, gap: 3 },
+  compactChallengeTitle: { fontSize: 18, lineHeight: 23 },
+  compactCopy: { fontSize: 13, lineHeight: 19 },
+  infoGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", rowGap: spacing.sm },
+  infoPill: { width: "48%", minHeight: 58, borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, backgroundColor: colors.surfaceAlt, padding: spacing.sm, gap: 3 },
+  compactInfoPill: { minHeight: 52, padding: spacing.xs },
   infoLabel: { color: colors.faint, fontSize: 10, textTransform: "uppercase", fontWeight: "900" },
   infoValue: { color: colors.ink, fontSize: 13, fontWeight: "900" },
   creatorText: { color: colors.faint, fontSize: 12, fontWeight: "800" },
+  compactCreatorText: { marginTop: spacing.xs },
   cardActions: { gap: spacing.sm },
+  compactCardActions: { flexDirection: "row", gap: spacing.sm },
   cardAction: { width: "100%" },
+  compactCardAction: { flex: 1, width: undefined, minHeight: 48 },
   empty: { borderWidth: 1, borderColor: colors.line, borderStyle: "dashed", borderRadius: radius.md, backgroundColor: colors.surfaceAlt, padding: spacing.lg, gap: spacing.sm }
 });

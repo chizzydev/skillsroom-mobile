@@ -1047,10 +1047,12 @@ function ResultReviewPanel({ claim, room, evidenceCount }: { claim: MatchResultC
       <View style={styles.playerCardHeader}>
         <View style={styles.fill}>
           <Text style={styles.quickLabel}>Review status</Text>
-          <Text style={styles.itemTitle}>{status.label}</Text>
+          <Text style={styles.itemTitleWide}>{status.label}</Text>
           <Text style={styles.copy}>{status.detail}</Text>
         </View>
-        <Badge tone={status.tone}>{claim ? status.label : "Waiting"}</Badge>
+        <View style={styles.statusBadgeWrap}>
+          <Badge tone={status.tone}>{claim ? status.label : "Waiting"}</Badge>
+        </View>
       </View>
       <View style={styles.resultStepGrid}>
         <ResultStep done={Boolean(claim)} label="Result claim" detail={claim?.score_summary ?? "Winner and score not submitted yet"} />
@@ -1065,7 +1067,9 @@ function ResultReviewPanel({ claim, room, evidenceCount }: { claim: MatchResultC
 function ResultStep({ done, label, detail }: { done: boolean; label: string; detail: string }) {
   return (
     <View style={[styles.resultStep, done && styles.resultStepDone]}>
-      <BadgeCheck color={done ? colors.greenDark : colors.faint} size={18} />
+      <View style={styles.resultStepIcon}>
+        <BadgeCheck color={done ? colors.greenDark : colors.faint} size={18} />
+      </View>
       <View style={styles.fill}>
         <Text style={styles.resultStepLabel}>{label}</Text>
         <Text style={styles.resultStepDetail}>{detail}</Text>
@@ -1092,7 +1096,7 @@ function ChecklistRow({ done, text }: { done: boolean; text: string }) {
       <View style={[styles.checkDot, done && styles.checkDotDone]}>
         {done ? <BadgeCheck color={colors.white} size={14} /> : null}
       </View>
-      <Text style={styles.copy}>{text}</Text>
+      <Text style={styles.checklistText}>{text}</Text>
     </View>
   );
 }
@@ -1211,11 +1215,12 @@ const styles = StyleSheet.create({
   darkMetricLabel: { color: "#9dafc1", fontSize: 11, fontWeight: "900" },
   darkMetricValue: { color: colors.white, fontSize: 14, fontWeight: "900" },
   sectionTitle: { color: colors.ink, fontSize: 26, fontWeight: "900" },
-  copy: { color: colors.muted, fontSize: 15, lineHeight: 22 },
+  copy: { color: colors.muted, fontSize: 15, lineHeight: 22, flexShrink: 1 },
   helpText: { color: colors.muted, fontSize: 13, fontWeight: "800", lineHeight: 19 },
-  itemTitle: { color: colors.ink, fontSize: 17, fontWeight: "900" },
+  itemTitle: { color: colors.ink, fontSize: 17, lineHeight: 22, fontWeight: "900", flexShrink: 1 },
+  itemTitleWide: { color: colors.ink, fontSize: 20, lineHeight: 25, fontWeight: "900", flexShrink: 1 },
   bigCode: { color: colors.ink, fontSize: 42, letterSpacing: 3, fontWeight: "900" },
-  fill: { flex: 1 },
+  fill: { flex: 1, minWidth: 0 },
   quickActions: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   quickAction: { flexBasis: "30%", flexGrow: 1, borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, padding: spacing.sm, backgroundColor: colors.surfaceAlt, gap: 4 },
   quickLabel: { color: colors.faint, fontSize: 11, fontWeight: "900", textTransform: "uppercase", letterSpacing: 1.5 },
@@ -1239,12 +1244,14 @@ const styles = StyleSheet.create({
   embeddedCard: { backgroundColor: colors.surfaceAlt, shadowOpacity: 0, elevation: 0 },
   resultPanel: { borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, backgroundColor: colors.surfaceAlt, padding: spacing.md, gap: spacing.md },
   resultStepGrid: { gap: spacing.sm },
-  resultStep: { flexDirection: "row", gap: spacing.sm, alignItems: "flex-start", borderWidth: 1, borderColor: colors.line, borderRadius: radius.sm, backgroundColor: colors.white, padding: spacing.sm },
+  resultStep: { flexDirection: "row", gap: spacing.sm, alignItems: "flex-start", borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, backgroundColor: colors.white, padding: spacing.md },
   resultStepDone: { borderColor: "#b6f4db", backgroundColor: colors.greenSoft },
-  resultStepLabel: { color: colors.ink, fontSize: 13, fontWeight: "900" },
-  resultStepDetail: { color: colors.muted, fontSize: 12, lineHeight: 17, fontWeight: "700" },
+  resultStepIcon: { width: 24, alignItems: "center", paddingTop: 1 },
+  resultStepLabel: { color: colors.ink, fontSize: 14, lineHeight: 18, fontWeight: "900", flexShrink: 1 },
+  resultStepDetail: { color: colors.muted, fontSize: 13, lineHeight: 19, fontWeight: "700", marginTop: 2, flexShrink: 1 },
   checklist: { borderWidth: 1, borderColor: "#aeefff", borderRadius: radius.md, backgroundColor: colors.cyanSoft, padding: spacing.md, gap: spacing.sm },
   checklistRow: { flexDirection: "row", gap: spacing.sm, alignItems: "flex-start" },
+  checklistText: { flex: 1, minWidth: 0, color: colors.muted, fontSize: 14, lineHeight: 21, fontWeight: "700" },
   checkDot: { width: 22, height: 22, borderRadius: 11, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white, alignItems: "center", justifyContent: "center", marginTop: 1 },
   checkDotDone: { backgroundColor: colors.greenDark, borderColor: colors.greenDark },
   responseGuide: { flexDirection: "row", gap: spacing.md, alignItems: "flex-start", borderWidth: 1, borderColor: "#aeefff", borderRadius: radius.md, backgroundColor: colors.cyanSoft, padding: spacing.md },
@@ -1298,8 +1305,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: spacing.md,
     alignItems: "flex-start",
-    justifyContent: "space-between"
+    justifyContent: "space-between",
+    flexWrap: "wrap"
   },
+  statusBadgeWrap: { alignSelf: "flex-start", maxWidth: "100%" },
   detailList: {
     borderWidth: 1,
     borderColor: colors.line,

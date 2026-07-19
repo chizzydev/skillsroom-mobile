@@ -51,8 +51,8 @@ export function trustBadgesForChallenge(challenge: ChallengeTrustSource): Player
     },
     {
       key: "verified_game_handle",
-      label: "Verified game handle",
-      value: challenge.creator_game_handle_verified ? "Verified" : "Pending",
+      label: "Game handle check",
+      value: challenge.creator_game_handle_verified ? "Verified" : "Saved",
       tone: challenge.creator_game_handle_verified ? "strong" : "good"
     },
     {
@@ -112,10 +112,10 @@ export function PlayerTrustBadgeStrip({ badges, compact = false }: { badges: Pla
     <View style={[styles.wrap, compact && styles.compactWrap]}>
       {badges.map((badge) => (
         <View key={badge.key} style={[styles.badge, styles[badge.tone], compact && styles.compactBadge]}>
-          <ShieldCheck color={toneColor(badge.tone)} size={14} strokeWidth={2.5} />
+          <ShieldCheck color={toneColor(badge.tone)} size={compact ? 12 : 14} strokeWidth={2.5} />
           <View style={styles.badgeText}>
-            <Text style={styles.label} numberOfLines={1}>{badge.label}</Text>
-            <Text style={[styles.value, { color: toneColor(badge.tone) }]} numberOfLines={1}>{badge.value}</Text>
+            <Text style={[styles.label, compact && styles.compactLabel]} numberOfLines={1}>{badge.label}</Text>
+            <Text style={[styles.value, compact && styles.compactValue, { color: toneColor(badge.tone) }]} numberOfLines={1}>{badge.value}</Text>
           </View>
         </View>
       ))}
@@ -134,10 +134,12 @@ const styles = StyleSheet.create({
   wrap: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: spacing.sm
+    justifyContent: "space-between",
+    rowGap: spacing.sm
   },
   compactWrap: {
-    gap: spacing.xs
+    justifyContent: "space-between",
+    rowGap: spacing.xs
   },
   badge: {
     width: "48%",
@@ -152,8 +154,8 @@ const styles = StyleSheet.create({
     gap: spacing.xs
   },
   compactBadge: {
-    width: "auto",
-    minHeight: 42,
+    width: "48%",
+    minHeight: 46,
     paddingVertical: spacing.xs
   },
   strong: {
@@ -185,5 +187,11 @@ const styles = StyleSheet.create({
   value: {
     fontSize: 13,
     fontWeight: "900"
+  },
+  compactLabel: {
+    fontSize: 9
+  },
+  compactValue: {
+    fontSize: 11
   }
 });
