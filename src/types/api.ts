@@ -631,6 +631,8 @@ export type Tournament = {
   game_name?: string;
   ruleset_slug?: string | null;
   created_by_user_id?: string;
+  created_by_username?: string | null;
+  created_by_display_name?: string | null;
   format: TournamentFormat | string;
   entry_type: "solo" | "team" | string;
   fee_mode: "free" | "paid" | "sponsored" | "hybrid" | string;
@@ -928,14 +930,28 @@ export type PlayerTrustSummary = {
   disputes_opened?: number;
   disputes_lost?: number;
   no_shows?: number;
+  dispute_rate?: number;
+  no_show_rate?: number;
+  funding_reliability?: number | null;
+  evidence_quality?: number | null;
   profile_complete?: boolean;
   primary_game_handle?: string | null;
   primary_game_external_uid?: string | null;
   primary_game_status?: UserGameAccount["status"] | null;
   moderation_status?: "clear" | "watchlisted" | "restricted" | "suspended" | "banned" | "under_review" | string;
   open_risk_flags?: number;
+  public_trust_note?: string;
+  trust_badges?: PlayerTrustBadge[];
   trust_level?: "ready" | "review" | "blocked" | "incomplete" | string;
   [key: string]: unknown;
+};
+
+export type PlayerTrustBadge = {
+  key: string;
+  label: string;
+  value: string;
+  tone: "strong" | "good" | "watch" | "new";
+  public_note: string;
 };
 
 export type MyCommunityClanResponse = {

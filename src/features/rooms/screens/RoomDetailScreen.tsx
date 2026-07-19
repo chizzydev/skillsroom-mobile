@@ -31,6 +31,7 @@ import { openEvidenceInApp } from "../../evidence/openEvidence";
 import { colors, radius, spacing } from "../../../constants/theme";
 import { EvidenceUploadField } from "../../uploads/components/EvidenceUploadField";
 import { NoStreamState, StreamAttachForm, StreamLinkCard } from "../../streaming/components/StreamCards";
+import { PlayerTrustCard } from "../../trust/components/PlayerTrustCard";
 import { useActionFeedback } from "../../../providers/ActionFeedbackProvider";
 import { useAuthStore } from "../../../store/auth-store";
 import type { ManualFundingSubmission, MatchParticipant, MatchResultClaim, MatchRoom, PlayerTrustSummary, RoomFundingOverview } from "../../../types/api";
@@ -240,6 +241,7 @@ function latestReviewForClaim(reviews?: Array<Record<string, unknown>>, claim?: 
 
 function finalDecisionSummary(claim?: MatchResultClaim | null, room?: MatchRoom, reviews?: Array<Record<string, unknown>>) {
   const review = latestReviewForClaim(reviews, claim);
+  if (typeof review?.note === "string" && review.note.trim()) return review.note;
   if (review?.decision === "opponent_timeout_awarded" || review?.decision === "approve_no_response") {
     return "Final decision: winner awarded after the opponent did not respond in time.";
   }
@@ -835,6 +837,7 @@ export function RoomDetailScreen() {
                     <DetailRow label="Entry" value={participant ? fundingStatusLabel(participant.funding_status) : "Waiting"} />
                     <DetailRow label="User ref" value={participant ? shortUser(participant.user_id) : "Share the room code"} />
                   </View>
+                  {trust ? <PlayerTrustCard compact trust={trust} /> : null}
                 </View>
               );
             })}
@@ -900,6 +903,7 @@ export function RoomDetailScreen() {
                   <DetailRow label="Entry status" value={fundingStatusLabel(participantFundingStatus)} />
                   <DetailRow label="Proof" value={submission?.status ? fundingStatusLabel(submission.status) : "No proof shown"} />
                 </View>
+                {trust ? <PlayerTrustCard compact trust={trust} /> : null}
               </View>
             );
           })}

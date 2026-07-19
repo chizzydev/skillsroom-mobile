@@ -103,6 +103,16 @@ function canManageTournamentStreams(tournament?: TournamentDetail, userId?: stri
   return tournament.hosts.some((host) => host.user_id === userId && host.status === "active" && host.role !== "sponsor");
 }
 
+function tournamentHostSpace(tournament: TournamentDetail) {
+  if (!tournament.created_by_username && !tournament.created_by_display_name) return null;
+  const organizerIdOrSlug = tournament.created_by_username ?? tournament.created_by_user_id;
+  if (!organizerIdOrSlug) return null;
+  return {
+    organizerIdOrSlug,
+    label: tournament.created_by_display_name ?? tournament.created_by_username ?? "Tournament host"
+  };
+}
+
 function feedbackTitle(tone: NonNullable<Notice>["tone"], view: DetailView) {
   if (tone === "error") return "Tournament action failed";
   if (tone === "info") return "Tournament update";
@@ -396,6 +406,7 @@ export function TournamentDetailScreen() {
 
 function Overview({ tournament, events }: { tournament: TournamentDetail; events: Array<{ id?: string; to_status?: string; reason?: string; created_at?: string }> }) {
   const prize = (tournament.sponsored_prize_pool_minor ?? 0) + (tournament.guaranteed_prize_pool_minor ?? 0) + (tournament.approved_prize_contribution_minor ?? 0);
+  const hostSpace = tournamentHostSpace(tournament);
 
   return (
     <>
@@ -406,6 +417,22 @@ function Overview({ tournament, events }: { tournament: TournamentDetail; events
         <StatCard label="Check-ins" value={`${tournament.checked_in_entry_count ?? 0}`} />
       </View>
       {tournament.description ? <SurfaceCard><Text style={styles.copy}>{tournament.description}</Text></SurfaceCard> : null}
+      {hostSpace ? (
+        <SurfaceCard>
+          <Badge>Host Space</Badge>
+          <Text style={styles.sectionTitle}>{hostSpace.label}</Text>
+          <Text style={styles.copy}>See this host's public events, members, streams, announcements, and finished highlights.</Text>
+          <Pressable
+            onPress={() => router.push({
+              pathname: "/community/organizers/[organizerIdOrSlug]",
+              params: { organizerIdOrSlug: hostSpace.organizerIdOrSlug }
+            })}
+            style={styles.hostSpaceButton}
+          >
+            <Text style={styles.hostSpaceButtonText}>View host space</Text>
+          </Pressable>
+        </SurfaceCard>
+      ) : null}
       <SurfaceCard>
         <Badge>Timeline</Badge>
         {events.slice(0, 6).map((event) => (
@@ -657,6 +684,8 @@ const styles = StyleSheet.create({
   statLabel: { color: colors.faint, fontSize: 11, fontWeight: "900", textTransform: "uppercase" },
   statValue: { color: colors.ink, fontSize: 18, fontWeight: "900", marginTop: 4 },
   sectionTitle: { color: colors.ink, fontSize: 20, fontWeight: "900", marginTop: spacing.sm },
+  hostSpaceButton: { minHeight: 44, alignItems: "center", justifyContent: "center", borderRadius: radius.sm, backgroundColor: colors.ink, paddingHorizontal: spacing.md, marginTop: spacing.md },
+  hostSpaceButtonText: { color: colors.white, fontWeight: "900" },
   input: { minHeight: 52, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surfaceAlt, paddingHorizontal: spacing.md, color: colors.ink, fontSize: 16, marginTop: spacing.sm },
   textarea: { minHeight: 86, paddingTop: spacing.md, textAlignVertical: "top" },
   paymentBox: { borderTopWidth: 1, borderTopColor: colors.line, marginTop: spacing.md, paddingTop: spacing.md, gap: spacing.sm },

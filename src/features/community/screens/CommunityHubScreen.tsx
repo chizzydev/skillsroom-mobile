@@ -9,10 +9,12 @@ import {
   communityHighlights,
   communityLeaderboard,
   communitySocialProof,
+  communityTournamentWinnerPage,
   type CommunityAnnouncement,
   type CommunityClan,
   type CommunityHighlight,
-  type CommunityLeaderboardRow
+  type CommunityLeaderboardRow,
+  type CommunityTournamentWinnerPage
 } from "../../../api/community";
 import { AppScreen } from "../../../components/screen/AppScreen";
 import { Badge } from "../../../components/ui/Badge";
@@ -23,6 +25,15 @@ import { colors, radius, shadow, spacing } from "../../../constants/theme";
 
 type CommunityTab = "hub" | "proof" | "highlights" | "updates" | "clans" | "rankings";
 type Tone = "cyan" | "green" | "amber" | "red";
+type PublicMatchProofCard = {
+  id: string;
+  roundName: string;
+  winner: string;
+  eventTitle: string;
+  gameName: string | null;
+  resultSummary: string | null;
+  sharePath: string;
+};
 
 const communityArtwork = require("../../../../assets/marketing/skillsroom-premium/community-premium.png");
 const tabs: Array<{ key: CommunityTab; label: string }> = [
@@ -73,7 +84,7 @@ function runnerUpName(item: CommunityHighlight) {
 }
 
 function publicTournamentUrl(item: CommunityHighlight) {
-  return `${env.webAppUrl}/tournaments/${encodeURIComponent(item.tournament_slug || item.tournament_id)}`;
+  return `${env.webAppUrl}/community/winners/tournaments/${encodeURIComponent(item.tournament_id)}`;
 }
 
 function highlightShareText(item: CommunityHighlight) {
@@ -95,6 +106,51 @@ function openWhatsAppShare(item: CommunityHighlight) {
   void Linking.openURL(url);
 }
 
+function openTournamentResult(item: CommunityHighlight) {
+  void Linking.openURL(publicTournamentUrl(item));
+}
+
+function publicMatchUrl(card: PublicMatchProofCard) {
+  return `${env.webAppUrl}${card.sharePath}`;
+}
+
+function matchShareText(card: PublicMatchProofCard) {
+  const summary = card.resultSummary || `Approved match from ${card.eventTitle} on Skillsroom.`;
+  return `${card.winner} won ${card.roundName}. ${summary} ${publicMatchUrl(card)}`;
+}
+
+async function shareMatchCard(card: PublicMatchProofCard) {
+  const message = matchShareText(card);
+  try {
+    await Share.share({ message, title: `${card.roundName} result` });
+  } catch {
+    void Linking.openURL(`https://wa.me/?text=${encodeURIComponent(message)}`);
+  }
+}
+
+function openWhatsAppMatchShare(card: PublicMatchProofCard) {
+  void Linking.openURL(`https://wa.me/?text=${encodeURIComponent(matchShareText(card))}`);
+}
+
+function matchProofCards(winnerPages: CommunityTournamentWinnerPage[]) {
+  const cards = new Map<string, PublicMatchProofCard>();
+  for (const page of winnerPages) {
+    for (const match of page.notable_matches) {
+      if (!match.winner_match_path) continue;
+      cards.set(match.match_id, {
+        id: match.match_id,
+        roundName: match.round_name,
+        winner: match.winner_entry_name,
+        eventTitle: page.tournament.title,
+        gameName: page.tournament.game_name,
+        resultSummary: match.result_summary,
+        sharePath: match.winner_match_path
+      });
+    }
+  }
+  return [...cards.values()].slice(0, 6);
+}
+
 export function CommunityHubScreen() {
   const params = useLocalSearchParams<{ tab?: string }>();
   const [tab, setTab] = useState<CommunityTab>(() => cleanTab(params.tab));
@@ -103,13 +159,25 @@ export function CommunityHubScreen() {
   const highlightsQuery = useQuery({ queryKey: ["community", "highlights"], queryFn: () => communityHighlights(8) });
   const clansQuery = useQuery({ queryKey: ["community", "clans"], queryFn: () => communityClans(5) });
   const leaderboardQuery = useQuery({ queryKey: ["community", "leaderboard"], queryFn: () => communityLeaderboard(10) });
+  const highlights = highlightsQuery.data ?? [];
+  const winnerPagesQuery = useQuery({
+    queryKey: ["community", "winner-pages", highlights.map((item) => item.tournament_id).join(",")],
+    enabled: highlights.length > 0,
+    queryFn: async () => {
+      const results = await Promise.allSettled(highlights.slice(0, 6).map((item) => communityTournamentWinnerPage(item.tournament_id)));
+      return results
+        .filter((result): result is PromiseFulfilledResult<CommunityTournamentWinnerPage> => result.status === "fulfilled")
+        .map((result) => result.value);
+    }
+  });
 
   const metrics = proofQuery.data;
   const announcements = announcementsQuery.data ?? [];
-  const highlights = highlightsQuery.data ?? [];
   const clans = clansQuery.data ?? [];
   const leaderboard = leaderboardQuery.data?.leaderboard ?? [];
-  const loading = proofQuery.isLoading || announcementsQuery.isLoading || highlightsQuery.isLoading || clansQuery.isLoading || leaderboardQuery.isLoading;
+  const winnerPages = winnerPagesQuery.data ?? [];
+  const matchCards = useMemo(() => matchProofCards(winnerPages), [winnerPages]);
+  const loading = proofQuery.isLoading || announcementsQuery.isLoading || highlightsQuery.isLoading || clansQuery.isLoading || leaderboardQuery.isLoading || winnerPagesQuery.isLoading;
   const hasError = proofQuery.isError || announcementsQuery.isError || highlightsQuery.isError || clansQuery.isError || leaderboardQuery.isError;
   const heroStats = useMemo(
     () => [
@@ -126,6 +194,7 @@ export function CommunityHubScreen() {
     void highlightsQuery.refetch();
     void clansQuery.refetch();
     void leaderboardQuery.refetch();
+    void winnerPagesQuery.refetch();
   }
 
   return (
@@ -215,6 +284,11 @@ export function CommunityHubScreen() {
             <SectionTitle eyebrow="Result cards" title="Shareable winner cards" />
             {highlights.map((item) => <PublicResultCard key={item.tournament_id} item={item} />)}
             {!highlights.length && !loading ? <EmptyPanel title="No public result cards yet" body="Approved completed events will create shareable proof cards." /> : null}
+          </SurfaceCard>
+          <SurfaceCard>
+            <SectionTitle eyebrow="Completed matches" title="Public match cards" />
+            {matchCards.map((item) => <PublicMatchCard key={item.id} item={item} />)}
+            {!matchCards.length && !loading ? <EmptyPanel title="No match cards yet" body="Approved match cards appear here when completed event matches have public result links." /> : null}
           </SurfaceCard>
           <SurfaceCard>
             <SectionTitle eyebrow="Tournament history" title="Completed event trail" />
@@ -330,6 +404,9 @@ function HighlightCard({ item, compact }: { item: CommunityHighlight; compact?: 
         <MiniSummary label="Matches" value={String(item.completed_match_count)} />
       </View>
       <View style={styles.shareActions}>
+        <Pressable style={styles.openResultButton} onPress={() => openTournamentResult(item)}>
+          <Text style={styles.openResultButtonText}>Open result</Text>
+        </Pressable>
         <Pressable style={styles.shareButton} onPress={() => void shareHighlight(item)}>
           <MessageCircle color={colors.ink} size={16} />
           <Text style={styles.shareButtonText}>Share result</Text>
@@ -355,12 +432,50 @@ function PublicResultCard({ item }: { item: CommunityHighlight }) {
       </View>
       <View style={styles.resultCardFooter}>
         <Text style={styles.resultCardMeta}>{item.game_name} - {readable(item.format)}</Text>
-        <Pressable style={styles.whatsappButton} onPress={() => openWhatsAppShare(item)}>
-          <MessageCircle color={colors.navy} size={16} />
-          <Text style={styles.whatsappButtonText}>WhatsApp</Text>
-        </Pressable>
+        <View style={styles.resultCardActions}>
+          <Pressable style={styles.darkOpenButton} onPress={() => openTournamentResult(item)}>
+            <Text style={styles.darkOpenButtonText}>Open</Text>
+          </Pressable>
+          <Pressable style={styles.whatsappButton} onPress={() => openWhatsAppShare(item)}>
+            <MessageCircle color={colors.navy} size={16} />
+            <Text style={styles.whatsappButtonText}>WhatsApp</Text>
+          </Pressable>
+        </View>
       </View>
     </SurfaceCard>
+  );
+}
+
+function PublicMatchCard({ item }: { item: PublicMatchProofCard }) {
+  return (
+    <View style={styles.itemCard}>
+      <View style={styles.itemTop}>
+        <Badge tone="green">Public result</Badge>
+        {item.gameName ? <Badge tone="cyan">{item.gameName}</Badge> : null}
+      </View>
+      <Text style={styles.itemTitle}>{item.winner}</Text>
+      <Text style={styles.copy}>{item.roundName} from {item.eventTitle}</Text>
+      <View style={styles.proofNote}>
+        <ShieldCheck color={colors.greenDark} size={20} />
+        <View style={styles.main}>
+          <Text style={styles.proofNoteTitle}>Approved match card</Text>
+          <Text style={styles.copy}>{item.resultSummary ?? "Approved result kept in the public event record."}</Text>
+        </View>
+      </View>
+      <View style={styles.shareActions}>
+        <Pressable style={styles.openResultButton} onPress={() => Linking.openURL(publicMatchUrl(item))}>
+          <Text style={styles.openResultButtonText}>Open match</Text>
+        </Pressable>
+        <Pressable style={styles.shareButton} onPress={() => void shareMatchCard(item)}>
+          <MessageCircle color={colors.ink} size={16} />
+          <Text style={styles.shareButtonText}>Share</Text>
+        </Pressable>
+        <Pressable style={styles.whatsappOutlineButton} onPress={() => openWhatsAppMatchShare(item)}>
+          <MessageCircle color={colors.greenDark} size={16} />
+          <Text style={styles.whatsappOutlineButtonText}>WhatsApp</Text>
+        </Pressable>
+      </View>
+    </View>
   );
 }
 
@@ -538,9 +653,13 @@ const styles = StyleSheet.create({
   scoreText: { color: colors.ink, fontWeight: "900", fontSize: 12 },
   emptyPanel: { flexDirection: "row", alignItems: "flex-start", gap: spacing.md, borderWidth: 1, borderColor: colors.line, borderStyle: "dashed", borderRadius: radius.md, backgroundColor: colors.surfaceAlt, padding: spacing.md },
   emptyTitle: { color: colors.ink, fontSize: 16, fontWeight: "900" },
-  shareActions: { flexDirection: "row", justifyContent: "flex-start" },
+  shareActions: { flexDirection: "row", flexWrap: "wrap", justifyContent: "flex-start", gap: spacing.sm },
+  openResultButton: { minHeight: 42, borderRadius: radius.pill, backgroundColor: colors.navy, paddingHorizontal: spacing.md, alignItems: "center", justifyContent: "center" },
+  openResultButtonText: { color: colors.white, fontSize: 13, fontWeight: "900" },
   shareButton: { minHeight: 42, borderRadius: radius.pill, backgroundColor: colors.cyanSoft, paddingHorizontal: spacing.md, flexDirection: "row", alignItems: "center", gap: spacing.xs },
   shareButtonText: { color: colors.ink, fontSize: 13, fontWeight: "900" },
+  whatsappOutlineButton: { minHeight: 42, borderRadius: radius.pill, borderWidth: 1, borderColor: "#86e8b9", backgroundColor: colors.white, paddingHorizontal: spacing.md, flexDirection: "row", alignItems: "center", gap: spacing.xs },
+  whatsappOutlineButtonText: { color: colors.greenDark, fontSize: 13, fontWeight: "900" },
   resultCard: { gap: spacing.md, overflow: "hidden" },
   darkDate: { color: "#9fb0c2", fontSize: 11, fontWeight: "900", textTransform: "uppercase", letterSpacing: 1 },
   resultCardTitle: { color: colors.white, fontSize: 30, lineHeight: 35, fontWeight: "900" },
@@ -551,6 +670,9 @@ const styles = StyleSheet.create({
   darkStatValue: { color: colors.white, fontSize: 15, lineHeight: 20, fontWeight: "900", marginTop: 4 },
   resultCardFooter: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, alignItems: "center", justifyContent: "space-between" },
   resultCardMeta: { color: "#b8c6d6", fontSize: 13, lineHeight: 19, fontWeight: "800", flexShrink: 1 },
+  resultCardActions: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  darkOpenButton: { minHeight: 42, borderRadius: radius.pill, borderWidth: 1, borderColor: "#28435c", paddingHorizontal: spacing.md, alignItems: "center", justifyContent: "center" },
+  darkOpenButtonText: { color: colors.white, fontSize: 13, fontWeight: "900" },
   whatsappButton: { minHeight: 42, borderRadius: radius.pill, backgroundColor: colors.green, paddingHorizontal: spacing.md, flexDirection: "row", alignItems: "center", gap: spacing.xs },
   whatsappButtonText: { color: colors.navy, fontSize: 13, fontWeight: "900" },
   historyRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.md, borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, backgroundColor: colors.surfaceAlt, padding: spacing.md },

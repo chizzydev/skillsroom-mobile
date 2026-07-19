@@ -223,6 +223,37 @@ export type CommunitySocialProofMetrics = {
   verified_payouts_completed_minor?: number | null;
 };
 
+export type CommunityTournamentWinnerPage = {
+  tournament: {
+    id: string;
+    slug: string;
+    title: string;
+    status: string;
+    format: string;
+    entry_type: string;
+    currency: string;
+    projected_prize_minor: number;
+    game_slug: string | null;
+    game_name: string | null;
+    registered_entry_count: number;
+  };
+  winner: {
+    entry_id: string | null;
+    entry_name: string;
+    player_label: string;
+    result_label: string;
+    rank_path: string | null;
+  };
+  notable_matches: Array<{
+    match_id: string;
+    round_name: string;
+    result_summary: string | null;
+    winner_entry_name: string;
+    winner_match_path: string | null;
+  }>;
+  share_path: string;
+};
+
 export async function communitySocialProof() {
   const data = await apiRequest<{ metrics: CommunitySocialProofMetrics }>("/community/social-proof");
   return data.metrics;
@@ -241,6 +272,10 @@ export async function communityAnnouncement(announcementId: string) {
 export async function communityHighlights(limit = 8) {
   const data = await apiRequest<{ tournament_highlights: CommunityHighlight[] }>(`/community/highlights?limit=${encodeURIComponent(limit)}`);
   return data.tournament_highlights ?? [];
+}
+
+export async function communityTournamentWinnerPage(tournamentId: string) {
+  return apiRequest<CommunityTournamentWinnerPage>(`/community/winners/tournaments/${encodeURIComponent(tournamentId)}`);
 }
 
 export async function communityClans(limit = 5) {

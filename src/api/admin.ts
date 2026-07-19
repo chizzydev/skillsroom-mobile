@@ -279,15 +279,29 @@ export type PlayerTrustSummary = {
   disputes_opened?: number | null;
   disputes_lost?: number | null;
   no_shows?: number | null;
+  dispute_rate?: number | null;
+  no_show_rate?: number | null;
+  funding_reliability?: number | null;
+  evidence_quality?: number | null;
   profile_complete?: boolean;
   primary_game_handle?: string | null;
   primary_game_external_uid?: string | null;
   primary_game_status?: UserGameAccount["status"] | null;
   moderation_status?: "clear" | "watchlisted" | "restricted" | "suspended" | "banned" | "under_review" | string;
   open_risk_flags?: number;
+  public_trust_note?: string;
+  trust_badges?: PlayerTrustBadge[];
   trust_level?: "ready" | "review" | "blocked" | "incomplete" | string;
   trust_score?: number | null;
   [key: string]: unknown;
+};
+
+export type PlayerTrustBadge = {
+  key: string;
+  label: string;
+  value: string;
+  tone: "strong" | "good" | "watch" | "new";
+  public_note: string;
 };
 
 export type ReviewResultClaimInput = {

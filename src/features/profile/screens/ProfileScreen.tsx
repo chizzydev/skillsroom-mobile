@@ -22,6 +22,7 @@ import { colors, radius, shadow, spacing } from "../../../constants/theme";
 import { useAuthStore } from "../../../store/auth-store";
 import type { PlayerTrustSummary, UserGameAccount } from "../../../types/api";
 import { ConnectedChannelCard } from "../../streaming/components/StreamCards";
+import { PlayerTrustCard } from "../../trust/components/PlayerTrustCard";
 import { useActionFeedback } from "../../../providers/ActionFeedbackProvider";
 
 type Notice = { tone: "error" | "success" | "info"; message: string } | null;
@@ -473,16 +474,22 @@ export function ProfileScreen() {
         <Badge tone="dark">Trust card</Badge>
         <Text style={styles.darkTitle}>Player summary</Text>
         <Text style={styles.darkCopy}>This is the reputation summary attached to your room activity and public player profile.</Text>
-        <View style={styles.darkMetricGrid}>
-          <DarkMetric label="Matches" value={String(asNumber(trust?.completed_matches, asNumber(profile?.completed_matches)))} />
-          <DarkMetric label="Wins" value={String(asNumber(trust?.wins, asNumber(profile?.wins)))} />
-          <DarkMetric label="Losses" value={String(asNumber(trust?.losses, asNumber(profile?.losses)))} />
-          <DarkMetric label="No shows" value={String(asNumber(trust?.no_shows))} />
-        </View>
-        <View style={styles.trustStrip}>
-          <Text style={styles.trustStripTitle}>{primaryAccount?.handle ?? trust?.primary_game_handle ?? "No primary handle yet"}</Text>
-          <Text style={styles.darkCopy}>{primaryAccount?.external_uid || trust?.primary_game_external_uid || "Add a UID/player ID where your game supports it."}</Text>
-        </View>
+        {trust ? (
+          <PlayerTrustCard trust={trust} />
+        ) : (
+          <>
+            <View style={styles.darkMetricGrid}>
+              <DarkMetric label="Matches" value={String(asNumber(profile?.completed_matches))} />
+              <DarkMetric label="Wins" value={String(asNumber(profile?.wins))} />
+              <DarkMetric label="Losses" value={String(asNumber(profile?.losses))} />
+              <DarkMetric label="No shows" value="0" />
+            </View>
+            <View style={styles.trustStrip}>
+              <Text style={styles.trustStripTitle}>{primaryAccount?.handle ?? "No primary handle yet"}</Text>
+              <Text style={styles.darkCopy}>{primaryAccount?.external_uid || "Add a UID/player ID where your game supports it."}</Text>
+            </View>
+          </>
+        )}
       </SurfaceCard>
 
       <SurfaceCard>
