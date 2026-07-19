@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { CheckCircle2, Clock3, Filter, Gamepad2, MapPin, Plus, ShieldCheck, Swords, Trophy, Users } from "lucide-react-native";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View, type LayoutChangeEvent } from "react-native";
@@ -21,6 +21,7 @@ import { PlayerTrustBadgeStrip, trustBadgesForChallenge, trustLabel } from "../.
 
 type Notice = { tone: "error" | "success" | "info"; message: string } | null;
 type ChallengeMode = "browse" | "create";
+type MarketplaceVisibilityFilter = "" | MatchChallengeVisibility | "mine";
 
 const skillLevels: Array<{ value: MatchChallengeSkillLevel; label: string }> = [
   { value: "any", label: "Any skill" },
@@ -33,6 +34,13 @@ const skillLevels: Array<{ value: MatchChallengeSkillLevel; label: string }> = [
 const visibilityOptions: Array<{ value: MatchChallengeVisibility; label: string }> = [
   { value: "public", label: "Public" },
   { value: "private", label: "Private" }
+];
+
+const marketplaceVisibilityOptions: Array<{ value: MarketplaceVisibilityFilter; label: string }> = [
+  { value: "", label: "All visible" },
+  { value: "public", label: "Public" },
+  { value: "private", label: "Private" },
+  { value: "mine", label: "Mine" }
 ];
 
 const defaultPlatforms = ["Mobile", "PlayStation", "Xbox", "PC", "Cross-play"];
@@ -49,6 +57,8 @@ type MarketplaceFilters = {
   platform?: string;
   region?: string;
   skill_level?: MatchChallengeSkillLevel;
+  visibility?: MatchChallengeVisibility;
+  scope?: "mine";
 };
 
 function money(minor?: number, currency = "NGN") {
@@ -104,6 +114,7 @@ function cleanMarketplaceValue(value: string) {
 
 function filterSummary(filters: MarketplaceFilters, games: Array<{ slug?: string; name?: string }>) {
   const active = [
+    filters.scope === "mine" ? "Mine" : filters.visibility ? displayLabel(filters.visibility) : null,
     filters.game_slug ? games.find((game) => game.slug === filters.game_slug)?.name ?? filters.game_slug : null,
     filters.platform,
     filters.region,
@@ -115,6 +126,7 @@ function filterSummary(filters: MarketplaceFilters, games: Array<{ slug?: string
 export function ChallengesScreen() {
   const queryClient = useQueryClient();
   const { pushFeedback } = useActionFeedback();
+  const params = useLocalSearchParams<{ mode?: string }>();
   const scrollRef = useRef<ScrollView | null>(null);
   const marketplaceResultsYRef = useRef(0);
   const shouldScrollToResultsRef = useRef(false);
@@ -134,6 +146,7 @@ export function ChallengesScreen() {
   const [marketplacePlatform, setMarketplacePlatform] = useState("");
   const [marketplaceRegion, setMarketplaceRegion] = useState("");
   const [marketplaceSkillLevel, setMarketplaceSkillLevel] = useState<"" | MatchChallengeSkillLevel>("");
+  const [marketplaceVisibility, setMarketplaceVisibility] = useState<MarketplaceVisibilityFilter>("");
   const [appliedMarketplaceFilters, setAppliedMarketplaceFilters] = useState<MarketplaceFilters>({});
 
   const challengesQuery = useQuery({ queryKey: ["challenges", "open", "recommended"], queryFn: () => listMatchChallenges({ limit: 40 }) });
@@ -162,6 +175,12 @@ export function ChallengesScreen() {
     .filter((challenge) => challenge.visibility === "public")
     .sort((left, right) => (right.creator_trust_score ?? 0) - (left.creator_trust_score ?? 0))
     .slice(0, 3);
+
+  useEffect(() => {
+    if (params.mode === "create" || params.mode === "browse") {
+      setMode(params.mode);
+    }
+  }, [params.mode]);
 
   useEffect(() => {
     if (!selectedGameSlug && games[0]?.slug) setSelectedGameSlug(games[0].slug);
@@ -204,7 +223,9 @@ export function ChallengesScreen() {
       game_slug: cleanMarketplaceValue(marketplaceGameSlug),
       platform: cleanMarketplaceValue(marketplacePlatform),
       region: cleanMarketplaceValue(marketplaceRegion),
-      skill_level: marketplaceSkillLevel || undefined
+      skill_level: marketplaceSkillLevel || undefined,
+      visibility: marketplaceVisibility === "public" || marketplaceVisibility === "private" ? marketplaceVisibility : undefined,
+      scope: marketplaceVisibility === "mine" ? "mine" : undefined
     };
     shouldScrollToResultsRef.current = true;
     setAppliedMarketplaceFilters(nextFilters);
@@ -221,6 +242,7 @@ export function ChallengesScreen() {
     setMarketplacePlatform("");
     setMarketplaceRegion("");
     setMarketplaceSkillLevel("");
+    setMarketplaceVisibility("");
     shouldScrollToResultsRef.current = true;
     setAppliedMarketplaceFilters({});
     scrollToMarketplaceResults();
@@ -394,6 +416,13 @@ export function ChallengesScreen() {
               <Users color={colors.cyan} size={24} />
             </View>
             <View style={styles.marketplaceFilter}>
+              <Text style={styles.label}>View</Text>
+              <OptionGroup
+                values={marketplaceVisibilityOptions.map((item) => item.value)}
+                selected={marketplaceVisibility}
+                labelFor={(value) => marketplaceVisibilityOptions.find((item) => item.value === value)?.label ?? displayLabel(value)}
+                onSelect={setMarketplaceVisibility}
+              />
               <Text style={styles.label}>Game</Text>
               <OptionGroup
                 values={["", ...games.map((game) => game.slug)]}

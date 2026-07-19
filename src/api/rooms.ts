@@ -29,6 +29,7 @@ export async function listMatchChallenges(input: {
   region?: string;
   skill_level?: MatchChallengeSkillLevel;
   visibility?: MatchChallengeVisibility;
+  scope?: "mine";
   limit?: number;
 } = {}) {
   const params = new URLSearchParams();
@@ -37,6 +38,7 @@ export async function listMatchChallenges(input: {
   if (input.region) params.set("region", input.region);
   if (input.skill_level) params.set("skill_level", input.skill_level);
   if (input.visibility) params.set("visibility", input.visibility);
+  if (input.scope) params.set("scope", input.scope);
   if (input.limit) params.set("limit", String(input.limit));
   const query = params.toString() ? `?${params.toString()}` : "";
   const data = await apiRequest<{ challenges: MatchChallengeListRow[] }>(`/match-rooms/challenges${query}`);
