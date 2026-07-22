@@ -13,10 +13,10 @@ import { SurfaceCard } from "../../../components/ui/SurfaceCard";
 import { colors, radius, shadow, spacing } from "../../../constants/theme";
 import type { MatchRoom } from "../../../types/api";
 
-type RoomQueue = "draft" | "open" | "funding" | "ready" | "live" | "result" | "review" | "disputed" | "payout" | "done";
+type RoomQueue = "open" | "funding" | "ready" | "live" | "result" | "review" | "disputed" | "payout" | "done" | "expired";
 type IconComponent = typeof DoorOpen;
 
-const queues: RoomQueue[] = ["draft", "open", "funding", "ready", "live", "result", "review", "disputed", "payout", "done"];
+const queues: RoomQueue[] = ["open", "funding", "ready", "live", "result", "review", "disputed", "payout", "done", "expired"];
 const roomArtwork = require("../../../../assets/marketing/skillsroom-premium/tournaments-premium.png");
 
 function money(minor?: number, currency = "NGN") {
@@ -24,7 +24,6 @@ function money(minor?: number, currency = "NGN") {
 }
 
 function queueLabel(queue: RoomQueue) {
-  if (queue === "draft") return "Drafts";
   if (queue === "funding") return "Funding";
   if (queue === "ready") return "Ready";
   if (queue === "live") return "Live";
@@ -33,11 +32,11 @@ function queueLabel(queue: RoomQueue) {
   if (queue === "disputed") return "Disputed";
   if (queue === "payout") return "Payout";
   if (queue === "done") return "Done";
+  if (queue === "expired") return "Expired";
   return "Open";
 }
 
 function queueFullLabel(queue: RoomQueue) {
-  if (queue === "draft") return "Draft rooms";
   if (queue === "open") return "Open rooms";
   if (queue === "funding") return "Funding rooms";
   if (queue === "ready") return "Ready rooms";
@@ -46,11 +45,11 @@ function queueFullLabel(queue: RoomQueue) {
   if (queue === "review") return "Review rooms";
   if (queue === "disputed") return "Disputed rooms";
   if (queue === "payout") return "Payout rooms";
+  if (queue === "expired") return "Expired challenges";
   return "Done rooms";
 }
 
 function queueDescription(queue: RoomQueue) {
-  if (queue === "draft") return "Room drafts you started but have not opened.";
   if (queue === "funding") return "Rooms waiting for entry payment or funding approval.";
   if (queue === "ready") return "Rooms funded by both players and waiting for match start.";
   if (queue === "live") return "Rooms currently in play.";
@@ -59,7 +58,14 @@ function queueDescription(queue: RoomQueue) {
   if (queue === "disputed") return "Rooms where players disagree and Skillsroom must review.";
   if (queue === "payout") return "Approved results waiting for payout or refund completion.";
   if (queue === "done") return "Completed, refunded, voided, or cancelled rooms.";
+  if (queue === "expired") return "H2H challenge rooms whose join window ended before another player accepted.";
   return "Open rooms that can still be joined.";
+}
+
+function roomExpired(room: MatchRoom) {
+  const expiresAt = room.expires_at;
+  if (typeof expiresAt !== "string" && typeof expiresAt !== "number" && !(expiresAt instanceof Date)) return false;
+  return new Date(expiresAt).getTime() <= Date.now();
 }
 
 function roomStatusLabel(status?: string) {
@@ -78,7 +84,8 @@ function roomStatusLabel(status?: string) {
   return "Open";
 }
 
-function statusTone(status?: string): "cyan" | "green" | "amber" | "red" | "dark" {
+function statusTone(status?: string, expired = false): "cyan" | "green" | "amber" | "red" | "dark" {
+  if (expired) return "dark";
   if (status === "open" || status === "funded" || status === "active") return "green";
   if (status === "funding_review" || status === "awaiting_funding" || status === "settlement_pending") return "amber";
   if (status === "disputed" || status === "cancelled" || status === "voided") return "red";
@@ -87,7 +94,8 @@ function statusTone(status?: string): "cyan" | "green" | "amber" | "red" | "dark
 }
 
 function roomQueue(room: MatchRoom): RoomQueue | "other" {
-  if (room.status === "draft") return "draft";
+  if (room.status === "open" && roomExpired(room)) return "expired";
+  if (room.status === "draft") return "other";
   if (room.status === "open") return "open";
   if (room.status === "awaiting_funding" || room.status === "funding_review") return "funding";
   if (room.status === "funded") return "ready";
@@ -105,6 +113,7 @@ function playerCount(room: MatchRoom) {
 }
 
 function nextStep(room: MatchRoom) {
+  if (room.status === "open" && roomExpired(room)) return "Expired";
   if (room.status === "open") return (room.participant_count ?? 0) < (room.max_participants ?? 2) ? "Share code" : "Entry next";
   if (room.status === "awaiting_funding") return "Complete entry";
   if (room.status === "funding_review") return "Entry check";
@@ -122,14 +131,15 @@ export function RoomsScreen() {
   const roomsQuery = useQuery({ queryKey: ["rooms"], queryFn: () => listRooms(), refetchInterval: 15000 });
 
   const rooms = roomsQuery.data ?? [];
+  const visibleRooms = useMemo(() => rooms.filter((room) => roomQueue(room) !== "other"), [rooms]);
   const counts = useMemo(() => {
     return queues.reduce<Record<RoomQueue, number>>((acc, queue) => {
-      acc[queue] = rooms.filter((room) => roomQueue(room) === queue).length;
+      acc[queue] = visibleRooms.filter((room) => roomQueue(room) === queue).length;
       return acc;
-    }, { draft: 0, open: 0, funding: 0, ready: 0, live: 0, result: 0, review: 0, disputed: 0, payout: 0, done: 0 });
-  }, [rooms]);
-  const selectedRooms = useMemo(() => rooms.filter((room) => roomQueue(room) === selectedQueue), [rooms, selectedQueue]);
-  const totalTracked = rooms.length;
+    }, { open: 0, funding: 0, ready: 0, live: 0, result: 0, review: 0, disputed: 0, payout: 0, done: 0, expired: 0 });
+  }, [visibleRooms]);
+  const selectedRooms = useMemo(() => visibleRooms.filter((room) => roomQueue(room) === selectedQueue), [visibleRooms, selectedQueue]);
+  const totalTracked = visibleRooms.length;
   const queueColumns = queueGridWidth < 220 ? 2 : queueGridWidth < 340 ? 3 : queueGridWidth < 460 ? 4 : 5;
   const queueGap = 6;
   const queueGridPadding = 10;
@@ -175,7 +185,7 @@ export function RoomsScreen() {
           <View style={styles.fill}>
             <Badge tone="amber">Rooms</Badge>
             <Text style={styles.sectionTitle}>Room activity</Text>
-            <Text style={styles.copy}>Switch between every room stage, from draft and funding through disputes, payout, and done.</Text>
+            <Text style={styles.copy}>Switch between every room stage, from open and funding through disputes, payout, done, and expired H2H challenges.</Text>
           </View>
           <Pressable style={styles.searchButton} onPress={() => router.push("/(app)/rooms/join")}>
             <Search size={22} color={colors.ink} />
@@ -243,10 +253,11 @@ function FlowStep({ index, title, detail }: { index: string; title: string; deta
 }
 
 function RoomCard({ room }: { room: MatchRoom }) {
+  const expired = room.status === "open" && roomExpired(room);
   return (
     <Pressable style={styles.roomCard} onPress={() => router.push(`/(app)/rooms/${room.id}`)}>
       <View style={styles.roomTop}>
-        <Badge tone={statusTone(room.status)}>{roomStatusLabel(room.status)}</Badge>
+        <Badge tone={statusTone(room.status, expired)}>{expired ? "Expired" : roomStatusLabel(room.status)}</Badge>
         <Text style={styles.roomPlayers}>{playerCount(room)}</Text>
       </View>
       <Text style={styles.roomTitle}>{room.title ?? "Skillsroom match"}</Text>
@@ -255,6 +266,7 @@ function RoomCard({ room }: { room: MatchRoom }) {
         <View style={styles.factPill}><Users size={16} color={colors.cyan} /><Text style={styles.factText}>Players {playerCount(room)}</Text></View>
         <View style={styles.factPill}><Clock3 size={16} color={colors.cyan} /><Text style={styles.factText}>{nextStep(room)}</Text></View>
       </View>
+      {expired ? <FormNotice tone="info" message="This challenge window ended before another player accepted. Open it for history, or post a fresh challenge." /> : null}
       <View style={styles.roomFooter}>
         <Text style={styles.openText}>Open room</Text>
         <ChevronLike />

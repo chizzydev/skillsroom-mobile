@@ -26,6 +26,7 @@ import { Badge } from "../../../components/ui/Badge";
 import { CopyButton } from "../../../components/ui/CopyButton";
 import { FeedbackState } from "../../../components/ui/FeedbackState";
 import { FormNotice } from "../../../components/ui/FormNotice";
+import { OptionalFieldsPanel } from "../../../components/ui/OptionalFieldsPanel";
 import { SurfaceCard } from "../../../components/ui/SurfaceCard";
 import { openEvidenceInApp } from "../../evidence/openEvidence";
 import { colors, radius, spacing } from "../../../constants/theme";
@@ -71,7 +72,8 @@ function sectionLabel(section: Section) {
   return section[0].toUpperCase() + section.slice(1);
 }
 
-function statusLabel(status?: string) {
+function statusLabel(status?: string, expired = false) {
+  if (expired) return "Expired";
   if (status === "awaiting_funding") return "Entry needed";
   if (status === "funding_review") return "Entry review";
   if (status === "funded") return "Entry complete";
@@ -84,15 +86,17 @@ function statusLabel(status?: string) {
   return status === "open" ? "Open" : "Room";
 }
 
-function toneForStatus(status?: string): "cyan" | "green" | "amber" | "red" | "dark" {
+function toneForStatus(status?: string, expired = false): "cyan" | "green" | "amber" | "red" | "dark" {
+  if (expired) return "dark";
   if (status === "open" || status === "funded" || status === "active" || status === "completed") return "green";
   if (status === "awaiting_funding" || status === "funding_review" || status === "settlement_pending") return "amber";
   if (status === "disputed" || status === "voided" || status === "cancelled") return "red";
   return "cyan";
 }
 
-function nextAction(room?: MatchRoom, participantCount = 0) {
+function nextAction(room?: MatchRoom, participantCount = 0, expired = false) {
   if (!room) return ["Loading room", "Checking the latest room details."] as const;
+  if (expired) return ["Challenge expired", "This challenge window ended before another player accepted. Open it for history, or post a fresh challenge."] as const;
   if (room.status === "open") return participantCount < (room.max_participants ?? 2)
     ? (["Share the room code", "Send the room code to your opponent so they can join."] as const)
     : (["Entry is next", "Both players are in. Each entry must be confirmed before play."] as const);
@@ -142,6 +146,12 @@ function playerHandleLine(participant?: MatchParticipant, trust?: PlayerTrustSum
   if (trust?.primary_game_handle) return trust.primary_game_handle;
   if (trust?.primary_game_external_uid) return `UID ${trust.primary_game_external_uid}`;
   return "No game handle shown";
+}
+
+function roomExpired(room?: MatchRoom | null) {
+  const expiresAt = room?.expires_at;
+  if (typeof expiresAt !== "string" && typeof expiresAt !== "number" && !(expiresAt instanceof Date)) return false;
+  return new Date(expiresAt).getTime() <= Date.now();
 }
 
 function trustLabel(trust?: PlayerTrustSummary | null, loading = false) {
@@ -340,12 +350,13 @@ export function RoomDetailScreen() {
   const ownParticipant = participants.find((participant) => participant.user_id === user?.id);
   const claim = latestClaim(resultsQuery.data?.claims);
   const participantCount = room?.participant_count ?? participants.length;
-  const [actionTitle, actionBody] = nextAction(room, participantCount);
+  const isExpiredOpenRoom = Boolean(room?.status === "open" && roomExpired(room));
+  const [actionTitle, actionBody] = nextAction(room, participantCount, isExpiredOpenRoom);
   const canAttachStream = canManageStreams(user?.role, room, user?.id);
   const isCreator = Boolean(user?.id && room?.creator_user_id === user.id);
   const canManageRoomInvites = Boolean(isCreator || ["moderator", "admin", "owner"].includes(String(user?.role ?? "")));
-  const canInvite = Boolean(room?.status === "open" && canManageRoomInvites && participantCount < (room?.max_participants ?? 2));
-  const canJoinFromDetail = Boolean(room?.status === "open" && !ownParticipant && participantCount < (room?.max_participants ?? 2));
+  const canInvite = Boolean(room?.status === "open" && !isExpiredOpenRoom && canManageRoomInvites && participantCount < (room?.max_participants ?? 2));
+  const canJoinFromDetail = Boolean(room?.status === "open" && !isExpiredOpenRoom && !ownParticipant && participantCount < (room?.max_participants ?? 2));
   const ownFundingSubmission = useMemo(() => {
     const submissions = fundingQuery.data?.submissions ?? [];
     return submissions.find((submission) => {
@@ -688,7 +699,7 @@ export function RoomDetailScreen() {
         <Text style={styles.heroTitle}>{room?.title ?? "Skillsroom match"}</Text>
         <Text style={styles.heroCopy}>{room?.room_code ? `Code ${room.room_code}` : "Loading room code..."} / {money(room?.entry_amount_minor, room?.currency)} / Players {participantCount}/{room?.max_participants ?? 2}</Text>
         <View style={styles.heroMetricGrid}>
-          <DarkMetric icon={ShieldCheck} label="Status" value={statusLabel(room?.status)} />
+          <DarkMetric icon={ShieldCheck} label="Status" value={statusLabel(room?.status, isExpiredOpenRoom)} />
           <DarkMetric icon={Users} label="Slots" value={`${participantCount}/${room?.max_participants ?? 2}`} />
           <DarkMetric icon={Banknote} label="Entry" value={money(room?.entry_amount_minor, room?.currency)} />
         </View>
@@ -698,7 +709,7 @@ export function RoomDetailScreen() {
       {notice && !activeSectionNotice ? <FormNotice tone={notice.tone} message={notice.message} /> : null}
 
       <SurfaceCard>
-        <Badge tone={toneForStatus(room?.status)}>{statusLabel(room?.status)}</Badge>
+        <Badge tone={toneForStatus(room?.status, isExpiredOpenRoom)}>{statusLabel(room?.status, isExpiredOpenRoom)}</Badge>
         <Text style={styles.sectionTitle}>{actionTitle}</Text>
         <Text style={styles.copy}>{actionBody}</Text>
         {room?.status === "draft" && isCreator ? <AppButton loading={openMutation.isPending} onPress={() => openMutation.mutate()}>Open room</AppButton> : null}
@@ -717,7 +728,7 @@ export function RoomDetailScreen() {
       <SurfaceCard>
         <Badge tone="green">Process</Badge>
         <Text style={styles.sectionTitle}>Room progress</Text>
-        <RoomFlow currentStatus={room?.status} />
+        <RoomFlow currentStatus={room?.status} expired={isExpiredOpenRoom} />
       </SurfaceCard>
 
       <View style={styles.sectionNav}>
@@ -736,6 +747,9 @@ export function RoomDetailScreen() {
             <Text style={styles.bigCode}>{room?.room_code ?? "..."}</Text>
             <CopyButton value={room?.room_code} label="Copy room code" copiedLabel="Room code copied" />
             <Text style={styles.copy}>Share this code with your opponent. The room will show when they join, complete entry, and submit a result.</Text>
+            {isExpiredOpenRoom ? (
+              <FormNotice tone="info" message="This challenge window has ended. Post a fresh challenge or create a new room before another player joins." />
+            ) : null}
             {canManageRoomInvites ? (
               <View style={styles.inviteBox}>
                 <Text style={styles.itemTitle}>Invite by username</Text>
@@ -758,7 +772,9 @@ export function RoomDetailScreen() {
                   style={[styles.input, !canInvite && styles.inputDisabled]}
                 />
                 <AppButton disabled={!canInvite} loading={inviteMutation.isPending} onPress={() => inviteMutation.mutate()}>Send invite</AppButton>
-                {room?.status !== "open" ? (
+                {isExpiredOpenRoom ? (
+                  <Text style={styles.helpText}>This challenge window has ended. Create a new room before inviting another player.</Text>
+                ) : room?.status !== "open" ? (
                   <Text style={styles.helpText}>Open the room before inviting another player.</Text>
                 ) : participantCount >= (room?.max_participants ?? 2) ? (
                   <Text style={styles.helpText}>This room already has all players.</Text>
@@ -913,10 +929,12 @@ export function RoomDetailScreen() {
               <FormNotice tone="info" message={`Manual transfer: ${collectionAccount.bankName} ${collectionAccount.accountNumber}, ${collectionAccount.accountName}. Upload payment proof or paste a proof link.`} />
               <TextInput value={senderName} onChangeText={setSenderName} placeholder="Sender account name" placeholderTextColor={colors.faint} style={styles.input} />
               <TextInput value={senderBank} onChangeText={setSenderBank} placeholder="Sender bank" placeholderTextColor={colors.faint} style={styles.input} />
-              <TextInput value={transferReference} onChangeText={setTransferReference} placeholder="Transfer reference, optional" placeholderTextColor={colors.faint} style={styles.input} />
               <EvidenceUploadField contextType="match_room" contextId={roomId} label="Entry proof upload" disabled={manualFundingMutation.isPending} resetSignal={fundingUploadResetSignal} onUploaded={(evidence) => setProofUrl(evidence.url)} />
-              <TextInput value={proofUrl} onChangeText={setProofUrl} autoCapitalize="none" keyboardType="url" placeholder="Proof link" placeholderTextColor={colors.faint} style={styles.input} />
-              <TextInput value={proofNote} onChangeText={setProofNote} placeholder="Proof note" placeholderTextColor={colors.faint} style={styles.input} />
+              <OptionalFieldsPanel title="Optional transfer details" helper="Add only if your receipt has a reference, link, or note that helps review.">
+                <TextInput value={transferReference} onChangeText={setTransferReference} placeholder="Transfer reference" placeholderTextColor={colors.faint} style={styles.input} />
+                <TextInput value={proofUrl} onChangeText={setProofUrl} autoCapitalize="none" keyboardType="url" placeholder="Proof link" placeholderTextColor={colors.faint} style={styles.input} />
+                <TextInput value={proofNote} onChangeText={setProofNote} placeholder="Proof note" placeholderTextColor={colors.faint} style={styles.input} />
+              </OptionalFieldsPanel>
               <AppButton
                 disabled={!canSubmitManualFunding}
                 loading={manualFundingMutation.isPending}
@@ -1003,8 +1021,10 @@ export function RoomDetailScreen() {
               <FormNotice tone="info" message={`Submit your own win claim as ${playerDisplayName(ownParticipant, trustQuery.data?.[ownParticipant.user_id], user?.id)}. The opponent can agree or dispute from their side.`} />
               <TextInput value={scoreSummary} onChangeText={setScoreSummary} placeholder="Score summary" placeholderTextColor={colors.faint} style={styles.input} />
               <EvidenceUploadField contextType="match_room" contextId={roomId} label="Result evidence upload" disabled={resultMutation.isPending} resetSignal={resultUploadResetSignal} onUploaded={(evidence) => setEvidenceUrl(evidence.url)} />
-              <TextInput value={evidenceUrl} onChangeText={setEvidenceUrl} autoCapitalize="none" keyboardType="url" placeholder="Evidence link, optional" placeholderTextColor={colors.faint} style={styles.input} />
-              <TextInput value={resultNote} onChangeText={setResultNote} placeholder="Result note" placeholderTextColor={colors.faint} style={styles.input} />
+              <OptionalFieldsPanel title="Optional result details" helper="Use this for a fallback proof link or extra context.">
+                <TextInput value={evidenceUrl} onChangeText={setEvidenceUrl} autoCapitalize="none" keyboardType="url" placeholder="Evidence link" placeholderTextColor={colors.faint} style={styles.input} />
+                <TextInput value={resultNote} onChangeText={setResultNote} placeholder="Result note" placeholderTextColor={colors.faint} style={styles.input} />
+              </OptionalFieldsPanel>
               <AppButton loading={resultMutation.isPending} onPress={() => resultMutation.mutate()}>Submit result</AppButton>
             </>
           ) : null}
@@ -1162,9 +1182,15 @@ function QuickAction({
   );
 }
 
-function RoomFlow({ currentStatus }: { currentStatus?: string }) {
+function RoomFlow({ currentStatus, expired = false }: { currentStatus?: string; expired?: boolean }) {
   const steps = [
-    { key: "open", title: "Open", detail: "Room is visible or shareable by code.", done: !["draft", undefined].includes(currentStatus), active: currentStatus === "open" },
+    {
+      key: "open",
+      title: expired ? "Expired" : "Open",
+      detail: expired ? "The join window ended before another player accepted." : "Room is visible or shareable by code.",
+      done: !["draft", undefined].includes(currentStatus) && !expired,
+      active: expired || currentStatus === "open"
+    },
     { key: "fund", title: "Confirm entry", detail: "Both entries must be confirmed before play.", done: ["funded", "active", "awaiting_results", "under_review", "disputed", "settlement_pending", "completed"].includes(String(currentStatus)), active: ["awaiting_funding", "funding_review"].includes(String(currentStatus)) },
     { key: "play", title: "Play", detail: "Match starts after both entries are confirmed.", done: ["awaiting_results", "under_review", "disputed", "settlement_pending", "completed"].includes(String(currentStatus)), active: ["funded", "active"].includes(String(currentStatus)) },
     { key: "review", title: "Review", detail: "Result evidence and responses are checked.", done: ["settlement_pending", "completed"].includes(String(currentStatus)), active: ["awaiting_results", "under_review", "disputed"].includes(String(currentStatus)) },

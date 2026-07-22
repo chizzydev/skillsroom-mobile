@@ -16,6 +16,7 @@ import { Badge } from "../../../components/ui/Badge";
 import { CopyButton } from "../../../components/ui/CopyButton";
 import { FeedbackState } from "../../../components/ui/FeedbackState";
 import { FormNotice } from "../../../components/ui/FormNotice";
+import { OptionalFieldsPanel } from "../../../components/ui/OptionalFieldsPanel";
 import { SurfaceCard } from "../../../components/ui/SurfaceCard";
 import { env } from "../../../config/env";
 import { colors, radius, shadow, spacing } from "../../../constants/theme";
@@ -503,9 +504,11 @@ export function ProfileScreen() {
             <TextInput value={region} onChangeText={setRegion} placeholder="Region" placeholderTextColor={colors.faint} style={[styles.input, styles.half]} />
             <TextInput value={city} onChangeText={setCity} placeholder="City" placeholderTextColor={colors.faint} style={[styles.input, styles.half]} />
           </View>
-          <TextInput value={campus} onChangeText={setCampus} placeholder="Campus or community" placeholderTextColor={colors.faint} style={styles.input} />
-          <TextInput value={timezone} onChangeText={setTimezone} placeholder="Timezone" placeholderTextColor={colors.faint} style={styles.input} />
-          <TextInput value={bio} onChangeText={setBio} placeholder="Short player bio" placeholderTextColor={colors.faint} multiline maxLength={180} style={[styles.input, styles.textArea]} />
+          <OptionalFieldsPanel title="Optional profile details" helper="Add community, timezone, or a short bio when you want your profile to feel richer.">
+            <TextInput value={campus} onChangeText={setCampus} placeholder="Campus or community" placeholderTextColor={colors.faint} style={styles.input} />
+            <TextInput value={timezone} onChangeText={setTimezone} placeholder="Timezone" placeholderTextColor={colors.faint} style={styles.input} />
+            <TextInput value={bio} onChangeText={setBio} placeholder="Short player bio" placeholderTextColor={colors.faint} multiline maxLength={180} style={[styles.input, styles.textArea]} />
+          </OptionalFieldsPanel>
         </View>
         <SegmentedControl values={["room_participants", "private", "public"]} selected={visibility} labelFor={visibilityLabel} onSelect={setVisibility} />
         <Pressable style={styles.confirmRow} onPress={() => setAgeConfirmed((value) => !value)}>
@@ -530,8 +533,10 @@ export function ProfileScreen() {
         <SegmentedControl values={games.map((game) => game.slug)} selected={gameSlug} labelFor={(slug) => games.find((game) => game.slug === slug)?.name ?? slug} onSelect={setGameSlug} />
         <View style={styles.formGrid}>
           <TextInput value={gameHandle} onChangeText={setGameHandle} placeholder="In-game handle" placeholderTextColor={colors.faint} style={styles.input} />
-          <TextInput value={externalUid} onChangeText={setExternalUid} placeholder="External player ID or UID" placeholderTextColor={colors.faint} style={styles.input} />
-          <TextInput value={gameRegion} onChangeText={setGameRegion} placeholder="Game region" placeholderTextColor={colors.faint} style={styles.input} />
+          <OptionalFieldsPanel title="Optional game details" helper="Add UID or game region when the game uses them for finding players.">
+            <TextInput value={externalUid} onChangeText={setExternalUid} placeholder="External player ID or UID" placeholderTextColor={colors.faint} style={styles.input} />
+            <TextInput value={gameRegion} onChangeText={setGameRegion} placeholder="Game region" placeholderTextColor={colors.faint} style={styles.input} />
+          </OptionalFieldsPanel>
         </View>
         {gameNotice ? <FormNotice tone={gameNotice.tone} message={gameNotice.message} /> : null}
         <AppButton loading={gameMutation.isPending || gamesQuery.isLoading} onPress={() => gameMutation.mutate()}>Save primary game account</AppButton>
@@ -546,8 +551,10 @@ export function ProfileScreen() {
           <TextInput value={recipientName} onChangeText={setRecipientName} placeholder="Account name" placeholderTextColor={colors.faint} style={styles.input} />
           <TextInput value={bankName} onChangeText={setBankName} placeholder="Bank name" placeholderTextColor={colors.faint} style={styles.input} />
           <TextInput value={accountNumber} onChangeText={setAccountNumber} keyboardType="number-pad" placeholder={payoutProfile ? "Account number required to update" : "Account number"} placeholderTextColor={colors.faint} style={styles.input} />
-          <TextInput value={bankCode} onChangeText={setBankCode} placeholder="Bank code, if you know it" placeholderTextColor={colors.faint} style={styles.input} />
-          <TextInput value={payoutNote} onChangeText={setPayoutNote} placeholder="Payout note" placeholderTextColor={colors.faint} style={styles.input} />
+          <OptionalFieldsPanel title="Optional payout details" helper="Add a bank code or note only if your bank details need extra context.">
+            <TextInput value={bankCode} onChangeText={setBankCode} placeholder="Bank code, if you know it" placeholderTextColor={colors.faint} style={styles.input} />
+            <TextInput value={payoutNote} onChangeText={setPayoutNote} placeholder="Payout note" placeholderTextColor={colors.faint} style={styles.input} />
+          </OptionalFieldsPanel>
         </View>
         {payoutNotice ? <FormNotice tone={payoutNotice.tone} message={payoutNotice.message} /> : null}
         <AppButton loading={payoutMutation.isPending} onPress={() => payoutMutation.mutate()}>Save payout details</AppButton>
@@ -576,7 +583,9 @@ export function ProfileScreen() {
         <View style={styles.formGrid}>
           <TextInput value={streamName} onChangeText={setStreamName} placeholder="Channel display name" placeholderTextColor={colors.faint} style={styles.input} />
           <TextInput value={streamUrl} onChangeText={setStreamUrl} autoCapitalize="none" keyboardType="url" placeholder="https://..." placeholderTextColor={colors.faint} style={styles.input} />
-          <TextInput value={streamLogin} onChangeText={setStreamLogin} autoCapitalize="none" placeholder="Channel handle, optional" placeholderTextColor={colors.faint} style={styles.input} />
+          <OptionalFieldsPanel title="Optional stream details" helper="Add the channel handle when it helps Skillsroom show or verify the stream.">
+            <TextInput value={streamLogin} onChangeText={setStreamLogin} autoCapitalize="none" placeholder="Channel handle" placeholderTextColor={colors.faint} style={styles.input} />
+          </OptionalFieldsPanel>
         </View>
         {streamNotice ? <FormNotice tone={streamNotice.tone} message={streamNotice.message} /> : null}
         <AppButton loading={streamMutation.isPending} onPress={() => streamMutation.mutate()}>Save stream channel</AppButton>

@@ -391,6 +391,7 @@ function invalidateForEvent(queryClient: ReturnType<typeof useQueryClient>, even
     if (handled) {
       if (chatEventMayChangeNotifications(type)) {
         void queryClient.invalidateQueries({ queryKey: ["notifications"] });
+        void queryClient.invalidateQueries({ queryKey: ["home"] });
       }
       return;
     }
@@ -413,6 +414,7 @@ function invalidateForEvent(queryClient: ReturnType<typeof useQueryClient>, even
   }
 
   void queryClient.invalidateQueries({ queryKey: ["notifications"] });
+  void queryClient.invalidateQueries({ queryKey: ["home"] });
 }
 
 function invalidateForNotification(queryClient: ReturnType<typeof useQueryClient>, notification: UserNotification) {
@@ -432,6 +434,7 @@ function invalidateForNotification(queryClient: ReturnType<typeof useQueryClient
   if (notification.notification_type.includes("wallet") || notification.notification_type.includes("topup") || notification.notification_type.includes("payout")) {
     void queryClient.invalidateQueries({ queryKey: ["wallet"] });
   }
+  void queryClient.invalidateQueries({ queryKey: ["home"] });
 }
 
 export function LiveUpdatesProvider({ children }: { children: ReactNode }) {
@@ -503,6 +506,7 @@ export function LiveUpdatesProvider({ children }: { children: ReactNode }) {
     void openRealtimeStream({
       onReady: () => {
         void queryClient.invalidateQueries({ queryKey: ["notifications"] });
+        void queryClient.invalidateQueries({ queryKey: ["home"] });
       },
       onEvent: (rawEvent) => {
         const event = rawEvent as RealtimeEvent;
@@ -516,6 +520,7 @@ export function LiveUpdatesProvider({ children }: { children: ReactNode }) {
       onError: (error) => {
         if (error.status === 401 || error.status === 403) {
           void queryClient.invalidateQueries({ queryKey: ["notifications"] });
+          void queryClient.invalidateQueries({ queryKey: ["home"] });
         }
       }
     }).then((stream) => {

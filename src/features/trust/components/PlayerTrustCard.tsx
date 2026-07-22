@@ -259,7 +259,8 @@ const styles = StyleSheet.create({
   metricGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: spacing.sm
+    justifyContent: "space-between",
+    rowGap: spacing.sm
   },
   metric: {
     width: "48%",
@@ -284,7 +285,8 @@ const styles = StyleSheet.create({
   badgeGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: spacing.sm
+    justifyContent: "space-between",
+    rowGap: spacing.sm
   },
   badge: {
     width: "48%",

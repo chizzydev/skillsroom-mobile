@@ -37,6 +37,7 @@ function invalidateFromPush(queryClient: ReturnType<typeof useQueryClient>, data
   const actionUrl = dataString(data, "action_url") ?? "";
 
   void queryClient.invalidateQueries({ queryKey: ["notifications"] });
+  void queryClient.invalidateQueries({ queryKey: ["home"] });
   if (roomId || type.includes("match") || actionUrl.startsWith("/matches/")) {
     void queryClient.invalidateQueries({ queryKey: ["rooms"] });
     if (roomId) void queryClient.invalidateQueries({ queryKey: ["room", roomId] });

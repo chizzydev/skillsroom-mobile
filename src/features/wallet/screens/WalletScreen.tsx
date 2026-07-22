@@ -9,6 +9,7 @@ import { AppButton } from "../../../components/ui/AppButton";
 import { Badge } from "../../../components/ui/Badge";
 import { FeedbackState } from "../../../components/ui/FeedbackState";
 import { FormNotice } from "../../../components/ui/FormNotice";
+import { OptionalFieldsPanel } from "../../../components/ui/OptionalFieldsPanel";
 import { SurfaceCard } from "../../../components/ui/SurfaceCard";
 import { openEvidenceInApp } from "../../evidence/openEvidence";
 import { colors, radius, spacing } from "../../../constants/theme";
@@ -387,13 +388,15 @@ function TopupPanel({
       <FormNotice tone="info" message={`Transfer to ${collectionAccount.bankName} ${collectionAccount.accountNumber}, ${collectionAccount.accountName}. Pending top-ups are not spendable until confirmed.`} />
       <View style={styles.formGrid}>
         <TextInput value={topupAmount} onChangeText={onTopupAmount} keyboardType="number-pad" placeholder="Amount sent in NGN" placeholderTextColor={colors.faint} style={styles.input} />
-        <TextInput value={transferReference} onChangeText={onTransferReference} placeholder="Transfer reference" placeholderTextColor={colors.faint} style={styles.input} />
         <TextInput value={senderName} onChangeText={onSenderName} placeholder="Sender account name" placeholderTextColor={colors.faint} style={styles.input} />
         <TextInput value={senderBank} onChangeText={onSenderBank} placeholder="Sender bank" placeholderTextColor={colors.faint} style={styles.input} />
       </View>
       <EvidenceUploadField contextType="wallet" contextId="wallet" label="Receipt upload" disabled={loading} resetSignal={uploadResetSignal} onUploaded={(evidence) => onProofUrl(evidence.url)} />
-      <TextInput value={proofUrl} onChangeText={onProofUrl} autoCapitalize="none" keyboardType="url" placeholder="Receipt or screenshot link" placeholderTextColor={colors.faint} style={styles.input} />
-      <TextInput value={proofNote} onChangeText={onProofNote} placeholder="Note, optional" placeholderTextColor={colors.faint} style={styles.input} />
+      <OptionalFieldsPanel title="Optional transfer details" helper="Add a reference, fallback receipt link, or note if it helps match your top-up.">
+        <TextInput value={transferReference} onChangeText={onTransferReference} placeholder="Transfer reference" placeholderTextColor={colors.faint} style={styles.input} />
+        <TextInput value={proofUrl} onChangeText={onProofUrl} autoCapitalize="none" keyboardType="url" placeholder="Receipt or screenshot link" placeholderTextColor={colors.faint} style={styles.input} />
+        <TextInput value={proofNote} onChangeText={onProofNote} placeholder="Note" placeholderTextColor={colors.faint} style={styles.input} />
+      </OptionalFieldsPanel>
       <AppButton loading={loading} onPress={onSubmit}>Submit top-up</AppButton>
     </SurfaceCard>
   );
@@ -449,8 +452,10 @@ function PayoutPanel({
         <TextInput value={payoutBank} onChangeText={onPayoutBank} placeholder="Bank" placeholderTextColor="#9dafc1" style={styles.darkInput} />
         <TextInput value={payoutAccount} onChangeText={onPayoutAccount} keyboardType="number-pad" placeholder="Account number" placeholderTextColor="#9dafc1" style={styles.darkInput} />
       </View>
-      <TextInput value={payoutBankCode} onChangeText={onPayoutBankCode} placeholder="Bank code, optional" placeholderTextColor="#9dafc1" style={styles.darkInput} />
-      <TextInput value={payoutNote} onChangeText={onPayoutNote} placeholder="Payout note" placeholderTextColor="#9dafc1" style={styles.darkInput} />
+      <OptionalFieldsPanel title="Optional payout details" helper="Add a bank code or note only if your bank details need extra context.">
+        <TextInput value={payoutBankCode} onChangeText={onPayoutBankCode} placeholder="Bank code, if you know it" placeholderTextColor={colors.faint} style={styles.input} />
+        <TextInput value={payoutNote} onChangeText={onPayoutNote} placeholder="Payout note" placeholderTextColor={colors.faint} style={styles.input} />
+      </OptionalFieldsPanel>
       <AppButton loading={loading} disabled={winnings <= 0} onPress={onSubmit}>Request payout</AppButton>
     </SurfaceCard>
   );

@@ -4,7 +4,7 @@ import { Bell, ChevronRight, Clock3, ExternalLink, MessageCircle, Plus, ShieldCh
 import { useEffect } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { listChannels, listDmRequests } from "../../../api/chat";
-import { listNotifications } from "../../../api/notifications";
+import { listNotifications, listRoomInvites } from "../../../api/notifications";
 import { playerHomeSummary, type PlayerHomeReadiness, type PlayerHomeRoomPreview } from "../../../api/player";
 import { profileOverview } from "../../../api/profile";
 import { AppScreen } from "../../../components/screen/AppScreen";
@@ -70,6 +70,7 @@ export function HomeScreen() {
   const channelsQuery = useQuery({ queryKey: ["home", "channels"], queryFn: listChannels });
   const dmRequestsQuery = useQuery({ queryKey: ["home", "dm-requests"], queryFn: listDmRequests });
   const notificationsQuery = useQuery({ queryKey: ["notifications", "unread"], queryFn: () => listNotifications("unread") });
+  const roomInvitesQuery = useQuery({ queryKey: ["notifications", "room-invites"], queryFn: () => listRoomInvites("pending") });
 
   const summary = summaryQuery.data;
   const openRooms = summary?.open_room_previews ?? [];
@@ -78,7 +79,9 @@ export function HomeScreen() {
   const reviewRooms = summary?.active_review_previews ?? [];
   const unreadChannels = (channelsQuery.data ?? []).reduce((sum, channel) => sum + (channel.unread_count ?? 0), 0);
   const dmRequests = (dmRequestsQuery.data ?? []).filter((request) => request.status === "pending").length;
-  const unreadNotifications = summary?.unread_notification_count ?? notificationsQuery.data?.length ?? 0;
+  const unreadNotifications = Math.max(summary?.unread_notification_count ?? 0, notificationsQuery.data?.length ?? 0);
+  const pendingRoomInvites = roomInvitesQuery.data?.length ?? 0;
+  const inboxAttentionCount = Math.max(unreadNotifications, pendingRoomInvites) + dmRequests;
   const profile = profileQuery.data;
   const profileName = userGreetingName(user, profile?.profile?.display_name ?? profile?.profile?.username ?? profile?.user?.display_name ?? profile?.user?.username);
   const missingProfileItems = profile?.completion?.missing?.length ?? 0;
@@ -108,7 +111,7 @@ export function HomeScreen() {
           <Badge tone="cyan">Skillsroom</Badge>
           <Pressable style={styles.inboxButton} onPress={() => router.push("/(app)/notifications")}>
             <Bell color={colors.white} size={19} strokeWidth={2.5} />
-            {unreadNotifications + dmRequests > 0 ? <Text style={styles.inboxCount}>{unreadNotifications + dmRequests}</Text> : null}
+            {inboxAttentionCount > 0 ? <Text style={styles.inboxCount}>{inboxAttentionCount}</Text> : null}
           </Pressable>
         </View>
         <Text style={styles.heroTitle}>What can you play now, {firstName(profileName)}?</Text>

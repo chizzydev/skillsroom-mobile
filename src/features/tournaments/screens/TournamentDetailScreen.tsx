@@ -18,6 +18,7 @@ import { AppButton } from "../../../components/ui/AppButton";
 import { Badge } from "../../../components/ui/Badge";
 import { FeedbackState } from "../../../components/ui/FeedbackState";
 import { FormNotice } from "../../../components/ui/FormNotice";
+import { OptionalFieldsPanel } from "../../../components/ui/OptionalFieldsPanel";
 import { SurfaceCard } from "../../../components/ui/SurfaceCard";
 import { colors, radius, spacing } from "../../../constants/theme";
 import { EvidenceUploadField } from "../../uploads/components/EvidenceUploadField";
@@ -517,12 +518,14 @@ function EntryPanel(props: {
             <Text style={styles.sectionTitle}>Manual transfer</Text>
             <Text style={styles.copy}>{collectionAccount.bankName} - {collectionAccount.accountNumber} - {collectionAccount.accountName}</Text>
             <EvidenceUploadField contextType="tournament" contextId={props.tournamentId} label="Receipt upload" disabled={!props.canFund || props.proofLoading} resetSignal={props.proofUploadResetSignal} onUploaded={(evidence) => props.onProofUrl(evidence.url)} />
-            <TextInput value={props.proofUrl} onChangeText={props.onProofUrl} autoCapitalize="none" placeholder="Receipt or screenshot link" placeholderTextColor={colors.faint} style={styles.input} editable={props.canFund} />
-            <TextInput value={props.transferReference} onChangeText={props.onTransferReference} placeholder="Transfer reference, optional" placeholderTextColor={colors.faint} style={styles.input} editable={props.canFund} />
             <TextInput value={props.senderName} onChangeText={props.onSenderName} placeholder="Refund account name" placeholderTextColor={colors.faint} style={styles.input} editable={props.canFund} />
             <TextInput value={props.senderBank} onChangeText={props.onSenderBank} placeholder="Refund bank" placeholderTextColor={colors.faint} style={styles.input} editable={props.canFund} />
             <TextInput value={props.senderAccount} onChangeText={props.onSenderAccount} keyboardType="number-pad" placeholder="Refund account number" placeholderTextColor={colors.faint} style={styles.input} editable={props.canFund} />
-            <TextInput value={props.proofNote} onChangeText={props.onProofNote} multiline placeholder="Note, optional" placeholderTextColor={colors.faint} style={[styles.input, styles.textarea]} editable={props.canFund} />
+            <OptionalFieldsPanel title="Optional transfer details" helper="Add only if your receipt has a reference, fallback link, or extra note.">
+              <TextInput value={props.transferReference} onChangeText={props.onTransferReference} placeholder="Transfer reference" placeholderTextColor={colors.faint} style={styles.input} editable={props.canFund} />
+              <TextInput value={props.proofUrl} onChangeText={props.onProofUrl} autoCapitalize="none" placeholder="Receipt or screenshot link" placeholderTextColor={colors.faint} style={styles.input} editable={props.canFund} />
+              <TextInput value={props.proofNote} onChangeText={props.onProofNote} multiline placeholder="Note" placeholderTextColor={colors.faint} style={[styles.input, styles.textarea]} editable={props.canFund} />
+            </OptionalFieldsPanel>
             <AppButton variant="secondary" disabled={!props.canFund} loading={props.proofLoading} onPress={props.onProof}>
               Submit receipt
             </AppButton>
