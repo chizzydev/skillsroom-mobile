@@ -342,6 +342,8 @@ export type ChatChannel = {
   membership_notification_level?: ChatNotificationLevel | null;
   membership_dm_notification_level?: ChatNotificationLevel | null;
   membership_push_enabled?: boolean | null;
+  membership_browser_push_enabled?: boolean | null;
+  membership_mobile_push_enabled?: boolean | null;
   dm_peer_user_id?: string | null;
   dm_peer_username?: string | null;
   dm_peer_display_name?: string | null;
@@ -517,11 +519,15 @@ export type ChatChannelControls = {
     notification_level?: ChatNotificationLevel | null;
     dm_notification_level?: ChatNotificationLevel | null;
     push_enabled?: boolean | null;
+    browser_push_enabled?: boolean | null;
+    mobile_push_enabled?: boolean | null;
     [key: string]: unknown;
   } | null;
   notification_level?: ChatNotificationLevel | null;
   dm_notification_level?: ChatNotificationLevel | null;
   push_enabled?: boolean | null;
+  browser_push_enabled?: boolean | null;
+  mobile_push_enabled?: boolean | null;
   slow_mode_seconds?: number;
   lockdown_until?: string | null;
   lockdown_reason?: string | null;

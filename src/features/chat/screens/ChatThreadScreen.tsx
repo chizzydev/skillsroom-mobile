@@ -64,7 +64,7 @@ import { FeedbackState } from "../../../components/ui/FeedbackState";
 import { colors, radius, spacing } from "../../../constants/theme";
 import { useActionFeedback } from "../../../providers/ActionFeedbackProvider";
 import { useAuthStore } from "../../../store/auth-store";
-import type { ChatAttachment, ChatChannel, ChatDmRequest, ChatMessage, ChatMessagesResponse, ChatNotificationLevel, ChatPresenceMember } from "../../../types/api";
+import type { ChatAttachment, ChatChannel, ChatChannelControls, ChatDmRequest, ChatMessage, ChatMessagesResponse, ChatNotificationLevel, ChatPresenceMember } from "../../../types/api";
 import { ChatComposer } from "../components/ChatComposer";
 import type { PendingAttachment } from "../components/ChatComposer";
 import { ChatMessageBubble } from "../components/ChatMessageBubble";
@@ -1209,26 +1209,66 @@ function ChatInfoPanel({
   onRefreshScheduled: () => void;
   onPreview: (preview: { url: string; title: string; image: boolean }) => void;
 }) {
+  const queryClient = useQueryClient();
   const [tab, setTab] = useState<InfoTab>("members");
   const [localNotice, setLocalNotice] = useState<string | null>(null);
   const [slowMode, setSlowMode] = useState(String(channelControlsValue(controls, channel, "slow_mode_seconds") ?? 0));
   const [lockdownMinutes, setLockdownMinutes] = useState("30");
   const [lockdownReason, setLockdownReason] = useState("");
-  const selectedLevel = notificationLevelFromControls(controls, channel);
-  const pushEnabled = pushEnabledFromControls(controls, channel);
+  const serverSelectedLevel = notificationLevelFromControls(controls, channel);
+  const serverPushEnabled = pushEnabledFromControls(controls, channel);
+  const [optimisticNotifications, setOptimisticNotifications] = useState<{
+    level: ChatNotificationLevel;
+    pushEnabled: boolean;
+  } | null>(null);
+  const selectedLevel = optimisticNotifications?.level ?? serverSelectedLevel;
+  const pushEnabled = optimisticNotifications?.pushEnabled ?? serverPushEnabled;
   const canManageChannel = Boolean(channelControlsValue(controls, channel, "can_manage_channel") ?? channelControlsValue(controls, channel, "can_moderate"));
+
+  useEffect(() => {
+    setOptimisticNotifications(null);
+  }, [target]);
+
   const updateNotificationsMutation = useMutation({
+    scope: { id: `chat-notifications-${target}` },
     mutationFn: (input: { level: ChatNotificationLevel; pushEnabled?: boolean }) =>
       updateChatNotificationControls(target, {
         notification_level: input.level,
         dm_notification_level: channel?.channel_type === "dm" ? input.level : undefined,
-        push_enabled: input.pushEnabled ?? pushEnabled
+        mobile_push_enabled: input.pushEnabled ?? pushEnabled
       }),
-    onSuccess: () => {
-      setLocalNotice("Notification settings saved.");
-      onRefreshControls();
+    onMutate: (input) => {
+      const nextPushEnabled = input.pushEnabled ?? pushEnabled;
+      setLocalNotice(null);
+      setOptimisticNotifications({ level: input.level, pushEnabled: nextPushEnabled });
+      queryClient.setQueryData<ChatChannelControls>(["chat", "controls", target], (current) =>
+        patchControlsNotificationState(current, input.level, nextPushEnabled)
+      );
+      queryClient.setQueryData<ChatMessagesResponse>(["chat", "messages", target], (current) =>
+        current ? { ...current, channel: patchChannelNotificationState(current.channel, input.level, nextPushEnabled) } : current
+      );
+      queryClient.setQueriesData<ChatChannel[]>({ queryKey: ["chat", "channels"] }, (current) =>
+        current?.map((item) => (item.slug === target || item.id === target ? patchChannelNotificationState(item, input.level, nextPushEnabled)! : item)) ?? current
+      );
     },
-    onError: (error) => setLocalNotice(plainApiError(error, "Could not save notification settings."))
+    onSuccess: (nextControls) => {
+      const nextLevel = notificationLevelFromControls(nextControls, channel);
+      const nextPushEnabled = pushEnabledFromControls(nextControls, channel);
+      setOptimisticNotifications(null);
+      queryClient.setQueryData<ChatChannelControls>(["chat", "controls", target], nextControls);
+      queryClient.setQueryData<ChatMessagesResponse>(["chat", "messages", target], (current) =>
+        current ? { ...current, channel: patchChannelNotificationState(nextControls.channel ?? current.channel, nextLevel, nextPushEnabled) } : current
+      );
+      queryClient.setQueriesData<ChatChannel[]>({ queryKey: ["chat", "channels"] }, (current) =>
+        current?.map((item) => (item.slug === target || item.id === target ? patchChannelNotificationState(nextControls.channel ?? item, nextLevel, nextPushEnabled)! : item)) ?? current
+      );
+      setLocalNotice("Notification settings saved.");
+    },
+    onError: (error) => {
+      setOptimisticNotifications(null);
+      setLocalNotice(plainApiError(error, "Could not save notification settings."));
+      onRefreshControls();
+    }
   });
   const updateModerationMutation = useMutation({
     mutationFn: (input: { slow_mode_seconds: number; lockdown_minutes?: number; lockdown_reason?: string; unlock?: boolean }) =>
@@ -1339,7 +1379,7 @@ function ChatInfoPanel({
                   {(["all", "mentions", "none"] as ChatNotificationLevel[]).map((level) => (
                     <Pressable
                       key={level}
-                      disabled={updateNotificationsMutation.isPending || controlsLoading}
+                      disabled={controlsLoading}
                       onPress={() => updateNotificationsMutation.mutate({ level })}
                       style={[styles.segmentButton, selectedLevel === level && styles.segmentButtonOn]}
                     >
@@ -1348,7 +1388,7 @@ function ChatInfoPanel({
                   ))}
                 </View>
                 <Pressable
-                  disabled={updateNotificationsMutation.isPending || controlsLoading}
+                  disabled={controlsLoading}
                   onPress={() => updateNotificationsMutation.mutate({ level: selectedLevel, pushEnabled: !pushEnabled })}
                   style={styles.pushRow}
                 >
@@ -1460,7 +1500,15 @@ function notificationLevelFromControls(controls?: Record<string, unknown>, chann
 function pushEnabledFromControls(controls?: Record<string, unknown>, channel?: ChatChannel) {
   const membership = controls?.membership as Record<string, unknown> | undefined;
   const innerControls = controls?.controls as Record<string, unknown> | undefined;
-  const value = controls?.push_enabled ?? innerControls?.push_enabled ?? membership?.push_enabled ?? channel?.membership_push_enabled;
+  const value =
+    controls?.mobile_push_enabled ??
+    innerControls?.mobile_push_enabled ??
+    membership?.mobile_push_enabled ??
+    channel?.membership_mobile_push_enabled ??
+    controls?.push_enabled ??
+    innerControls?.push_enabled ??
+    membership?.push_enabled ??
+    channel?.membership_push_enabled;
   return value !== false;
 }
 
@@ -1494,6 +1542,51 @@ function EmptyInfo({ text }: { text: string }) {
       <Text style={styles.emptyInfoText}>{text}</Text>
     </View>
   );
+}
+
+function patchChannelNotificationState(
+  channel: ChatChannel,
+  level: ChatNotificationLevel,
+  pushEnabled: boolean
+) {
+  return {
+    ...channel,
+    membership_notification_level: level,
+    membership_dm_notification_level: channel.channel_type === "dm" ? level : channel.membership_dm_notification_level,
+    membership_push_enabled: pushEnabled,
+    membership_mobile_push_enabled: pushEnabled
+  };
+}
+
+function patchOptionalChannelNotificationState(
+  channel: ChatChannel | undefined,
+  level: ChatNotificationLevel,
+  pushEnabled: boolean
+) {
+  return channel ? patchChannelNotificationState(channel, level, pushEnabled) : undefined;
+}
+
+function patchControlsNotificationState(
+  controls: ChatChannelControls | undefined,
+  level: ChatNotificationLevel,
+  pushEnabled: boolean
+) {
+  if (!controls) return controls;
+  return {
+    ...controls,
+    notification_level: level,
+    dm_notification_level: level,
+    push_enabled: pushEnabled,
+    mobile_push_enabled: pushEnabled,
+    membership: {
+      ...(controls.membership ?? {}),
+      notification_level: level,
+      dm_notification_level: level,
+      push_enabled: pushEnabled,
+      mobile_push_enabled: pushEnabled
+    },
+    channel: patchOptionalChannelNotificationState(controls.channel, level, pushEnabled)
+  };
 }
 
 function MemberRow({ member }: { member: Record<string, unknown> }) {

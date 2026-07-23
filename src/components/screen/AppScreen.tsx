@@ -9,7 +9,7 @@ export function AppScreen({ children, scroll = true, scrollRef }: { children: Re
   const segments = useSegments() as string[];
   const isBottomTabScreen = segments.includes("(tabs)");
   const safeEdges = isBottomTabScreen ? (["top", "left", "right"] as const) : (["top", "left", "right", "bottom"] as const);
-  const bottomPadding = isBottomTabScreen ? spacing.md : spacing.xl;
+  const bottomPadding = isBottomTabScreen ? spacing.md + Math.min(insets.bottom, spacing.xs) : spacing.xl;
   const content = <View style={[styles.content, { paddingBottom: scroll ? bottomPadding : 0 }]}>{children}</View>;
 
   return (

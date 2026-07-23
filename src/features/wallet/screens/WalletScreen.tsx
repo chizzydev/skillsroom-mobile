@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Fragment, type ReactNode } from "react";
+import { useFocusEffect } from "expo-router";
+import { Fragment, useCallback, type ReactNode } from "react";
 import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { plainApiError } from "../../../api/errors";
@@ -114,7 +115,19 @@ export function WalletScreen() {
   const [payoutBankCode, setPayoutBankCode] = useState("");
   const [payoutNote, setPayoutNote] = useState("");
 
-  const walletQuery = useQuery({ queryKey: ["wallet"], queryFn: walletOverview, refetchInterval: 15000 });
+  const walletQuery = useQuery({
+    queryKey: ["wallet"],
+    queryFn: walletOverview,
+    refetchInterval: 15000,
+    refetchOnMount: "always",
+    staleTime: 0
+  });
+
+  useFocusEffect(
+    useCallback(() => {
+      void walletQuery.refetch();
+    }, [walletQuery.refetch])
+  );
   const overview = walletQuery.data;
   const account = overview?.account;
   const currency = account?.currency ?? overview?.balance?.currency ?? "NGN";

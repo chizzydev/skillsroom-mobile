@@ -81,7 +81,13 @@ export async function getChatChannelControls(channelIdOrSlug: string) {
 
 export async function updateChatNotificationControls(
   channelIdOrSlug: string,
-  input: { notification_level: ChatNotificationLevel; dm_notification_level?: ChatNotificationLevel; push_enabled?: boolean }
+  input: {
+    notification_level: ChatNotificationLevel;
+    dm_notification_level?: ChatNotificationLevel;
+    push_enabled?: boolean;
+    browser_push_enabled?: boolean;
+    mobile_push_enabled?: boolean;
+  }
 ) {
   return apiRequest<ChatChannelControls>(`/community/channels/${encodeURIComponent(channelIdOrSlug)}/controls/notifications`, {
     method: "PATCH",
