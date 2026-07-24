@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { LayoutChangeEvent, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { plainApiError } from "../../../api/errors";
 import { profileTrustSummary } from "../../../api/profile";
+import { walletOverview } from "../../../api/wallet";
 import {
   createRoomInvite,
   getRoomFunding,
@@ -175,11 +176,14 @@ function fundingMethodDetail(
     return item.participant_id === participant.id && item.entry_type === "manual_funding_approved" && item.direction === "credit" && item.account_type === "match_escrow";
   }) as Record<string, unknown> | undefined;
 
-  if (participant.funding_status === "approved" && escrowEntry?.source_type === "wallet_hold") {
-    return { label: "Balance", detail: "Entry fee is locked from Skillsroom Balance.", tone: "green" as const };
-  }
-  if (participant.funding_status === "approved" && (submission?.status === "approved" || escrowEntry)) {
-    return { label: "Manual transfer", detail: "Payment proof is approved for this room.", tone: "green" as const };
+  if (participant.funding_status === "approved") {
+    if (escrowEntry?.source_type === "wallet_hold") {
+      return { label: "Balance", detail: "Entry fee is held from Skillsroom Balance.", tone: "green" as const };
+    }
+    if (submission?.status === "approved") {
+      return { label: "Manual transfer", detail: "Payment proof is approved for this room.", tone: "green" as const };
+    }
+    return { label: "Confirmed", detail: "Entry is approved for this room.", tone: "green" as const };
   }
   if (submission?.status === "submitted" || participant.funding_status === "submitted") {
     return { label: "Under review", detail: "Payment proof is waiting for Skillsroom review.", tone: "amber" as const };
@@ -189,6 +193,12 @@ function fundingMethodDetail(
   }
   if (participant.funding_status === "refunded") return { label: "Refunded", detail: "This entry has been returned.", tone: "amber" as const };
   return { label: "Not funded", detail: "Player still needs to pay the entry or upload payment proof.", tone: "amber" as const };
+}
+
+function fundingProofLabel(participant: MatchParticipant | undefined, submission: ManualFundingSubmission | undefined) {
+  if (submission?.status) return fundingStatusLabel(submission.status);
+  if (participant?.funding_status === "approved") return "No transfer proof needed";
+  return "No proof shown";
 }
 
 function fundingStatusTone(status?: string): "green" | "amber" | "red" {
@@ -322,6 +332,7 @@ export function RoomDetailScreen() {
   const fundingQuery = useQuery({ queryKey: ["room", roomId, "funding"], queryFn: () => getRoomFunding(roomId), enabled: Boolean(roomId), refetchInterval: 10000 });
   const resultsQuery = useQuery({ queryKey: ["room", roomId, "results"], queryFn: () => getRoomResults(roomId), enabled: Boolean(roomId), refetchInterval: 10000 });
   const livestreamsQuery = useQuery({ queryKey: ["room", roomId, "livestreams"], queryFn: () => listRoomLivestreams(roomId), enabled: Boolean(roomId), refetchInterval: 15000 });
+  const walletQuery = useQuery({ queryKey: ["wallet"], queryFn: walletOverview, enabled: Boolean(roomId && user?.id) });
 
   const room = timelineQuery.data?.room;
   const roomIssueRules = roomIssueRulesFromRuleset(room?.ruleset_rules);
@@ -418,6 +429,12 @@ export function RoomDetailScreen() {
     }));
   }, [participants, room?.max_participants]);
   const fundedCount = participants.filter((participant) => participant.funding_status === "approved").length;
+  const walletAccount = walletQuery.data?.account;
+  const walletCurrency = walletAccount?.currency ?? room?.currency ?? "NGN";
+  const walletMatchesRoom = !room?.currency || !walletAccount?.currency || walletAccount.currency === room.currency;
+  const availableBalanceMinor = walletMatchesRoom ? walletAccount?.available_balance_minor ?? 0 : 0;
+  const winningsBalanceMinor = walletMatchesRoom ? walletAccount?.winnings_balance_minor ?? 0 : 0;
+  const playableBalanceMinor = availableBalanceMinor + winningsBalanceMinor;
 
   const notify = (targetSection: Section, nextNotice: NonNullable<Notice>, focusSection = false) => {
     setNotice(nextNotice);
@@ -554,7 +571,8 @@ export function RoomDetailScreen() {
       notify("funding", { tone: "success", message: "Your entry fee is held from Skillsroom Balance. The room will update when both players are ready." });
       await Promise.all([
         refreshRoom(),
-        queryClient.invalidateQueries({ queryKey: ["room", roomId, "funding"] })
+        queryClient.invalidateQueries({ queryKey: ["room", roomId, "funding"] }),
+        queryClient.invalidateQueries({ queryKey: ["wallet"] })
       ]);
     },
     onError: (error) => notify("funding", { tone: "error", message: plainApiError(error, "Could not pay with balance.") })
@@ -897,6 +915,16 @@ export function RoomDetailScreen() {
               <Text style={styles.summaryValue}>{fundedCount}/{room?.max_participants ?? 2}</Text>
               <Text style={styles.copy}>Approved entries</Text>
             </View>
+            <View style={styles.summaryTile}>
+              <Text style={styles.quickLabel}>Available</Text>
+              <Text style={styles.summaryValue}>{money(availableBalanceMinor, walletCurrency)}</Text>
+              <Text style={styles.copy}>Ready for entry</Text>
+            </View>
+            <View style={styles.summaryTile}>
+              <Text style={styles.quickLabel}>Winnings</Text>
+              <Text style={styles.summaryValue}>{money(winningsBalanceMinor, walletCurrency)}</Text>
+              <Text style={styles.copy}>Can be used if not reserved for payout</Text>
+            </View>
           </View>
           {playerSlots.map(({ slot, participant }) => {
             const trust = participant ? trustQuery.data?.[participant.user_id] : null;
@@ -917,7 +945,7 @@ export function RoomDetailScreen() {
                 <View style={styles.detailList}>
                   <DetailRow label="Entry amount" value={money(room?.entry_amount_minor, room?.currency)} />
                   <DetailRow label="Entry status" value={fundingStatusLabel(participantFundingStatus)} />
-                  <DetailRow label="Proof" value={submission?.status ? fundingStatusLabel(submission.status) : "No proof shown"} />
+                  <DetailRow label="Proof" value={fundingProofLabel(participant, submission)} />
                 </View>
                 {trust ? <PlayerTrustCard compact trust={trust} /> : null}
               </View>
@@ -925,6 +953,7 @@ export function RoomDetailScreen() {
           })}
           {canSubmitOwnFunding ? (
             <>
+              <FormNotice tone="info" message={`Playable balance: ${money(playableBalanceMinor, walletCurrency)} from available balance and unreserved winnings.`} />
               <AppButton loading={balanceMutation.isPending} onPress={() => balanceMutation.mutate()}>Pay with balance</AppButton>
               <FormNotice tone="info" message={`Manual transfer: ${collectionAccount.bankName} ${collectionAccount.accountNumber}, ${collectionAccount.accountName}. Upload payment proof or paste a proof link.`} />
               <TextInput value={senderName} onChangeText={setSenderName} placeholder="Sender account name" placeholderTextColor={colors.faint} style={styles.input} />
