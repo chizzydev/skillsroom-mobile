@@ -2,10 +2,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { ArrowLeft, Bell, Check, ChevronRight, MessageCircle, RefreshCw } from "lucide-react-native";
 import { useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Switch, Text, View } from "react-native";
 import { listDmRequests } from "../../../api/chat";
 import { plainApiError } from "../../../api/errors";
-import { listNotifications, listRoomInvites, markNotificationRead, respondToRoomInvite } from "../../../api/notifications";
+import { getNotificationPreferences, listNotifications, listRoomInvites, markNotificationRead, respondToRoomInvite, updateNotificationPreferences } from "../../../api/notifications";
 import { AppScreen } from "../../../components/screen/AppScreen";
 import { AppButton } from "../../../components/ui/AppButton";
 import { Badge } from "../../../components/ui/Badge";
@@ -14,10 +14,32 @@ import { FormNotice } from "../../../components/ui/FormNotice";
 import { SurfaceCard } from "../../../components/ui/SurfaceCard";
 import { colors, radius, spacing } from "../../../constants/theme";
 import { useActionFeedback } from "../../../providers/ActionFeedbackProvider";
-import type { RoomInvite, UserNotification } from "../../../types/api";
+import type { NotificationPreference, RoomInvite, UserNotification } from "../../../types/api";
 import { routeFromUserNotification } from "../notificationRouting";
 
 type InboxTab = "unread" | "read";
+type PreferenceKey = "in_app_enabled" | "in_app_sound_enabled" | "email_enabled" | "sms_enabled" | "room_invites_enabled" | "match_updates_enabled" | "marketing_enabled";
+
+const defaultPreferences: NotificationPreference = {
+  user_id: "",
+  in_app_enabled: true,
+  in_app_sound_enabled: true,
+  email_enabled: false,
+  sms_enabled: false,
+  room_invites_enabled: true,
+  match_updates_enabled: true,
+  marketing_enabled: false
+};
+
+const preferenceRows: Array<{ key: PreferenceKey; label: string; description: string; disabled?: boolean }> = [
+  { key: "in_app_enabled", label: "In-app notifications", description: "Show updates inside Skillsroom." },
+  { key: "in_app_sound_enabled", label: "In-app sound", description: "Use this preference for in-app notification sounds when the app supports them." },
+  { key: "email_enabled", label: "Email for priority updates", description: "Only important alerts, requests, and announcements are sent by email." },
+  { key: "sms_enabled", label: "SMS", description: "Reserved for future critical alerts.", disabled: true },
+  { key: "room_invites_enabled", label: "Room invites", description: "Notify me when a player sends a room invite." },
+  { key: "match_updates_enabled", label: "Match updates", description: "Notify me about match actions that need attention." },
+  { key: "marketing_enabled", label: "Marketing", description: "Send occasional product and community promotions." }
+];
 
 function formatWhen(value?: string) {
   if (!value) return "Just now";
@@ -45,6 +67,8 @@ export function NotificationsScreen() {
   const notificationsQuery = useQuery({ queryKey: ["notifications", tab], queryFn: () => listNotifications(tab) });
   const invitesQuery = useQuery({ queryKey: ["notifications", "room-invites"], queryFn: () => listRoomInvites("pending") });
   const dmRequestsQuery = useQuery({ queryKey: ["notifications", "dm-requests"], queryFn: listDmRequests });
+  const preferencesQuery = useQuery({ queryKey: ["notifications", "preferences"], queryFn: getNotificationPreferences });
+  const preferences = preferencesQuery.data ?? defaultPreferences;
   const pendingDmRequests = useMemo(() => (dmRequestsQuery.data ?? []).filter((request) => request.status === "pending"), [dmRequestsQuery.data]);
 
   const readMutation = useMutation({
@@ -81,6 +105,35 @@ export function NotificationsScreen() {
     },
     onError: (error) => setNotice(plainApiError(error, "Could not respond to this invite."))
   });
+
+  const preferencesMutation = useMutation({
+    mutationFn: (input: NotificationPreference) => updateNotificationPreferences({
+      in_app_enabled: input.in_app_enabled,
+      in_app_sound_enabled: input.in_app_sound_enabled,
+      email_enabled: input.email_enabled,
+      sms_enabled: input.sms_enabled,
+      room_invites_enabled: input.room_invites_enabled,
+      match_updates_enabled: input.match_updates_enabled,
+      marketing_enabled: input.marketing_enabled
+    }),
+    onSuccess: async () => {
+      setNotice(null);
+      pushFeedback({
+        tone: "success",
+        title: "Notification settings saved",
+        message: "Your notification preferences are updated."
+      });
+      await queryClient.invalidateQueries({ queryKey: ["notifications", "preferences"] });
+    },
+    onError: (error) => setNotice(plainApiError(error, "Could not save notification settings."))
+  });
+
+  function togglePreference(key: PreferenceKey, enabled: boolean) {
+    preferencesMutation.mutate({
+      ...preferences,
+      [key]: enabled
+    });
+  }
 
   async function openNotification(notification: UserNotification) {
     if (notification.status === "unread") {
@@ -121,6 +174,45 @@ export function NotificationsScreen() {
       </View>
 
       {notice ? <FormNotice tone="error" message={notice} /> : null}
+
+      <SurfaceCard>
+        <View style={styles.sectionHeader}>
+          <View style={styles.sectionIcon}>
+            <Bell color={colors.cyan} size={21} />
+          </View>
+          <View style={styles.main}>
+            <Text style={styles.sectionTitle}>Notification settings</Text>
+            <Text style={styles.copy}>Choose which Skillsroom updates can reach you.</Text>
+          </View>
+        </View>
+        {preferencesQuery.isLoading ? <Text style={styles.copy}>Loading notification settings...</Text> : null}
+        {preferencesQuery.isError ? (
+          <FeedbackState tone="error" title="Unable to load settings" body="Check your connection and try again." actionLabel="Retry" onAction={() => void preferencesQuery.refetch()} />
+        ) : null}
+        {!preferencesQuery.isError ? (
+          <View style={styles.preferenceList}>
+            {preferenceRows.map((item) => {
+              const checked = Boolean(preferences[item.key]);
+              const disabled = Boolean(item.disabled || preferencesMutation.isPending || preferencesQuery.isLoading);
+              return (
+                <View key={item.key} style={[styles.preferenceRow, item.disabled && styles.preferenceRowDisabled]}>
+                  <View style={styles.main}>
+                    <Text style={styles.preferenceTitle}>{item.label}</Text>
+                    <Text style={styles.preferenceCopy}>{item.description}</Text>
+                  </View>
+                  <Switch
+                    disabled={disabled}
+                    onValueChange={(nextValue) => togglePreference(item.key, nextValue)}
+                    thumbColor={checked ? colors.green : colors.white}
+                    trackColor={{ false: colors.line, true: colors.greenSoft }}
+                    value={checked}
+                  />
+                </View>
+              );
+            })}
+          </View>
+        ) : null}
+      </SurfaceCard>
 
       <SurfaceCard>
         <View style={styles.sectionHeader}>
@@ -248,6 +340,11 @@ const styles = StyleSheet.create({
   sectionTitle: { color: colors.ink, fontSize: 22, lineHeight: 27, fontWeight: "900" },
   copy: { color: colors.muted, fontSize: 15, lineHeight: 22 },
   smallAction: { width: 38, height: 38, borderRadius: radius.pill, backgroundColor: colors.cyanSoft, alignItems: "center", justifyContent: "center" },
+  preferenceList: { gap: spacing.sm },
+  preferenceRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, backgroundColor: colors.surfaceAlt, padding: spacing.md },
+  preferenceRowDisabled: { opacity: 0.65 },
+  preferenceTitle: { color: colors.ink, fontSize: 15, lineHeight: 20, fontWeight: "900" },
+  preferenceCopy: { color: colors.muted, fontSize: 13, lineHeight: 19, marginTop: 3 },
   notificationRow: { flexDirection: "row", gap: spacing.md, alignItems: "flex-start", borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, backgroundColor: colors.surfaceAlt, padding: spacing.md },
   notificationDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.cyan, marginTop: 6 },
   notificationTitle: { color: colors.ink, fontSize: 16, lineHeight: 21, fontWeight: "900" },

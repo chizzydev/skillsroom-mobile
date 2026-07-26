@@ -34,6 +34,7 @@ function matchSection(actionUrl: string, notificationType: string) {
 }
 
 function matchFocus(actionUrl: string, notificationType: string) {
+  if (notificationType === "match_result_more_proof_requested" || actionUrl.includes("#result-proof-request")) return "result-proof-request";
   if (notificationType.startsWith("match_result_response") || actionUrl.includes("#result-response")) return "result-response";
   if (notificationType.startsWith("match_result_")) return "result-claim";
   if (notificationType.startsWith("room_invite_")) return "players-list";

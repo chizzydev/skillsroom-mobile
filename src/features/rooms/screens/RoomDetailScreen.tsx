@@ -46,7 +46,7 @@ type Notice = { tone: "error" | "success" | "info"; message: string } | null;
 type SectionNotice = { section: Section; notice: NonNullable<Notice> } | null;
 
 const sections: Section[] = ["overview", "players", "funding", "live", "result", "history"];
-const roomFocuses: RoomFocus[] = ["section", "players-list", "funding-action", "live-action", "result-claim", "result-response", "history"];
+const roomFocuses: RoomFocus[] = ["section", "players-list", "funding-action", "live-action", "result-claim", "result-response", "result-proof-request", "history"];
 const collectionAccount = {
   bankName: "Opay",
   accountNumber: "8134979631",
@@ -546,8 +546,12 @@ export function RoomDetailScreen() {
   useEffect(() => {
     if (!roomId || !routedSection) return;
     promptedNextStep.current = `${roomId}:explicit:${routedSection}`;
+    if (routedFocus) {
+      pendingLocalFocus.current = { section: routedSection, focus: routedFocus };
+      lastScrolledFocus.current = null;
+    }
     setSection(routedSection);
-  }, [roomId, routedSection]);
+  }, [roomId, routedFocus, routedSection]);
 
   useEffect(() => {
     if (!roomId || routedSection) return;
@@ -1150,7 +1154,7 @@ export function RoomDetailScreen() {
             />
           ) : null}
           {activeProofRequest ? (
-            <View onLayout={canRespondToProofRequest ? registerFocusLayout("result-proof-request", "section") : undefined} style={styles.focusBlock}>
+            <View onLayout={registerFocusLayout("result-proof-request", "section")} style={styles.focusBlock}>
               <FormNotice
                 tone={canRespondToProofRequest ? "info" : "success"}
                 message={canRespondToProofRequest

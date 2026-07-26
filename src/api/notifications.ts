@@ -1,4 +1,4 @@
-import type { MobilePushDevice, RoomInvite, UserNotification } from "../types/api";
+import type { MobilePushDevice, NotificationPreference, RoomInvite, UserNotification } from "../types/api";
 import { apiRequest } from "./client";
 
 export async function listNotifications(status: "unread" | "read" | "archived" = "unread") {
@@ -25,6 +25,22 @@ export async function respondToRoomInvite(inviteId: string, response: "accepted"
     body: { response }
   });
   return data.invite;
+}
+
+export async function getNotificationPreferences() {
+  const data = await apiRequest<{ preferences: NotificationPreference }>("/community/notification-preferences");
+  return data.preferences;
+}
+
+export async function updateNotificationPreferences(input: Partial<Pick<
+  NotificationPreference,
+  "in_app_enabled" | "in_app_sound_enabled" | "email_enabled" | "sms_enabled" | "room_invites_enabled" | "match_updates_enabled" | "marketing_enabled"
+>>) {
+  const data = await apiRequest<{ preferences: NotificationPreference }>("/community/notification-preferences", {
+    method: "PUT",
+    body: input
+  });
+  return data.preferences;
 }
 
 export async function registerMobilePushDevice(input: {

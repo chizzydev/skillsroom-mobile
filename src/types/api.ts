@@ -589,6 +589,21 @@ export type UserNotification = {
   [key: string]: unknown;
 };
 
+export type NotificationPreference = {
+  user_id: string;
+  in_app_enabled: boolean;
+  in_app_sound_enabled: boolean;
+  email_enabled: boolean;
+  sms_enabled: boolean;
+  room_invites_enabled: boolean;
+  match_updates_enabled: boolean;
+  marketing_enabled: boolean;
+  quiet_hours_start?: string | null;
+  quiet_hours_end?: string | null;
+  updated_at?: string;
+  [key: string]: unknown;
+};
+
 export type MobilePushDevice = {
   id: string;
   user_id: string;
