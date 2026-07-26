@@ -10,6 +10,7 @@ import {
   confirmAdminStepUp,
   getPlayerTrustSummary,
   listAdminResultClaims,
+  requestMoreResultProof,
   reviewAdminResultClaim,
   roleLabel,
   type PlayerTrustSummary,
@@ -77,7 +78,8 @@ const queueStatuses: Array<{
 ];
 
 const decisions: Array<{ value: ResultReviewDecision; label: string; tone: "primary" | "secondary" | "danger" }> = [
-  { value: "approve_claim", label: "Approve claim", tone: "primary" },
+  { value: "approve_claim", label: "Approve agreed claim", tone: "primary" },
+  { value: "approve_disputed_claim", label: "Approve after dispute review", tone: "secondary" },
   { value: "opponent_timeout_awarded", label: "Award after no response", tone: "secondary" },
   { value: "mark_disputed", label: "Mark disputed", tone: "secondary" },
   { value: "reject_claim", label: "Reject claim", tone: "danger" },
@@ -86,8 +88,10 @@ const decisions: Array<{ value: ResultReviewDecision; label: string; tone: "prim
 
 const resultSuccessMessages: Record<ResultReviewDecision, string> = {
   approve_claim: "Result claim approved.",
+  approve_disputed_claim: "Result approved after dispute review.",
   approve_no_response: "Result approved after no opponent response.",
   opponent_timeout_awarded: "Result awarded after no opponent response.",
+  proof_request_timeout_awarded: "Result awarded after a missed proof deadline.",
   reject_claim: "Result claim rejected.",
   mark_disputed: "Result claim moved to dispute review.",
   void_match: "Match closed without a winner. Refunds were queued."
@@ -230,6 +234,8 @@ export function AdminResultsScreen() {
   const [targetNotice, setTargetNotice] = useState<{ target: NoticeTarget; notice: NonNullable<Notice> } | null>(null);
   const [selectedClaimId, setSelectedClaimId] = useState("");
   const [reviewNote, setReviewNote] = useState("");
+  const [proofRequestTarget, setProofRequestTarget] = useState<"claimant" | "opponent" | "both">("both");
+  const [proofRequestMessage, setProofRequestMessage] = useState("");
   const [password, setPassword] = useState("");
   const savedStepUpToken = useAdminStepUpStore((state) => state.token);
   const savedStepUpExpiresAt = useAdminStepUpStore((state) => state.expiresAt);
@@ -259,6 +265,7 @@ export function AdminResultsScreen() {
   const stepUpExpiresAt = stepUpActive ? savedStepUpExpiresAt : null;
   const canReview = Boolean(selectedClaimId.trim() && stepUpToken);
   const selectedClaimCanApprove = selectedCard ? selectedCard.claim.status === "opponent_agreed" : true;
+  const selectedClaimCanApproveAfterDispute = selectedCard ? selectedCard.claim.status === "opponent_disputed" : true;
   const selectedClaimCanApproveNoResponse = selectedCard ? selectedCard.claim.status === "submitted" && responseWindowExpired(selectedCard.claim) : true;
   const notify = (target: NoticeTarget, nextNotice: NonNullable<Notice>) => {
     setNotice(nextNotice);
@@ -309,6 +316,31 @@ export function AdminResultsScreen() {
         clearAdminStepUp();
       }
       notify("decision", { tone: "error", message: plainApiError(error, "The result review could not be completed.") });
+    }
+  });
+
+  const proofRequestMutation = useMutation({
+    mutationFn: () => {
+      if (!stepUpToken) throw new Error("Unlock sensitive actions before requesting proof.");
+      if (!selectedClaimId.trim()) throw new Error("Select or paste a claim ID first.");
+      if (proofRequestMessage.trim().length < 10) throw new Error("Write a clear proof request for the player.");
+      return requestMoreResultProof(selectedClaimId.trim(), {
+        target: proofRequestTarget,
+        message: proofRequestMessage.trim(),
+        stepUpToken
+      });
+    },
+    onSuccess: () => {
+      notify("decision", { tone: "success", message: "Proof request sent. Players have 24 hours to respond." });
+      setProofRequestMessage("");
+      void queryClient.invalidateQueries({ queryKey: ["admin", "results"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin", "overview"] });
+    },
+    onError: (error) => {
+      if (error instanceof ApiError && (error.code === "ADMIN_STEP_UP_EXPIRED" || error.code === "ADMIN_STEP_UP_INVALID")) {
+        clearAdminStepUp();
+      }
+      notify("decision", { tone: "error", message: plainApiError(error, "The proof request could not be sent.") });
     }
   });
 
@@ -490,6 +522,7 @@ export function AdminResultsScreen() {
                 disabled={
                   !canReview ||
                   (decision.value === "approve_claim" && !selectedClaimCanApprove) ||
+                  (decision.value === "approve_disputed_claim" && !selectedClaimCanApproveAfterDispute) ||
                   ((decision.value === "approve_no_response" || decision.value === "opponent_timeout_awarded") && !selectedClaimCanApproveNoResponse)
                 }
                 loading={reviewMutation.isPending}
@@ -499,6 +532,36 @@ export function AdminResultsScreen() {
               </AppButton>
             ))}
           </View>
+          <View style={styles.divider} />
+          <Text style={styles.rowTitle}>Request more proof</Text>
+          <Text style={styles.copy}>Ask the claimant, opponent, or both players for more proof. The deadline is fixed at 24 hours.</Text>
+          <View style={styles.actionGrid}>
+            {(["both", "claimant", "opponent"] as const).map((target) => (
+              <AppButton
+                key={target}
+                variant={proofRequestTarget === target ? "primary" : "secondary"}
+                onPress={() => setProofRequestTarget(target)}
+              >
+                {target === "both" ? "Both players" : target === "claimant" ? "Claimant" : "Opponent"}
+              </AppButton>
+            ))}
+          </View>
+          <LabeledInput
+            label="Player-facing request"
+            value={proofRequestMessage}
+            onChangeText={setProofRequestMessage}
+            placeholder="Explain exactly what proof Skillsroom needs."
+            multiline
+            minHeight={112}
+          />
+          <AppButton
+            variant="secondary"
+            disabled={!canReview || proofRequestMessage.trim().length < 10}
+            loading={proofRequestMutation.isPending}
+            onPress={() => proofRequestMutation.mutate()}
+          >
+            Request more proof
+          </AppButton>
         </View>
       </SurfaceCard>
     </AppScreen>
@@ -771,6 +834,7 @@ const styles = StyleSheet.create({
   selectedPanel: { borderRadius: radius.md, borderWidth: 1, borderColor: "#b6f4db", backgroundColor: colors.greenSoft, padding: spacing.md, gap: spacing.xs },
   selectedTitle: { color: colors.ink, fontSize: 24, lineHeight: 30, fontWeight: "900" },
   formStack: { gap: spacing.sm },
+  divider: { height: 1, backgroundColor: colors.line, marginVertical: spacing.sm },
   field: { gap: spacing.xs },
   inputLabel: { color: colors.ink, fontSize: 15, fontWeight: "900" },
   optionalLabel: { marginTop: -4, color: colors.muted, fontSize: 13, fontWeight: "800" },

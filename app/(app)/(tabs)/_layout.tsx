@@ -45,7 +45,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="challenges" options={{ title: compact ? "Play" : "Challenges", tabBarIcon: ({ color }) => <Target color={color} size={iconSize} strokeWidth={2.35} /> }} />
       <Tabs.Screen name="rooms" options={{ title: "Rooms", tabBarIcon: ({ color }) => <Swords color={color} size={iconSize} strokeWidth={2.35} /> }} />
       <Tabs.Screen name="chat" options={{ title: "Chat", tabBarIcon: ({ color }) => <MessageCircle color={color} size={iconSize} strokeWidth={2.35} /> }} />
-      <Tabs.Screen name="tournaments" options={{ title: compact ? "Tour." : "Tourneys", tabBarIcon: ({ color }) => <Trophy color={color} size={iconSize} strokeWidth={2.35} /> }} />
+      <Tabs.Screen name="tournaments" options={{ title: "Tourney", tabBarIcon: ({ color }) => <Trophy color={color} size={iconSize} strokeWidth={2.35} /> }} />
       <Tabs.Screen name="wallet" options={{ title: "Wallet", tabBarIcon: ({ color }) => <Wallet color={color} size={iconSize} strokeWidth={2.35} /> }} />
       <Tabs.Screen name="profile" options={{ title: "Profile", tabBarIcon: ({ color }) => <UserRound color={color} size={iconSize} strokeWidth={2.35} /> }} />
     </Tabs>

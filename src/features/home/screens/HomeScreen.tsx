@@ -1,23 +1,28 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { Bell, ChevronRight, Clock3, ExternalLink, MessageCircle, Plus, ShieldCheck, Swords, Trophy, Wallet } from "lucide-react-native";
-import { useEffect } from "react";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import { Image, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { listChannels, listDmRequests } from "../../../api/chat";
+import { plainApiError } from "../../../api/errors";
 import { listNotifications, listRoomInvites } from "../../../api/notifications";
 import { playerHomeSummary, type PlayerHomeReadiness, type PlayerHomeRoomPreview } from "../../../api/player";
 import { profileOverview } from "../../../api/profile";
+import { joinRoom } from "../../../api/rooms";
 import { AppScreen } from "../../../components/screen/AppScreen";
 import { AppButton } from "../../../components/ui/AppButton";
 import { Badge } from "../../../components/ui/Badge";
 import { FeedbackState } from "../../../components/ui/FeedbackState";
+import { FormNotice } from "../../../components/ui/FormNotice";
 import { SurfaceCard } from "../../../components/ui/SurfaceCard";
 import { env } from "../../../config/env";
 import { colors, radius, shadow, spacing } from "../../../constants/theme";
+import { useActionFeedback } from "../../../providers/ActionFeedbackProvider";
 import { useAuthStore } from "../../../store/auth-store";
 import { openNativeCommunity, openNativeGuide, openPublicWeb } from "../../public/navigation";
 
 type Tone = "cyan" | "green" | "amber" | "red";
+type Notice = { tone: "error" | "success" | "info"; message: string } | null;
 
 const challengesHref = "/challenges" as unknown as Parameters<typeof router.push>[0];
 const createChallengeHref = "/challenges?mode=create" as unknown as Parameters<typeof router.push>[0];
@@ -63,8 +68,12 @@ function readinessFallback(kind: "profile" | "wallet", missingProfileItems: numb
 }
 
 export function HomeScreen() {
+  const queryClient = useQueryClient();
+  const { pushFeedback } = useActionFeedback();
   const user = useAuthStore((state) => state.user);
   const updateUserIdentity = useAuthStore((state) => state.updateUserIdentity);
+  const [joinCode, setJoinCode] = useState("");
+  const [joinNotice, setJoinNotice] = useState<Notice>(null);
   const summaryQuery = useQuery({ queryKey: ["home", "summary"], queryFn: playerHomeSummary });
   const profileQuery = useQuery({ queryKey: ["home", "profile"], queryFn: profileOverview });
   const channelsQuery = useQuery({ queryKey: ["home", "channels"], queryFn: listChannels });
@@ -86,6 +95,7 @@ export function HomeScreen() {
   const profileName = userGreetingName(user, profile?.profile?.display_name ?? profile?.profile?.username ?? profile?.user?.display_name ?? profile?.user?.username);
   const missingProfileItems = profile?.completion?.missing?.length ?? 0;
   const profileReadiness = summary?.profile_readiness ?? readinessFallback("profile", missingProfileItems);
+  const profileReady = Boolean(profile?.completion?.complete || profileReadiness.status === "ready");
   const walletReadiness = summary?.wallet_readiness ?? readinessFallback("wallet", missingProfileItems);
   const balance = summary?.wallet_mini_balance;
   const walletValue = walletReadiness.status === "ready" ? money((balance?.available_balance_minor ?? 0) + (balance?.winnings_balance_minor ?? 0), balance?.currency ?? "NGN") : walletReadiness.label;
@@ -94,6 +104,33 @@ export function HomeScreen() {
   const nextMission = missions.find((mission) => !mission.completed) ?? missions[0];
   const dailyLeader = summary?.daily_ladders?.[0];
   const playCounts = summary?.play_now_counts;
+  const notifyJoin = (notice: NonNullable<Notice>) => {
+    setJoinNotice(notice);
+    pushFeedback({
+      tone: notice.tone,
+      title: notice.tone === "error" ? "Room could not be joined" : "Room joined",
+      message: notice.message
+    });
+  };
+  const joinMutation = useMutation({
+    mutationFn: () => {
+      const roomCode = joinCode.trim().replace(/\s+/g, "");
+      if (!profileReady) throw new Error("Finish your Profile setup before joining rooms with entry fees.");
+      if (roomCode.length < 4) throw new Error("Enter the room code your opponent shared.");
+      return joinRoom(roomCode);
+    },
+    onSuccess: async (result) => {
+      setJoinCode("");
+      notifyJoin({ tone: "success", message: `Joined ${result.room?.room_code ?? "the room"}. Complete your entry when the room asks for it.` });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["home"] }),
+        queryClient.invalidateQueries({ queryKey: ["rooms"] }),
+        queryClient.invalidateQueries({ queryKey: ["notifications"] })
+      ]);
+      if (result.room?.id) router.push(`/(app)/rooms/${result.room.id}`);
+    },
+    onError: (error) => notifyJoin({ tone: "error", message: plainApiError(error, "Could not join room.") })
+  });
 
   useEffect(() => {
     const identity = profile?.profile ?? profile?.user;
@@ -118,6 +155,31 @@ export function HomeScreen() {
         <Text style={styles.heroCopy}>Jump into open rooms, accept a challenge, enter a tournament, or post a new challenge for another player.</Text>
         <View style={styles.heroActions}>
           <AppButton style={styles.heroAction} onPress={() => router.push(createChallengeHref)}>Create challenge</AppButton>
+        </View>
+        <View style={styles.joinCodePanel}>
+          <Text style={styles.joinCodeLabel}>Join room code</Text>
+          <TextInput
+            value={joinCode}
+            onChangeText={setJoinCode}
+            autoCapitalize="none"
+            autoCorrect={false}
+            placeholder="SR8K21"
+            placeholderTextColor={colors.faint}
+            style={styles.joinCodeInput}
+          />
+          <View style={styles.joinCodeActions}>
+            <AppButton
+              loading={joinMutation.isPending}
+              disabled={!joinCode.trim()}
+              loadingLabel="Joining"
+              style={styles.joinCodeButton}
+              onPress={() => joinMutation.mutate()}
+            >
+              Join
+            </AppButton>
+            <AppButton variant="secondary" style={styles.joinCodeButton} onPress={() => router.push("/(app)/rooms/new")}>Create</AppButton>
+          </View>
+          {joinNotice ? <FormNotice tone={joinNotice.tone} message={joinNotice.message} /> : null}
         </View>
       </SurfaceCard>
 
@@ -450,6 +512,35 @@ const styles = StyleSheet.create({
   heroCopy: { color: "#c8d4df", fontSize: 16, lineHeight: 24 },
   heroActions: { flexDirection: "row", gap: spacing.md },
   heroAction: { flex: 1 },
+  joinCodePanel: {
+    borderWidth: 1,
+    borderColor: "#1d3147",
+    borderRadius: radius.md,
+    backgroundColor: colors.navySoft,
+    padding: spacing.md,
+    gap: spacing.sm
+  },
+  joinCodeLabel: {
+    color: "#b8f8ff",
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 2,
+    textTransform: "uppercase"
+  },
+  joinCodeInput: {
+    minHeight: 52,
+    borderRadius: radius.sm,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: "#dbe5ee",
+    paddingHorizontal: spacing.md,
+    color: colors.ink,
+    fontSize: 18,
+    fontWeight: "900",
+    letterSpacing: 2
+  },
+  joinCodeActions: { flexDirection: "row", gap: spacing.sm },
+  joinCodeButton: { flex: 1, minHeight: 48, borderRadius: radius.sm },
   statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md },
   metric: { flexBasis: "47%", flexGrow: 1, padding: spacing.md, gap: spacing.sm },
   metricIcon: { width: 38, height: 38, borderRadius: radius.md, alignItems: "center", justifyContent: "center" },

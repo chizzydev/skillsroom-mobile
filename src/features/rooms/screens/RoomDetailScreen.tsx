@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import { BadgeCheck, Banknote, Clock3, Copy, FileCheck2, KeyRound, Play, Radio, RefreshCw, Send, Share2, ShieldCheck, Trophy, Users } from "lucide-react-native";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LayoutChangeEvent, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { plainApiError } from "../../../api/errors";
 import { profileTrustSummary } from "../../../api/profile";
@@ -16,6 +16,7 @@ import {
   openRoom,
   payRoomWithBalance,
   respondToResultClaim,
+  respondToResultProofRequest,
   startMatchPlay,
   submitManualFunding,
   submitResultClaim
@@ -36,11 +37,11 @@ import { NoStreamState, StreamAttachForm, StreamLinkCard } from "../../streaming
 import { PlayerTrustCard } from "../../trust/components/PlayerTrustCard";
 import { useActionFeedback } from "../../../providers/ActionFeedbackProvider";
 import { useAuthStore } from "../../../store/auth-store";
-import type { ManualFundingSubmission, MatchParticipant, MatchResultClaim, MatchRoom, PlayerTrustSummary, RoomFundingOverview } from "../../../types/api";
+import type { ManualFundingSubmission, MatchParticipant, MatchResultClaim, MatchResultProofRequest, MatchRoom, PlayerTrustSummary, RoomFundingOverview, RoomResultOverview } from "../../../types/api";
 import { roomIssueRulesFromRuleset } from "../roomIssueRules";
 
 type Section = "overview" | "players" | "funding" | "live" | "result" | "history";
-type RoomFocus = "section" | "players-list" | "funding-action" | "live-action" | "result-claim" | "result-response" | "history";
+type RoomFocus = "section" | "players-list" | "funding-action" | "live-action" | "result-claim" | "result-response" | "result-proof-request" | "history";
 type Notice = { tone: "error" | "success" | "info"; message: string } | null;
 type SectionNotice = { section: Section; notice: NonNullable<Notice> } | null;
 
@@ -253,6 +254,23 @@ function resultStatusCopy(claim?: MatchResultClaim | null, room?: MatchRoom) {
   return { label: "Opponent response", detail: "Waiting for the other player to agree or dispute.", tone: "cyan" as const };
 }
 
+function claimResponseCopy(claim?: MatchResultClaim | null, responses?: RoomResultOverview["responses"]) {
+  if (!claim) return { done: false, label: "Opponent response", detail: "Starts after result claim" };
+  const response = (responses ?? []).find((item) => item.result_claim_id === claim.id);
+  if (response?.response === "agree") {
+    return { done: true, label: "Opponent agreed", detail: "Both players accepted the result." };
+  }
+  if (response?.response === "dispute") {
+    const note = typeof response.note === "string" ? response.note.trim() : "";
+    return {
+      done: true,
+      label: "Opponent disputed",
+      detail: note || "Skillsroom review is needed before payout."
+    };
+  }
+  return { done: claim.status !== "submitted", label: "Opponent response", detail: responseCountdown(claim) };
+}
+
 function latestReviewForClaim(reviews?: Array<Record<string, unknown>>, claim?: MatchResultClaim | null) {
   if (!claim) return null;
   const claimReviews = (reviews ?? []).filter((review) => review.result_claim_id === claim.id);
@@ -266,6 +284,8 @@ function finalDecisionSummary(claim?: MatchResultClaim | null, room?: MatchRoom,
     return "Final decision: winner awarded after the opponent did not respond in time.";
   }
   if (review?.decision === "approve_claim") return "Final decision: winner confirmed after both players responded.";
+  if (review?.decision === "approve_disputed_claim") return "Final decision: winner confirmed after Skillsroom reviewed the dispute and proof.";
+  if (review?.decision === "proof_request_timeout_awarded") return "Final decision: winner awarded after a requested proof deadline was missed.";
   if (review?.decision === "reject_claim") return "Final decision: this result was not accepted after review.";
   if (review?.decision === "void_match") return "Final decision: match closed without a winner. Entries are being returned.";
   if (claim?.status === "admin_approved") return "Final decision: winner confirmed from the submitted proof.";
@@ -275,6 +295,18 @@ function finalDecisionSummary(claim?: MatchResultClaim | null, room?: MatchRoom,
   if (room?.status === "refunded") return "Final decision: refund path was used.";
   if (room?.status === "voided") return "Final decision: match closed without a winner.";
   return "No final decision yet.";
+}
+
+function proofRequestStatus(request: MatchResultProofRequest) {
+  if (request.status === "pending" && new Date(request.due_at).getTime() <= Date.now()) return "overdue";
+  return request.status;
+}
+
+function proofRequestTargetsPlayer(request: MatchResultProofRequest, claim?: MatchResultClaim | null, participant?: MatchParticipant | null) {
+  if (!claim || !participant) return false;
+  if (request.target === "both") return true;
+  if (request.target === "claimant") return participant.id === claim.claimant_participant_id;
+  return participant.id !== claim.claimant_participant_id;
 }
 
 function canManageStreams(userRole?: string, room?: MatchRoom, userId?: string) {
@@ -317,16 +349,20 @@ export function RoomDetailScreen() {
   const [resultNote, setResultNote] = useState("");
   const [evidenceUrl, setEvidenceUrl] = useState("");
   const [responseNote, setResponseNote] = useState("");
+  const [proofRequestUrl, setProofRequestUrl] = useState("");
+  const [proofRequestNote, setProofRequestNote] = useState("");
   const [inviteUsername, setInviteUsername] = useState("");
   const [inviteMessage, setInviteMessage] = useState("");
   const [detailJoinCode, setDetailJoinCode] = useState("");
   const [localFundingSubmitted, setLocalFundingSubmitted] = useState(false);
   const [fundingUploadResetSignal, setFundingUploadResetSignal] = useState(0);
   const [resultUploadResetSignal, setResultUploadResetSignal] = useState(0);
+  const [proofRequestUploadResetSignal, setProofRequestUploadResetSignal] = useState(0);
   const promptedNextStep = useRef<string | null>(null);
   const scrollRef = useRef<ScrollView | null>(null);
   const focusLayouts = useRef<Partial<Record<RoomFocus, number>>>({});
   const lastScrolledFocus = useRef<string | null>(null);
+  const pendingLocalFocus = useRef<{ section: Section; focus: RoomFocus } | null>(null);
 
   const timelineQuery = useQuery({ queryKey: ["room", roomId, "timeline"], queryFn: () => getRoomTimeline(roomId), enabled: Boolean(roomId), refetchInterval: 10000 });
   const fundingQuery = useQuery({ queryKey: ["room", roomId, "funding"], queryFn: () => getRoomFunding(roomId), enabled: Boolean(roomId), refetchInterval: 10000 });
@@ -418,6 +454,21 @@ export function RoomDetailScreen() {
     user?.id &&
     (claim.claimant_user_id === user.id || claim.submitted_by_user_id === user.id)
   );
+  const activeProofRequest = (resultsQuery.data?.proof_requests ?? [])
+    .filter((request) => request.result_claim_id === claim?.id && proofRequestStatus(request) === "pending")
+    .sort((left, right) => new Date(right.created_at).getTime() - new Date(left.created_at).getTime())[0] ?? null;
+  const currentPlayerRespondedToProofRequest = Boolean(
+    activeProofRequest &&
+    ownParticipant &&
+    (resultsQuery.data?.proof_request_responses ?? []).some((response) =>
+      response.proof_request_id === activeProofRequest.id && response.responder_participant_id === ownParticipant.id
+    )
+  );
+  const canRespondToProofRequest = Boolean(
+    activeProofRequest &&
+    proofRequestTargetsPlayer(activeProofRequest, claim, ownParticipant) &&
+    !currentPlayerRespondedToProofRequest
+  );
   const resultResponseExpired = resultResponseWindowExpired(claim);
   const inviteCopy = room?.room_code ? `Join my Skillsroom room with code ${room.room_code}.` : null;
   const playerSlots = useMemo(() => {
@@ -450,20 +501,45 @@ export function RoomDetailScreen() {
   const activeSectionNotice = sectionNotice?.section === section ? sectionNotice.notice : null;
   const focusKey = routedFocus ? `${roomId}:${section}:${routedFocus}` : null;
 
-  const scrollToFocus = (focus: RoomFocus) => {
+  const scrollToRegisteredFocus = useCallback((focus: RoomFocus, key?: string) => {
     const y = focusLayouts.current[focus] ?? focusLayouts.current.section;
-    if (y === undefined || !focusKey || lastScrolledFocus.current === focusKey) return;
-    lastScrolledFocus.current = focusKey;
+    if (y === undefined) return false;
+    if (key && lastScrolledFocus.current === key) return true;
+    if (key) lastScrolledFocus.current = key;
+    scrollRef.current?.scrollTo({ y: Math.max(0, y - spacing.md), animated: true });
+    return true;
+  }, []);
+
+  const scrollToRoutedFocus = useCallback((focus: RoomFocus) => {
+    if (!focusKey) return;
     setTimeout(() => {
-      scrollRef.current?.scrollTo({ y: Math.max(0, y - spacing.md), animated: true });
+      scrollToRegisteredFocus(focus, focusKey);
     }, 120);
-  };
+  }, [focusKey, scrollToRegisteredFocus]);
+
+  const focusRoomSection = useCallback((targetSection: Section, focus: RoomFocus = "section") => {
+    if (section !== targetSection) focusLayouts.current = {};
+    pendingLocalFocus.current = { section: targetSection, focus };
+    lastScrolledFocus.current = null;
+    setSection(targetSection);
+    setTimeout(() => {
+      const pending = pendingLocalFocus.current;
+      if (!pending || pending.section !== targetSection || pending.focus !== focus) return;
+      if (scrollToRegisteredFocus(focus)) pendingLocalFocus.current = null;
+    }, section === targetSection ? 80 : 180);
+  }, [scrollToRegisteredFocus, section]);
 
   const registerFocusLayout = (focus: RoomFocus, parent?: RoomFocus) => (event: LayoutChangeEvent) => {
     const parentY = parent ? focusLayouts.current[parent] ?? 0 : 0;
     focusLayouts.current[focus] = parentY + event.nativeEvent.layout.y;
     if (routedFocus === focus || (routedFocus === "section" && focus === "section")) {
-      scrollToFocus(focus);
+      scrollToRoutedFocus(focus);
+    }
+    const pending = pendingLocalFocus.current;
+    if (pending?.section === section && pending.focus === focus) {
+      setTimeout(() => {
+        if (scrollToRegisteredFocus(focus)) pendingLocalFocus.current = null;
+      }, 60);
     }
   };
 
@@ -488,17 +564,26 @@ export function RoomDetailScreen() {
       setSection("live");
       return;
     }
-    if (canSubmitRoomResult || canRespondToResult) {
+    if (canSubmitRoomResult || canRespondToResult || canRespondToProofRequest) {
       promptedNextStep.current = promptKey;
       setSection("result");
     }
-  }, [canRespondToResult, canStartMatch, canSubmitRoomResult, claim?.id, needsOwnEntry, room?.status, roomId, routedSection]);
+  }, [canRespondToProofRequest, canRespondToResult, canStartMatch, canSubmitRoomResult, claim?.id, needsOwnEntry, room?.status, roomId, routedSection]);
 
   useEffect(() => {
     if (!routedFocus) return;
     lastScrolledFocus.current = null;
-    setTimeout(() => scrollToFocus(routedFocus), 160);
-  }, [focusKey, routedFocus]);
+    setTimeout(() => scrollToRoutedFocus(routedFocus), 160);
+  }, [focusKey, routedFocus, scrollToRoutedFocus]);
+
+  useEffect(() => {
+    const pending = pendingLocalFocus.current;
+    if (!pending || pending.section !== section) return;
+    const timer = setTimeout(() => {
+      if (scrollToRegisteredFocus(pending.focus)) pendingLocalFocus.current = null;
+    }, 140);
+    return () => clearTimeout(timer);
+  }, [section, roomId, scrollToRegisteredFocus]);
 
   useEffect(() => {
     setLocalFundingSubmitted(false);
@@ -544,7 +629,7 @@ export function RoomDetailScreen() {
 
   const detailJoinMutation = useMutation({
     mutationFn: () => {
-      const roomCode = detailJoinCode.trim().toUpperCase();
+      const roomCode = detailJoinCode.trim().replace(/\s+/g, "");
       if (roomCode.length < 4) throw new Error("Paste the room code your opponent shared.");
       return joinRoom(roomCode);
     },
@@ -693,6 +778,35 @@ export function RoomDetailScreen() {
     onError: (error) => notify("result", { tone: "error", message: plainApiError(error, "Could not respond to result.") })
   });
 
+  const proofRequestMutation = useMutation({
+    mutationFn: () => {
+      if (!activeProofRequest?.id) throw new Error("There is no proof request to answer.");
+      if (!proofRequestUrl.trim()) throw new Error("Upload the requested proof before sending your response.");
+      const evidenceType: "screenshot" | "video" | "link" = proofRequestUrl.includes("/api/evidence-files/evidence-v1_") && proofRequestUrl.match(/\.(mp4|webm|mov)$/i)
+        ? "video"
+        : proofRequestUrl.includes("/api/evidence-files/evidence-v1_")
+          ? "screenshot"
+          : "link";
+      return respondToResultProofRequest(activeProofRequest.id, {
+        note: proofRequestNote.trim() || undefined,
+        evidence: [{
+          evidence_type: evidenceType,
+          uri: proofRequestUrl.trim(),
+          title: "Requested result proof",
+          notes: proofRequestNote.trim() || undefined
+        }]
+      });
+    },
+    onSuccess: async () => {
+      notify("result", { tone: "success", message: "Requested proof sent. Skillsroom will continue the review." });
+      setProofRequestUrl("");
+      setProofRequestNote("");
+      setProofRequestUploadResetSignal((value) => value + 1);
+      await refreshRoom();
+    },
+    onError: (error) => notify("result", { tone: "error", message: plainApiError(error, "Could not send requested proof.") })
+  });
+
   const fundingByParticipant = useMemo(() => {
     const submissions = fundingQuery.data?.submissions ?? [];
     return new Map(participants.map((participant) => [
@@ -731,11 +845,12 @@ export function RoomDetailScreen() {
         <Text style={styles.sectionTitle}>{actionTitle}</Text>
         <Text style={styles.copy}>{actionBody}</Text>
         {room?.status === "draft" && isCreator ? <AppButton loading={openMutation.isPending} onPress={() => openMutation.mutate()}>Open room</AppButton> : null}
-        {needsOwnEntry ? <AppButton onPress={() => setSection("funding")}>Complete entry</AppButton> : null}
-        {canStartMatch ? <AppButton onPress={() => setSection("live")}>Confirm ready</AppButton> : null}
-        {waitingForOpponentStart ? <AppButton variant="secondary" onPress={() => setSection("live")}>Waiting on opponent</AppButton> : null}
-        {canSubmitRoomResult ? <AppButton onPress={() => setSection("result")}>Submit result</AppButton> : null}
-        {canRespondToResult ? <AppButton onPress={() => setSection("result")}>Respond to result</AppButton> : null}
+        {needsOwnEntry ? <AppButton onPress={() => focusRoomSection("funding", "funding-action")}>Complete entry</AppButton> : null}
+        {canStartMatch ? <AppButton onPress={() => focusRoomSection("live", "live-action")}>Confirm ready</AppButton> : null}
+        {waitingForOpponentStart ? <AppButton variant="secondary" onPress={() => focusRoomSection("live", "live-action")}>Waiting on opponent</AppButton> : null}
+        {canSubmitRoomResult ? <AppButton onPress={() => focusRoomSection("result", "result-claim")}>Submit result</AppButton> : null}
+        {canRespondToResult ? <AppButton onPress={() => focusRoomSection("result", "result-response")}>Respond to result</AppButton> : null}
+        {canRespondToProofRequest ? <AppButton onPress={() => focusRoomSection("result", "result-proof-request")}>Send requested proof</AppButton> : null}
         <View style={styles.quickActions}>
           <QuickAction icon={Copy} label="Code" value={room?.room_code ?? "..."} copyValue={room?.room_code} />
           <QuickAction icon={Share2} label="Invite" value="Copy text" copyValue={inviteCopy} copiedLabel="Invite copied" />
@@ -751,7 +866,7 @@ export function RoomDetailScreen() {
 
       <View style={styles.sectionNav}>
         {sections.map((item) => (
-          <Pressable key={item} onPress={() => setSection(item)} style={[styles.sectionButton, section === item && styles.sectionButtonOn]}>
+          <Pressable key={item} onPress={() => focusRoomSection(item, item === "players" ? "players-list" : item === "history" ? "history" : "section")} style={[styles.sectionButton, section === item && styles.sectionButtonOn]}>
             <Text style={[styles.sectionButtonText, section === item && styles.sectionButtonTextOn]}>{sectionLabel(item)}</Text>
           </Pressable>
         ))}
@@ -832,8 +947,9 @@ export function RoomDetailScreen() {
                 <KeyRound size={22} color={colors.cyan} />
                 <TextInput
                   value={detailJoinCode}
-                  onChangeText={(value) => setDetailJoinCode(value.replace(/\s+/g, "").toUpperCase())}
-                  autoCapitalize="characters"
+                  onChangeText={setDetailJoinCode}
+                  autoCapitalize="none"
+                  autoCorrect={false}
                   placeholder={room?.room_code ?? "ROOMCODE"}
                   placeholderTextColor={colors.faint}
                   style={styles.joinCodeInput}
@@ -885,7 +1001,7 @@ export function RoomDetailScreen() {
       ) : null}
 
       {section === "funding" ? (
-        <View onLayout={registerFocusLayout("funding-action")}>
+        <View onLayout={registerFocusLayout("section")}>
         <SurfaceCard>
           <Badge tone="amber">Entry</Badge>
           <Text style={styles.sectionTitle}>Entry confirmation</Text>
@@ -952,7 +1068,7 @@ export function RoomDetailScreen() {
             );
           })}
           {canSubmitOwnFunding ? (
-            <>
+            <View onLayout={registerFocusLayout("funding-action", "section")} style={styles.focusBlock}>
               <FormNotice tone="info" message={`Playable balance: ${money(playableBalanceMinor, walletCurrency)} from available balance and unreserved winnings.`} />
               <AppButton loading={balanceMutation.isPending} onPress={() => balanceMutation.mutate()}>Pay with balance</AppButton>
               <FormNotice tone="info" message={`Manual transfer: ${collectionAccount.bankName} ${collectionAccount.accountNumber}, ${collectionAccount.accountName}. Upload payment proof or paste a proof link.`} />
@@ -975,7 +1091,7 @@ export function RoomDetailScreen() {
               {!canSubmitManualFunding ? (
                 <Text style={styles.helpText}>Add sender name, sender bank, and uploaded proof before submitting.</Text>
               ) : null}
-            </>
+            </View>
           ) : null}
           {!ownParticipant ? <FormNotice tone="info" message="Only room participants can submit entry proof for this room." /> : null}
         </SurfaceCard>
@@ -983,13 +1099,17 @@ export function RoomDetailScreen() {
       ) : null}
 
       {section === "live" ? (
-        <View onLayout={registerFocusLayout("live-action")}>
+        <View onLayout={registerFocusLayout("section")}>
         <SurfaceCard>
           <Badge tone="green">Live</Badge>
           <Text style={styles.sectionTitle}>Streams and play</Text>
           {activeSectionNotice ? <FormNotice tone={activeSectionNotice.tone} message={activeSectionNotice.message} /> : null}
-          {canStartMatch ? <AppButton loading={startMutation.isPending} loadingLabel="Confirming..." onPress={() => startMutation.mutate()}>Confirm ready</AppButton> : null}
-          {waitingForOpponentStart ? <FormNotice tone="success" message="Your ready status is confirmed. The match will go live after the other player confirms." /> : null}
+          {(canStartMatch || waitingForOpponentStart) ? (
+            <View onLayout={registerFocusLayout("live-action", "section")} style={styles.focusBlock}>
+              {canStartMatch ? <AppButton loading={startMutation.isPending} loadingLabel="Confirming..." onPress={() => startMutation.mutate()}>Confirm ready</AppButton> : null}
+              {waitingForOpponentStart ? <FormNotice tone="success" message="Your ready status is confirmed. The match will go live after the other player confirms." /> : null}
+            </View>
+          ) : null}
           <FormNotice tone="info" message="Play only when the room says it is live. Streams can be official, Player A, or Player B links." />
           {livestreamsQuery.data?.length ? livestreamsQuery.data.map((stream) => <StreamLinkCard key={stream.id} stream={stream} />) : <NoStreamState target="room" />}
           <StreamAttachForm target="room" canAttach={canAttachStream} loading={streamMutation.isPending} onSubmit={(input) => streamMutation.mutate(input)} />
@@ -998,13 +1118,13 @@ export function RoomDetailScreen() {
       ) : null}
 
       {section === "result" ? (
-        <View onLayout={registerFocusLayout("result-claim")}>
+        <View onLayout={registerFocusLayout("section")}>
         <SurfaceCard>
           <Badge tone="cyan">Result</Badge>
           <Text style={styles.sectionTitle}>Match result</Text>
           {activeSectionNotice ? <FormNotice tone={activeSectionNotice.tone} message={activeSectionNotice.message} /> : null}
           {resultsQuery.isError ? <FormNotice tone="info" message="Result details are only visible to room participants." /> : null}
-          <ResultReviewPanel claim={claim} room={room} evidenceCount={resultsQuery.data?.evidence_items?.length ?? 0} />
+          <ResultReviewPanel claim={claim} room={room} responses={resultsQuery.data?.responses} evidenceCount={resultsQuery.data?.evidence_items?.length ?? 0} />
           {claim?.status === "submitted" && canRespondToResult ? (
             <FormNotice
               tone={resultResponseExpired ? "error" : "info"}
@@ -1029,6 +1149,33 @@ export function RoomDetailScreen() {
                 : `Opponent response due: ${dateTimeLabel(claim.opponent_response_due_at)}.`}
             />
           ) : null}
+          {activeProofRequest ? (
+            <View onLayout={canRespondToProofRequest ? registerFocusLayout("result-proof-request", "section") : undefined} style={styles.focusBlock}>
+              <FormNotice
+                tone={canRespondToProofRequest ? "info" : "success"}
+                message={canRespondToProofRequest
+                  ? `Skillsroom needs more proof by ${dateTimeLabel(activeProofRequest.due_at)}.`
+                  : currentPlayerRespondedToProofRequest
+                    ? "Your requested proof has been sent. Skillsroom will continue the review."
+                    : "Skillsroom is waiting for requested proof before the review continues."}
+              />
+              <View style={styles.inviteBox}>
+                <Text style={styles.itemTitle}>Skillsroom needs more proof</Text>
+                <Text style={styles.copy}>{activeProofRequest.message}</Text>
+                <Text style={styles.helpText}>Due: {dateTimeLabel(activeProofRequest.due_at)}. If the deadline passes, Skillsroom can decide from the saved proof.</Text>
+                {canRespondToProofRequest ? (
+                  <>
+                    <EvidenceUploadField contextType="match_room" contextId={roomId} label="Requested proof upload" disabled={proofRequestMutation.isPending} resetSignal={proofRequestUploadResetSignal} onUploaded={(evidence) => setProofRequestUrl(evidence.url)} />
+                    <OptionalFieldsPanel title="Proof details" helper="Add a short note so Skillsroom knows what the proof shows.">
+                      <TextInput value={proofRequestUrl} onChangeText={setProofRequestUrl} autoCapitalize="none" keyboardType="url" placeholder="Proof link" placeholderTextColor={colors.faint} style={styles.input} />
+                      <TextInput value={proofRequestNote} onChangeText={setProofRequestNote} placeholder="Proof note" placeholderTextColor={colors.faint} style={styles.input} />
+                    </OptionalFieldsPanel>
+                    <AppButton loading={proofRequestMutation.isPending} disabled={!proofRequestUrl.trim()} onPress={() => proofRequestMutation.mutate()}>Send requested proof</AppButton>
+                  </>
+                ) : null}
+              </View>
+            </View>
+          ) : null}
           <EvidenceChecklist hasScore={Boolean(scoreSummary.trim() || claim?.score_summary)} hasProof={Boolean(evidenceUrl.trim() || (resultsQuery.data?.evidence_items ?? []).length)} />
           {(resultsQuery.data?.evidence_items ?? []).length ? (
             <View style={styles.evidenceList}>
@@ -1046,7 +1193,7 @@ export function RoomDetailScreen() {
             </View>
           ) : null}
           {["active", "awaiting_results"].includes(String(room?.status)) && ownParticipant ? (
-            <>
+            <View onLayout={registerFocusLayout("result-claim", "section")} style={styles.focusBlock}>
               <FormNotice tone="info" message={`Submit your own win claim as ${playerDisplayName(ownParticipant, trustQuery.data?.[ownParticipant.user_id], user?.id)}. The opponent can agree or dispute from their side.`} />
               <TextInput value={scoreSummary} onChangeText={setScoreSummary} placeholder="Score summary" placeholderTextColor={colors.faint} style={styles.input} />
               <EvidenceUploadField contextType="match_room" contextId={roomId} label="Result evidence upload" disabled={resultMutation.isPending} resetSignal={resultUploadResetSignal} onUploaded={(evidence) => setEvidenceUrl(evidence.url)} />
@@ -1055,10 +1202,10 @@ export function RoomDetailScreen() {
                 <TextInput value={resultNote} onChangeText={setResultNote} placeholder="Result note" placeholderTextColor={colors.faint} style={styles.input} />
               </OptionalFieldsPanel>
               <AppButton loading={resultMutation.isPending} onPress={() => resultMutation.mutate()}>Submit result</AppButton>
-            </>
+            </View>
           ) : null}
           {canRespondToResult ? (
-            <View onLayout={registerFocusLayout("result-response", "result-claim")} style={styles.focusBlock}>
+            <View onLayout={registerFocusLayout("result-response", "section")} style={styles.focusBlock}>
               <ResponseDecisionGuide overdue={resultResponseExpired} />
               <TextInput value={responseNote} onChangeText={setResponseNote} placeholder="Response note, optional" placeholderTextColor={colors.faint} style={styles.input} />
               <View style={styles.actions}>
@@ -1093,24 +1240,25 @@ export function RoomDetailScreen() {
   );
 }
 
-function ResultReviewPanel({ claim, room, evidenceCount }: { claim: MatchResultClaim | null; room?: MatchRoom; evidenceCount: number }) {
+function ResultReviewPanel({ claim, room, responses, evidenceCount }: { claim: MatchResultClaim | null; room?: MatchRoom; responses?: RoomResultOverview["responses"]; evidenceCount: number }) {
   const status = resultStatusCopy(claim, room);
+  const response = claimResponseCopy(claim, responses);
   return (
     <View style={styles.resultPanel}>
-      <View style={styles.playerCardHeader}>
-        <View style={styles.fill}>
+      <View style={styles.resultStatusHeader}>
+        <View style={styles.statusBadgeWrap}>
+          <Badge tone={status.tone}>{claim ? status.label : "Waiting"}</Badge>
+        </View>
+        <View style={styles.resultStatusCopy}>
           <Text style={styles.quickLabel}>Review status</Text>
           <Text style={styles.itemTitleWide}>{status.label}</Text>
           <Text style={styles.copy}>{status.detail}</Text>
-        </View>
-        <View style={styles.statusBadgeWrap}>
-          <Badge tone={status.tone}>{claim ? status.label : "Waiting"}</Badge>
         </View>
       </View>
       <View style={styles.resultStepGrid}>
         <ResultStep done={Boolean(claim)} label="Result claim" detail={claim?.score_summary ?? "Winner and score not submitted yet"} />
         <ResultStep done={evidenceCount > 0} label="Proof saved" detail={`${evidenceCount} file${evidenceCount === 1 ? "" : "s"} attached`} />
-        <ResultStep done={Boolean(claim && claim.status !== "submitted")} label="Opponent response" detail={claim ? responseCountdown(claim) : "Starts after result claim"} />
+        <ResultStep done={response.done} label={response.label} detail={response.detail} />
         <ResultStep done={["admin_approved", "admin_rejected"].includes(String(claim?.status)) || ["completed", "refunded", "voided"].includes(String(room?.status))} label="Final decision" detail={finalDecisionSummary(claim, room)} />
       </View>
     </View>
@@ -1302,6 +1450,8 @@ const styles = StyleSheet.create({
   inviteBox: { borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, padding: spacing.md, backgroundColor: colors.surfaceAlt, gap: spacing.sm },
   embeddedCard: { backgroundColor: colors.surfaceAlt, shadowOpacity: 0, elevation: 0 },
   resultPanel: { borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, backgroundColor: colors.surfaceAlt, padding: spacing.md, gap: spacing.md },
+  resultStatusHeader: { gap: spacing.sm, alignItems: "flex-start" },
+  resultStatusCopy: { width: "100%", gap: 4 },
   resultStepGrid: { gap: spacing.sm },
   resultStep: { flexDirection: "row", gap: spacing.sm, alignItems: "flex-start", borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, backgroundColor: colors.white, padding: spacing.md },
   resultStepDone: { borderColor: "#b6f4db", backgroundColor: colors.greenSoft },

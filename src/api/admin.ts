@@ -262,8 +262,10 @@ export type ReviewWalletPayoutInput = {
 export type ResultClaimStatus = NonNullable<MatchResultClaim["status"]>;
 export type ResultReviewDecision =
   | "approve_claim"
+  | "approve_disputed_claim"
   | "approve_no_response"
   | "opponent_timeout_awarded"
+  | "proof_request_timeout_awarded"
   | "reject_claim"
   | "mark_disputed"
   | "void_match";
@@ -307,6 +309,12 @@ export type PlayerTrustBadge = {
 export type ReviewResultClaimInput = {
   decision: ResultReviewDecision;
   note?: string;
+  stepUpToken: string;
+};
+
+export type RequestMoreResultProofInput = {
+  target: "claimant" | "opponent" | "both";
+  message: string;
   stepUpToken: string;
 };
 
@@ -1259,6 +1267,21 @@ export async function reviewAdminResultClaim(claimId: string, input: ReviewResul
     }
   );
   return data.claim;
+}
+
+export async function requestMoreResultProof(claimId: string, input: RequestMoreResultProofInput) {
+  const data = await apiRequest(
+    `/admin/results/claims/${encodeURIComponent(claimId)}/proof-requests`,
+    {
+      method: "POST",
+      headers: { "x-admin-step-up": input.stepUpToken },
+      body: {
+        target: input.target,
+        message: input.message.trim()
+      }
+    }
+  );
+  return data;
 }
 
 export async function getPlayerTrustSummary(userId: string) {

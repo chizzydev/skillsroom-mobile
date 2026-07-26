@@ -190,6 +190,7 @@ export type MatchResultEvidence = {
   id?: string;
   match_room_id?: string;
   result_claim_id?: string;
+  proof_request_id?: string | null;
   participant_id?: string;
   submitted_by_user_id?: string;
   evidence_type?: "screenshot" | "video" | "link" | "note" | string;
@@ -200,6 +201,29 @@ export type MatchResultEvidence = {
   [key: string]: unknown;
 };
 
+export type MatchResultProofRequest = {
+  id: string;
+  match_room_id: string;
+  result_claim_id: string;
+  requested_by_user_id: string;
+  target: "claimant" | "opponent" | "both";
+  message: string;
+  due_at: string;
+  status: "pending" | "responded" | "overdue" | "cancelled";
+  created_at: string;
+  updated_at: string;
+};
+
+export type MatchResultProofRequestResponse = {
+  id: string;
+  proof_request_id: string;
+  result_claim_id: string;
+  responder_participant_id: string;
+  responder_user_id: string;
+  note?: string | null;
+  created_at: string;
+};
+
 export type RoomResultOverview = {
   room: MatchRoom;
   participants: MatchParticipant[];
@@ -207,6 +231,8 @@ export type RoomResultOverview = {
   evidence_items?: MatchResultEvidence[];
   responses?: Array<Record<string, unknown>>;
   reviews?: Array<Record<string, unknown>>;
+  proof_requests?: MatchResultProofRequest[];
+  proof_request_responses?: MatchResultProofRequestResponse[];
 };
 
 export type CommunityLivestreamLink = {

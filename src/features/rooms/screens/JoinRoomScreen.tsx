@@ -45,7 +45,7 @@ export function JoinRoomScreen() {
 
   const joinMutation = useMutation({
     mutationFn: () => {
-      const roomCode = joinCode.trim().toUpperCase();
+      const roomCode = joinCode.trim().replace(/\s+/g, "");
       if (!profileReady) throw new Error("Finish your Profile setup before joining rooms with entry fees.");
       if (roomCode.length < 4) throw new Error("Enter the room code your opponent shared.");
       return joinRoom(roomCode);
@@ -93,8 +93,9 @@ export function JoinRoomScreen() {
           <KeyRound size={24} color={colors.cyan} />
           <TextInput
             value={joinCode}
-            onChangeText={(value) => setJoinCode(value.replace(/\s+/g, "").toUpperCase())}
-            autoCapitalize="characters"
+            onChangeText={setJoinCode}
+            autoCapitalize="none"
+            autoCorrect={false}
             placeholder="SR8K21"
             placeholderTextColor={colors.faint}
             style={styles.input}

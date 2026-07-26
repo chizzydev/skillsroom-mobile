@@ -191,6 +191,21 @@ export async function respondToResultClaim(claimId: string, input: {
   });
 }
 
+export async function respondToResultProofRequest(proofRequestId: string, input: {
+  note?: string;
+  evidence: Array<{
+    evidence_type: "screenshot" | "video" | "link" | "note";
+    uri?: string;
+    title: string;
+    notes?: string;
+  }>;
+}) {
+  return apiRequest(`/match-rooms/result-proof-requests/${proofRequestId}/responses`, {
+    method: "POST",
+    body: input
+  });
+}
+
 export async function listRoomLivestreams(roomId: string) {
   const data = await apiRequest<{ livestreams: CommunityLivestreamLink[] }>(
     `/community/livestreams/view?target_type=match_room&match_room_id=${encodeURIComponent(roomId)}`
