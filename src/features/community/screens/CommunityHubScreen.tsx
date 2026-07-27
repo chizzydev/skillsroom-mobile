@@ -75,6 +75,11 @@ function readable(value?: string | null) {
   return value ? value.replaceAll("_", " ") : "Community";
 }
 
+function safeText(value?: string | null) {
+  const trimmed = value?.trim();
+  return trimmed || null;
+}
+
 function winnerName(item: CommunityHighlight) {
   return item.champion_display_name ?? item.champion_username ?? item.champion_entry_name ?? "Winner pending";
 }
@@ -367,8 +372,16 @@ function MetricTile({ label, value, detail, tone }: { label: string; value: stri
 }
 
 function AnnouncementCard({ item, compact }: { item: CommunityAnnouncement; compact?: boolean }) {
+  const announcementId = safeText(item.id);
   return (
-    <Pressable style={styles.itemCard} onPress={() => router.push(`/community/announcements/${encodeURIComponent(item.id)}` as never)}>
+    <Pressable
+      disabled={!announcementId}
+      style={[styles.itemCard, !announcementId && styles.itemCardDisabled]}
+      onPress={() => {
+        if (!announcementId) return;
+        router.push(`/community/announcements/${encodeURIComponent(announcementId)}` as never);
+      }}
+    >
       <View style={styles.itemTop}>
         <Badge tone={item.priority === "critical" || item.priority === "high" ? "red" : "cyan"}>{readable(item.category)}</Badge>
         <Text style={styles.dateText}>{formatDate(item.published_at ?? item.created_at)}</Text>
@@ -632,6 +645,7 @@ const styles = StyleSheet.create({
   sectionAction: { minHeight: 36, borderRadius: radius.pill, backgroundColor: colors.cyanSoft, paddingHorizontal: spacing.md, alignItems: "center", justifyContent: "center" },
   sectionActionText: { color: colors.ink, fontSize: 12, fontWeight: "900" },
   itemCard: { borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, backgroundColor: colors.surfaceAlt, padding: spacing.md, gap: spacing.sm },
+  itemCardDisabled: { opacity: 0.72 },
   itemTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },
   itemTitle: { color: colors.ink, fontSize: 17, lineHeight: 22, fontWeight: "900" },
   copy: { color: colors.muted, fontSize: 15, lineHeight: 22 },

@@ -80,6 +80,7 @@ const queueStatuses: Array<{
 const decisions: Array<{ value: ResultReviewDecision; label: string; tone: "primary" | "secondary" | "danger" }> = [
   { value: "approve_claim", label: "Approve agreed claim", tone: "primary" },
   { value: "approve_disputed_claim", label: "Approve after dispute review", tone: "secondary" },
+  { value: "award_opponent_after_dispute_review", label: "Award opponent after review", tone: "secondary" },
   { value: "opponent_timeout_awarded", label: "Award after no response", tone: "secondary" },
   { value: "mark_disputed", label: "Mark disputed", tone: "secondary" },
   { value: "reject_claim", label: "Reject claim", tone: "danger" },
@@ -89,6 +90,7 @@ const decisions: Array<{ value: ResultReviewDecision; label: string; tone: "prim
 const resultSuccessMessages: Record<ResultReviewDecision, string> = {
   approve_claim: "Result claim approved.",
   approve_disputed_claim: "Result approved after dispute review.",
+  award_opponent_after_dispute_review: "Opponent awarded after dispute review.",
   approve_no_response: "Result approved after no opponent response.",
   opponent_timeout_awarded: "Result awarded after no opponent response.",
   proof_request_timeout_awarded: "Result awarded after a missed proof deadline.",
@@ -523,6 +525,7 @@ export function AdminResultsScreen() {
                   !canReview ||
                   (decision.value === "approve_claim" && !selectedClaimCanApprove) ||
                   (decision.value === "approve_disputed_claim" && !selectedClaimCanApproveAfterDispute) ||
+                  (decision.value === "award_opponent_after_dispute_review" && !selectedClaimCanApproveAfterDispute) ||
                   ((decision.value === "approve_no_response" || decision.value === "opponent_timeout_awarded") && !selectedClaimCanApproveNoResponse)
                 }
                 loading={reviewMutation.isPending}

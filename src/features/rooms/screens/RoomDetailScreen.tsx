@@ -285,6 +285,7 @@ function finalDecisionSummary(claim?: MatchResultClaim | null, room?: MatchRoom,
   }
   if (review?.decision === "approve_claim") return "Final decision: winner confirmed after both players responded.";
   if (review?.decision === "approve_disputed_claim") return "Final decision: winner confirmed after Skillsroom reviewed the dispute and proof.";
+  if (review?.decision === "award_opponent_after_dispute_review") return "Final decision: opponent confirmed as winner after Skillsroom reviewed the dispute and proof.";
   if (review?.decision === "proof_request_timeout_awarded") return "Final decision: winner awarded after a requested proof deadline was missed.";
   if (review?.decision === "reject_claim") return "Final decision: this result was not accepted after review.";
   if (review?.decision === "void_match") return "Final decision: match closed without a winner. Entries are being returned.";
