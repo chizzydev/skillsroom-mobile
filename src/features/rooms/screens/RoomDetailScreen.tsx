@@ -756,7 +756,7 @@ export function RoomDetailScreen() {
   });
 
   const streamMutation = useMutation({
-    mutationFn: (input: { title: string; stream_url: string; provider?: "youtube" | "twitch" | "tiktok"; visibility: "public" | "participants"; stream_role: "official" | "player_a" | "player_b" }) =>
+    mutationFn: (input: { title: string; stream_url: string; provider?: "youtube" | "twitch" | "tiktok" | "kick"; visibility: "public" | "participants"; stream_role: "official" | "player_a" | "player_b" }) =>
       createLivestream({
         target_type: "match_room",
         match_room_id: roomId,

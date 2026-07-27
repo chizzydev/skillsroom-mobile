@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+import { router } from "expo-router";
 import { Linking, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import type { StyleProp, ViewStyle } from "react-native";
 import { WebView } from "react-native-webview";
 import { AppButton } from "../../../components/ui/AppButton";
 import { Badge } from "../../../components/ui/Badge";
@@ -9,7 +11,7 @@ import { env } from "../../../config/env";
 import { colors, radius, spacing } from "../../../constants/theme";
 import type { CommunityLivestreamLink, StreamingAccount } from "../../../types/api";
 
-type StreamProvider = "youtube" | "twitch" | "tiktok";
+type StreamProvider = "youtube" | "twitch" | "tiktok" | "kick";
 type AttachInput = {
   title: string;
   stream_url: string;
@@ -72,6 +74,13 @@ const playerConfigs: Record<StreamProvider, StreamPlayerConfig> = {
     ],
     fallbackMessage: "TikTok blocked the embedded player here. Open it externally to keep watching.",
     unsupportedEmbedMessage: "TikTok LIVE and short links may not embed in-app. Open it externally to watch."
+  },
+  kick: {
+    label: "Kick",
+    dependableForLive: true,
+    domains: ["kick.com", "player.kick.com"],
+    fallbackMessage: "Kick blocked the embedded player here. Open it externally to keep watching.",
+    unsupportedEmbedMessage: "This Kick link cannot be embedded here. Open it externally to watch."
   }
 };
 
@@ -92,7 +101,7 @@ function providerHint(provider?: string | null) {
 }
 
 function isStreamProvider(provider?: string | null): provider is StreamProvider {
-  return provider === "youtube" || provider === "twitch" || provider === "tiktok";
+  return provider === "youtube" || provider === "twitch" || provider === "tiktok" || provider === "kick";
 }
 
 function inferStreamProvider(input: { provider?: string | null; streamUrl?: string | null; embedUrl?: string | null }): StreamProvider | null {
@@ -104,6 +113,7 @@ function inferStreamProvider(input: { provider?: string | null; streamUrl?: stri
     if (host === "youtu.be" || host.endsWith("youtube.com") || host.endsWith("youtube-nocookie.com")) return "youtube";
     if (host.endsWith("twitch.tv")) return "twitch";
     if (host.endsWith("tiktok.com") || host.endsWith("tiktokv.com")) return "tiktok";
+    if (host.endsWith("kick.com")) return "kick";
   } catch {
     return null;
   }
@@ -166,6 +176,14 @@ function tiktokEmbedUrl(url: URL) {
   return videoId && /^\d+$/.test(videoId) ? `https://www.tiktok.com/embed/v2/${encodeURIComponent(videoId)}` : null;
 }
 
+function kickEmbedUrl(url: URL) {
+  if (!url.hostname.endsWith("kick.com")) return null;
+  const segments = url.pathname.split("/").filter(Boolean);
+  const username = url.hostname === "player.kick.com" ? segments[0] : firstPathSegment(url);
+  if (!username || ["about", "browse", "categories", "community-guidelines", "privacy-policy", "terms-of-service"].includes(username)) return null;
+  return `https://player.kick.com/${encodeURIComponent(username)}`;
+}
+
 function computedEmbedUrl(input: { provider?: string | null; streamUrl?: string | null; embedUrl?: string | null }) {
   if (input.embedUrl) return input.embedUrl;
   if (!input.streamUrl) return null;
@@ -177,7 +195,8 @@ function computedEmbedUrl(input: { provider?: string | null; streamUrl?: string 
     if (provider === "youtube") return youtubeEmbedUrl(url);
     if (provider === "twitch") return twitchEmbedUrl(url);
     if (provider === "tiktok") return tiktokEmbedUrl(url);
-    return youtubeEmbedUrl(url) ?? twitchEmbedUrl(url) ?? tiktokEmbedUrl(url);
+    if (provider === "kick") return kickEmbedUrl(url);
+    return youtubeEmbedUrl(url) ?? twitchEmbedUrl(url) ?? tiktokEmbedUrl(url) ?? kickEmbedUrl(url);
   } catch {
     return null;
   }
@@ -200,18 +219,50 @@ function allowedPlayerNavigation(requestUrl: string | undefined, provider: Strea
   }
 }
 
-function EmbeddedStreamPlayer({
+function streamViewerParams(input: {
+  title?: string | null;
+  provider?: string | null;
+  streamUrl?: string | null;
+  embedUrl?: string | null;
+  externalUrl?: string | null;
+}) {
+  return {
+    title: input.title ?? "Stream player",
+    provider: input.provider ?? "",
+    streamUrl: input.streamUrl ?? "",
+    embedUrl: input.embedUrl ?? "",
+    externalUrl: input.externalUrl ?? input.streamUrl ?? ""
+  };
+}
+
+export function openStreamViewer(input: {
+  title?: string | null;
+  provider?: string | null;
+  streamUrl?: string | null;
+  embedUrl?: string | null;
+  externalUrl?: string | null;
+}) {
+  router.push({ pathname: "/(app)/streaming/viewer", params: streamViewerParams(input) } as never);
+}
+
+export function EmbeddedStreamPlayer({
   provider,
   title,
   streamUrl,
-  embedUrl
+  embedUrl,
+  initiallyLoaded = false,
+  fill = false,
+  style
 }: {
   provider?: string | null;
   title?: string | null;
   streamUrl?: string | null;
   embedUrl?: string | null;
+  initiallyLoaded?: boolean;
+  fill?: boolean;
+  style?: StyleProp<ViewStyle>;
 }) {
-  const [loaded, setLoaded] = useState(false);
+  const [loaded, setLoaded] = useState(initiallyLoaded);
   const [failed, setFailed] = useState(false);
   const resolvedProvider = inferStreamProvider({ provider, streamUrl, embedUrl });
   const source = computedEmbedUrl({ provider: resolvedProvider, streamUrl, embedUrl });
@@ -236,7 +287,7 @@ function EmbeddedStreamPlayer({
 
   if (!source) {
     return (
-      <View style={styles.playerWrap}>
+      <View style={[fill ? styles.playerWrapFill : styles.playerWrap, style]}>
         <View style={styles.playerPlaceholder}>
           <Badge tone="amber">{`${providerHint(resolvedProvider ?? provider)} player`}</Badge>
           <Text style={styles.copy}>{config?.unsupportedEmbedMessage ?? "This stream cannot be embedded here. Open it externally to watch."}</Text>
@@ -246,7 +297,7 @@ function EmbeddedStreamPlayer({
   }
 
   return (
-    <View style={styles.playerWrap}>
+    <View style={[fill ? styles.playerWrapFill : styles.playerWrap, style]}>
       {loaded && !failed ? (
         <WebView
           source={{ uri: source }}
@@ -316,6 +367,7 @@ function EmbeddedStreamPlayer({
 export function StreamLinkCard({ stream }: { stream: CommunityLivestreamLink }) {
   const provider = inferStreamProvider({ provider: stream.provider, streamUrl: stream.stream_url, embedUrl: stream.embed_url });
   const config = provider ? playerConfigs[provider] : null;
+  const playerSource = computedEmbedUrl({ provider: stream.provider, streamUrl: stream.stream_url, embedUrl: stream.embed_url });
   const openExternally = async () => {
     if (!stream.stream_url) return;
     try {
@@ -339,7 +391,25 @@ export function StreamLinkCard({ stream }: { stream: CommunityLivestreamLink }) 
       <Text style={styles.title}>{stream.title ?? "Stream link"}</Text>
       <Text style={styles.copy}>{providerHint(stream.provider)} - {clean(stream.playback_status)}</Text>
       {config && !config.dependableForLive ? <Text style={styles.providerNote}>{config.unsupportedEmbedMessage}</Text> : null}
-      <EmbeddedStreamPlayer provider={stream.provider} title={stream.title} streamUrl={stream.stream_url} embedUrl={stream.embed_url} />
+      {playerSource ? (
+        <>
+          <EmbeddedStreamPlayer provider={stream.provider} title={stream.title} streamUrl={stream.stream_url} embedUrl={stream.embed_url} />
+          <AppButton
+            variant="dark"
+            onPress={() => openStreamViewer({
+              title: stream.title,
+              provider: stream.provider,
+              streamUrl: stream.stream_url,
+              embedUrl: stream.embed_url,
+              externalUrl: stream.stream_url
+            })}
+          >
+            Watch player
+          </AppButton>
+        </>
+      ) : (
+        <Text style={styles.providerNote}>This stream link opens outside Skillsroom.</Text>
+      )}
       <AppButton variant="secondary" disabled={!stream.stream_url} onPress={() => void openExternally()}>
         Open externally
       </AppButton>
@@ -347,8 +417,23 @@ export function StreamLinkCard({ stream }: { stream: CommunityLivestreamLink }) 
   );
 }
 
-export function ConnectedChannelCard({ account, onRefresh, loading }: { account: StreamingAccount; onRefresh?: () => void; loading?: boolean }) {
-  const hasLivePlayerSource = Boolean(account.live_stream_url || account.live_embed_url);
+export function ConnectedChannelCard({
+  account,
+  onRefresh,
+  loading,
+  compactPlayer,
+  onDisconnect,
+  disconnecting
+}: {
+  account: StreamingAccount;
+  onRefresh?: () => void;
+  loading?: boolean;
+  compactPlayer?: boolean;
+  onDisconnect?: () => void;
+  disconnecting?: boolean;
+}) {
+  const playerSource = computedEmbedUrl({ provider: account.provider, streamUrl: account.live_stream_url, embedUrl: account.live_embed_url });
+  const hasOpenableLiveUrl = Boolean(account.live_stream_url && account.live_stream_url !== account.channel_url);
   const openUrl = async (url: string | null | undefined, label: string) => {
     if (!url) return;
     try {
@@ -371,22 +456,41 @@ export function ConnectedChannelCard({ account, onRefresh, loading }: { account:
       </View>
       <Text style={styles.title}>{account.display_name ?? "Stream channel"}</Text>
       <Text style={styles.copy}>This is your saved profile channel. It is not a room or tournament stream until attached to one.</Text>
-      {hasLivePlayerSource ? (
-        <EmbeddedStreamPlayer provider={account.provider} title={account.live_title ?? account.display_name} streamUrl={account.live_stream_url} embedUrl={account.live_embed_url} />
+      {playerSource ? (
+        compactPlayer ? (
+          <Text style={styles.providerNote}>Live video is available. Open the player for a larger viewing screen.</Text>
+        ) : (
+          <EmbeddedStreamPlayer provider={account.provider} title={account.live_title ?? account.display_name} streamUrl={account.live_stream_url} embedUrl={account.live_embed_url} />
+        )
       ) : (
-        <Text style={styles.providerNote}>No live video is available for this saved channel right now.</Text>
+        <Text style={styles.providerNote}>This saved channel opens on {providerHint(account.provider)}.</Text>
       )}
+      {playerSource ? (
+        <AppButton
+          variant="dark"
+          onPress={() => openStreamViewer({
+            title: account.live_title ?? account.display_name,
+            provider: account.provider,
+            streamUrl: account.live_stream_url,
+            embedUrl: account.live_embed_url,
+            externalUrl: account.live_stream_url ?? account.channel_url
+          })}
+        >
+          Watch player
+        </AppButton>
+      ) : null}
       {account.channel_url ? (
         <AppButton variant="secondary" onPress={() => void openUrl(account.channel_url, "channel")}>
           Open channel
         </AppButton>
       ) : null}
-      {account.live_stream_url ? (
+      {hasOpenableLiveUrl ? (
         <AppButton variant="secondary" onPress={() => void openUrl(account.live_stream_url, "live video")}>
           Open live video
         </AppButton>
       ) : null}
       {onRefresh ? <AppButton variant="secondary" loading={loading} onPress={onRefresh}>Refresh status</AppButton> : null}
+      {onDisconnect ? <AppButton variant="danger" loading={disconnecting} onPress={onDisconnect}>Disconnect channel</AppButton> : null}
     </View>
   );
 }
@@ -425,7 +529,7 @@ export function StreamAttachForm({
     <View style={styles.attach}>
       <Text style={styles.title}>Attach stream link</Text>
       <View style={styles.segmentRow}>
-        {(["youtube", "twitch", "tiktok"] as const).map((item) => (
+        {(["youtube", "twitch", "kick", "tiktok"] as const).map((item) => (
           <Pressable key={item} onPress={() => setProvider(item)} style={[styles.segment, provider === item && styles.segmentOn]}>
             <Text style={[styles.segmentText, provider === item && styles.segmentTextOn]}>{item}</Text>
           </Pressable>
@@ -446,8 +550,8 @@ export function StreamAttachForm({
         ))}
       </View>
       <TextInput value={title} onChangeText={setTitle} placeholder="Stream title" placeholderTextColor={colors.faint} style={styles.input} />
-      <TextInput value={url} onChangeText={setUrl} autoCapitalize="none" keyboardType="url" placeholder="https://youtube.com/..." placeholderTextColor={colors.faint} style={styles.input} />
-      <Text style={styles.copy}>YouTube and Twitch are best for live rooms. TikTok video links can load in-app where TikTok allows it; some TikTok LIVE or short links may need external open.</Text>
+      <TextInput value={url} onChangeText={setUrl} autoCapitalize="none" keyboardType="url" placeholder="https://kick.com/..." placeholderTextColor={colors.faint} style={styles.input} />
+      <Text style={styles.copy}>Twitch and Kick are best for live rooms. YouTube videos and TikTok video links can load in-app where the provider allows it; some channel, LIVE, or short links may need external open.</Text>
       <AppButton
         loading={loading}
         disabled={!title.trim() || !url.trim()}
@@ -552,6 +656,14 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
     backgroundColor: colors.ink,
     aspectRatio: 16 / 9
+  },
+  playerWrapFill: {
+    flex: 1,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.sm,
+    backgroundColor: colors.ink
   },
   webview: {
     flex: 1,

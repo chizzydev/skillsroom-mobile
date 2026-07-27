@@ -284,7 +284,7 @@ export function TournamentDetailScreen() {
   });
 
   const streamMutation = useMutation({
-    mutationFn: (input: { title: string; stream_url: string; provider?: "youtube" | "twitch" | "tiktok"; visibility: "public" | "participants"; stream_role: "official" | "player_a" | "player_b" }) => {
+    mutationFn: (input: { title: string; stream_url: string; provider?: "youtube" | "twitch" | "tiktok" | "kick"; visibility: "public" | "participants"; stream_role: "official" | "player_a" | "player_b" }) => {
       if (!tournament) throw new Error("Tournament is not loaded yet.");
       return createLivestream({
         target_type: "tournament",
@@ -644,7 +644,7 @@ function StreamsPanel({
   loading: boolean;
   canAttach: boolean;
   attachLoading?: boolean;
-  onAttach: (input: { title: string; stream_url: string; provider?: "youtube" | "twitch" | "tiktok"; visibility: "public" | "participants"; stream_role: "official" | "player_a" | "player_b" }) => void;
+  onAttach: (input: { title: string; stream_url: string; provider?: "youtube" | "twitch" | "tiktok" | "kick"; visibility: "public" | "participants"; stream_role: "official" | "player_a" | "player_b" }) => void;
 }) {
   return (
     <SurfaceCard>

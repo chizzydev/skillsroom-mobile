@@ -7,7 +7,7 @@ export async function listStreamingAccounts() {
 }
 
 export async function saveManualStreamingAccount(input: {
-  provider: "youtube" | "twitch";
+  provider: "youtube" | "twitch" | "kick";
   channel_url: string;
   display_name: string;
   provider_login?: string;
@@ -20,7 +20,7 @@ export async function saveManualStreamingAccount(input: {
 }
 
 export async function startStreamingOauth(input: {
-  provider: "youtube" | "twitch";
+  provider: "youtube" | "twitch" | "kick";
   redirect_uri: string;
   redirect_path?: string;
 }) {
@@ -49,11 +49,18 @@ export async function syncStreamingAccount(accountId: string) {
   return data.account;
 }
 
+export async function disconnectStreamingAccount(accountId: string) {
+  const data = await apiRequest<{ account: StreamingAccount }>(`/streaming/accounts/${encodeURIComponent(accountId)}`, {
+    method: "DELETE"
+  });
+  return data.account;
+}
+
 export async function createLivestream(input: {
   target_type: "match_room" | "tournament";
   match_room_id?: string;
   tournament_id?: string;
-  provider?: "youtube" | "twitch" | "tiktok";
+  provider?: "youtube" | "twitch" | "tiktok" | "kick";
   visibility: "public" | "participants";
   stream_role?: "official" | "player_a" | "player_b";
   playback_status?: "live" | "offline" | "replay" | "unavailable";

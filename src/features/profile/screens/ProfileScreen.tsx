@@ -9,7 +9,7 @@ import { canAccessAdmin, roleLabel } from "../../../api/admin";
 import { plainApiError } from "../../../api/errors";
 import { myCommunityClan, myReferralProgram, profileDetails, profileTrustSummary, saveGameAccount, savePayoutProfile, saveProfile } from "../../../api/profile";
 import { getGames } from "../../../api/rooms";
-import { completeStreamingOauth, listStreamingAccounts, saveManualStreamingAccount, startStreamingOauth, syncStreamingAccount } from "../../../api/streaming";
+import { disconnectStreamingAccount, listStreamingAccounts, saveManualStreamingAccount, startStreamingOauth, syncStreamingAccount } from "../../../api/streaming";
 import { AppScreen } from "../../../components/screen/AppScreen";
 import { AppButton } from "../../../components/ui/AppButton";
 import { Badge } from "../../../components/ui/Badge";
@@ -28,7 +28,7 @@ import { useActionFeedback } from "../../../providers/ActionFeedbackProvider";
 
 type Notice = { tone: "error" | "success" | "info"; message: string } | null;
 type Visibility = "private" | "room_participants" | "public";
-type StreamProvider = "youtube" | "twitch";
+type StreamProvider = "youtube" | "twitch" | "kick";
 type IconComponent = typeof ShieldCheck;
 type NoticeTarget = "profile" | "game" | "payout" | "stream";
 
@@ -72,6 +72,12 @@ function visibilityLabel(value: Visibility) {
 
 function titleCase(value?: string | null) {
   return (value || "open").replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function streamProviderLabel(provider: StreamProvider) {
+  if (provider === "youtube") return "YouTube";
+  if (provider === "kick") return "Kick";
+  return "Twitch";
 }
 
 function trustTone(trust?: PlayerTrustSummary | null) {
@@ -359,6 +365,15 @@ export function ProfileScreen() {
     onError: (error) => notify("stream", { tone: "error", message: plainApiError(error, "Could not save stream channel.") })
   });
 
+  const disconnectStreamMutation = useMutation({
+    mutationFn: (accountId: string) => disconnectStreamingAccount(accountId),
+    onSuccess: async () => {
+      notify("stream", { tone: "success", message: "Stream channel disconnected." });
+      await refreshProfile();
+    },
+    onError: (error) => notify("stream", { tone: "error", message: plainApiError(error, "Could not disconnect stream channel.") })
+  });
+
   async function logout() {
     setLogoutLoading(true);
     await signOut();
@@ -393,9 +408,7 @@ export function ProfileScreen() {
       if (error) throw new Error("Streaming provider rejected the connection.");
       if (!code || !state) throw new Error("Streaming provider returned an incomplete callback.");
       if (state !== started.state) throw new Error("Streaming connection state did not match. Try again.");
-      await completeStreamingOauth({ code, state });
-      notify("stream", { tone: "success", message: `${provider === "youtube" ? "YouTube" : "Twitch"} connected.` });
-      await refreshProfile();
+      router.replace({ pathname: "/oauth/streaming", params: { code, state } } as never);
     } catch (error) {
       notify("stream", { tone: "error", message: plainApiError(error, "Could not connect streaming OAuth.") });
     } finally {
@@ -562,24 +575,29 @@ export function ProfileScreen() {
 
       <SurfaceCard>
         <Badge>Streaming accounts</Badge>
-        <Text style={styles.sectionTitle}>YouTube and Twitch</Text>
+        <Text style={styles.sectionTitle}>YouTube, Twitch, and Kick</Text>
         <Text style={styles.copy}>Connect or save the channel you use for match streams so players can watch from the match room.</Text>
+        <FormNotice tone="info" message="YouTube direct connection is waiting on Google app verification. Save your YouTube channel manually for now; Twitch and Kick can still connect directly." />
         {streams.length ? streams.map((account) => (
           <ConnectedChannelCard
             key={account.id}
             account={account}
+            compactPlayer
             loading={streamMutation.isPending}
+            disconnecting={disconnectStreamMutation.isPending}
+            onDisconnect={() => disconnectStreamMutation.mutate(account.id)}
             onRefresh={() => void syncStreamingAccount(account.id).then(async () => {
               notify("stream", { tone: "success", message: "Stream status refreshed." });
               await refreshProfile();
             }).catch((error) => notify("stream", { tone: "error", message: plainApiError(error, "Could not refresh stream status.") }))}
           />
         )) : <FormNotice tone="info" message="Connect a channel before your next streamed match, or save a public channel link manually." />}
-        <View style={styles.twoCol}>
-          <AppButton style={styles.halfButton} loading={oauthProvider === "youtube"} disabled={Boolean(oauthProvider)} onPress={() => void connectStreamingOauth("youtube")}>YouTube</AppButton>
-          <AppButton style={styles.halfButton} loading={oauthProvider === "twitch"} disabled={Boolean(oauthProvider)} onPress={() => void connectStreamingOauth("twitch")}>Twitch</AppButton>
+        <View style={styles.oauthGrid}>
+          <AppButton style={styles.oauthButton} variant="secondary" disabled>Use manual YouTube</AppButton>
+          <AppButton style={styles.oauthButton} loading={oauthProvider === "twitch"} disabled={Boolean(oauthProvider)} onPress={() => void connectStreamingOauth("twitch")}>Twitch</AppButton>
+          <AppButton style={styles.oauthButton} loading={oauthProvider === "kick"} disabled={Boolean(oauthProvider)} onPress={() => void connectStreamingOauth("kick")}>Kick</AppButton>
         </View>
-        <SegmentedControl values={["youtube", "twitch"]} selected={streamProvider} labelFor={(value) => (value === "youtube" ? "YouTube" : "Twitch")} onSelect={setStreamProvider} />
+        <SegmentedControl values={["youtube", "twitch", "kick"]} selected={streamProvider} labelFor={streamProviderLabel} onSelect={setStreamProvider} />
         <View style={styles.formGrid}>
           <TextInput value={streamName} onChangeText={setStreamName} placeholder="Channel display name" placeholderTextColor={colors.faint} style={styles.input} />
           <TextInput value={streamUrl} onChangeText={setStreamUrl} autoCapitalize="none" keyboardType="url" placeholder="https://..." placeholderTextColor={colors.faint} style={styles.input} />
@@ -836,6 +854,8 @@ const styles = StyleSheet.create({
   twoCol: { flexDirection: "row", gap: spacing.md },
   half: { flex: 1 },
   halfButton: { flex: 1, minHeight: 50 },
+  oauthGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  oauthButton: { flexGrow: 1, flexBasis: "30%", minHeight: 50 },
   input: {
     minHeight: 58,
     borderWidth: 1,

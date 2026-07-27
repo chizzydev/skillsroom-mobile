@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { createDmRequest, listDmRequests, respondDmRequest } from "../../../api/chat";
 import { plainApiError } from "../../../api/errors";
@@ -35,6 +35,7 @@ function recipientHandle(request: ChatDmRequest) {
 }
 
 type RequestDirection = "incoming" | "outgoing" | "unknown";
+type RequestTab = "requests" | "sent" | "threads";
 
 function requestDirection(request: ChatDmRequest, currentUserId?: string): RequestDirection {
   if (currentUserId && request.recipient_user_id === currentUserId) return "incoming";
@@ -54,9 +55,35 @@ export function DmRequestsScreen() {
   const currentUserId = useAuthStore((state) => state.user?.id);
   const [recipient, setRecipient] = useState("");
   const [intro, setIntro] = useState("");
+  const [activeTab, setActiveTab] = useState<RequestTab>("requests");
 
   const requestsQuery = useQuery({ queryKey: ["chat", "dm-requests"], queryFn: listDmRequests, refetchInterval: 30000 });
   const requests = requestsQuery.data ?? [];
+  const groupedRequests = useMemo(() => {
+    const incoming: ChatDmRequest[] = [];
+    const sent: ChatDmRequest[] = [];
+    const threads: ChatDmRequest[] = [];
+
+    for (const request of requests) {
+      const direction = requestDirection(request, currentUserId);
+      if (request.status === "accepted") {
+        threads.push(request);
+      } else if (direction === "outgoing") {
+        sent.push(request);
+      } else if (request.status === "pending") {
+        incoming.push(request);
+      }
+    }
+
+    return { incoming, sent, threads };
+  }, [currentUserId, requests]);
+  const visibleRequests =
+    activeTab === "requests" ? groupedRequests.incoming : activeTab === "sent" ? groupedRequests.sent : groupedRequests.threads;
+  const tabItems: Array<{ key: RequestTab; label: string; count: number }> = [
+    { key: "requests", label: "Requests", count: groupedRequests.incoming.length },
+    { key: "sent", label: "Sent", count: groupedRequests.sent.length },
+    { key: "threads", label: "Threads", count: groupedRequests.threads.length }
+  ];
 
   const createMutation = useMutation({
     mutationFn: () => {
@@ -123,29 +150,52 @@ export function DmRequestsScreen() {
         <FeedbackState tone="error" title="Requests unavailable" body="Could not load DM requests." actionLabel="Retry" onAction={() => void requestsQuery.refetch()} />
       ) : null}
 
-      {requests.map((request) => {
+      <View style={styles.tabs}>
+        {tabItems.map((tab) => {
+          const selected = activeTab === tab.key;
+          return (
+            <Pressable key={tab.key} onPress={() => setActiveTab(tab.key)} style={[styles.tab, selected && styles.tabActive]}>
+              <Text style={[styles.tabText, selected && styles.tabTextActive]}>{tab.label}</Text>
+              <View style={[styles.tabCount, selected && styles.tabCountActive]}>
+                <Text style={[styles.tabCountText, selected && styles.tabCountTextActive]}>{tab.count}</Text>
+              </View>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {visibleRequests.map((request) => {
         const direction = requestDirection(request, currentUserId);
         const incoming = direction === "incoming";
         const outgoing = direction === "outgoing";
         const pending = request.status === "pending";
         const canRespond = pending && incoming;
         const label = requestPrimaryLabel(request, direction);
+        const isThread = activeTab === "threads";
         return (
-          <SurfaceCard key={request.id}>
-            <Badge tone={request.status === "accepted" ? "green" : request.status === "declined" ? "red" : "amber"}>
-              {pending ? incoming ? "incoming" : outgoing ? "sent" : "pending" : request.status}
-            </Badge>
-            <Text style={styles.requestLabel}>{label.prefix}</Text>
-            <Text style={styles.requestName}>{label.name}</Text>
-            {label.handle ? <Text style={styles.requestHandle}>{label.handle}</Text> : null}
-            {pending && outgoing ? <Text style={styles.requestCopy}>Waiting for {label.name} to respond.</Text> : null}
-            {pending && incoming ? <Text style={styles.requestCopy}>{label.name} wants to start a direct message with you.</Text> : null}
-            {request.intro_message ? <Text style={styles.requestCopy}>{request.intro_message}</Text> : null}
-            {request.channel_slug ? (
-              <AppButton variant="secondary" onPress={() => router.push(`/(app)/chat/${encodeURIComponent(String(request.channel_slug))}`)}>
-                Open thread
-              </AppButton>
-            ) : canRespond ? (
+          <SurfaceCard key={request.id} style={isThread ? styles.compactRequestCard : undefined}>
+            <View style={styles.requestTop}>
+              <Badge tone={request.status === "accepted" ? "green" : request.status === "declined" || request.status === "blocked" ? "red" : "amber"}>
+                {pending ? incoming ? "incoming" : outgoing ? "sent" : "pending" : request.status === "accepted" ? "thread ready" : request.status}
+              </Badge>
+              {request.created_at ? <Text style={styles.requestDate}>{new Date(request.created_at).toLocaleDateString("en-NG")}</Text> : null}
+            </View>
+            <View style={isThread ? styles.compactRequestBody : undefined}>
+              <View style={styles.requestMain}>
+                <Text style={styles.requestLabel}>{label.prefix}</Text>
+                <Text style={styles.requestName}>{label.name}</Text>
+                {label.handle ? <Text style={styles.requestHandle}>{label.handle}</Text> : null}
+              </View>
+              {request.channel_slug ? (
+                <AppButton variant="secondary" onPress={() => router.push(`/(app)/chat/${encodeURIComponent(String(request.channel_slug))}`)} style={isThread ? styles.compactAction : undefined}>
+                  Open thread
+                </AppButton>
+              ) : null}
+            </View>
+            {!isThread && pending && outgoing ? <Text style={styles.requestCopy}>Waiting for {label.name} to respond.</Text> : null}
+            {!isThread && pending && incoming ? <Text style={styles.requestCopy}>{label.name} wants to start a direct message with you.</Text> : null}
+            {!isThread && request.intro_message ? <Text style={styles.requestCopy}>{request.intro_message}</Text> : null}
+            {!request.channel_slug && canRespond ? (
               <View style={styles.requestActions}>
                 <AppButton loading={respondMutation.isPending} onPress={() => respondMutation.mutate({ requestId: request.id, response: "accepted" })} style={styles.actionGrow}>
                   Accept
@@ -159,7 +209,18 @@ export function DmRequestsScreen() {
         );
       })}
 
-      {!requestsQuery.isLoading && requests.length === 0 ? <FeedbackState title="No requests" body="Incoming and sent DM requests will appear here." /> : null}
+      {!requestsQuery.isLoading && visibleRequests.length === 0 ? (
+        <FeedbackState
+          title={activeTab === "requests" ? "No requests waiting" : activeTab === "sent" ? "No sent requests" : "No accepted threads here"}
+          body={
+            activeTab === "requests"
+              ? "Incoming DM requests will appear here when a player wants to chat."
+              : activeTab === "sent"
+                ? "Requests you send to other players will appear here until they respond."
+                : "Accepted DM requests with open threads will appear here."
+          }
+        />
+      ) : null}
     </AppScreen>
   );
 }
@@ -217,6 +278,78 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
     textAlignVertical: "top"
   },
+  tabs: {
+    flexDirection: "row",
+    gap: spacing.sm
+  },
+  tab: {
+    flex: 1,
+    minHeight: 46,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.white,
+    paddingHorizontal: spacing.sm,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xs
+  },
+  tabActive: {
+    borderColor: colors.navy,
+    backgroundColor: colors.navy
+  },
+  tabText: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: "900"
+  },
+  tabTextActive: {
+    color: colors.white
+  },
+  tabCount: {
+    minWidth: 24,
+    minHeight: 24,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceAlt,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 6
+  },
+  tabCountActive: {
+    backgroundColor: colors.green
+  },
+  tabCountText: {
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: "900"
+  },
+  tabCountTextActive: {
+    color: colors.navy
+  },
+  compactRequestCard: {
+    gap: spacing.sm
+  },
+  compactRequestBody: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm
+  },
+  requestTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.sm
+  },
+  requestMain: {
+    flex: 1,
+    minWidth: 0
+  },
+  requestDate: {
+    color: colors.faint,
+    fontSize: 11,
+    fontWeight: "900"
+  },
   requestLabel: {
     color: colors.faint,
     fontSize: 11,
@@ -249,5 +382,8 @@ const styles = StyleSheet.create({
   },
   actionGrow: {
     flex: 1
+  },
+  compactAction: {
+    minWidth: 118
   }
 });
