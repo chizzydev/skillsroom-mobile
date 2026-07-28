@@ -33,6 +33,14 @@ function money(minor?: number, currency = "NGN") {
   return `${currency} ${Math.round((minor ?? 0) / 100).toLocaleString()}`;
 }
 
+function compactMoney(minor?: number, currency = "NGN") {
+  const amount = Math.round((minor ?? 0) / 100);
+  const absolute = Math.abs(amount);
+  if (absolute >= 1_000_000) return `${currency} ${(amount / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 1 }).replace(/\.0$/, "")}M`;
+  if (absolute >= 10_000) return `${currency} ${(amount / 1_000).toLocaleString(undefined, { maximumFractionDigits: 1 }).replace(/\.0$/, "")}K`;
+  return money(minor, currency);
+}
+
 function amountFromNaira(value: string) {
   const amount = Number(value.replace(/,/g, ""));
   return Number.isFinite(amount) ? Math.max(0, Math.round(amount * 100)) : 0;
@@ -241,7 +249,7 @@ export function WalletScreen() {
     <AppScreen>
       <SurfaceCard dark>
         <Badge tone="dark">Skillsroom Balance</Badge>
-        <Text style={styles.heroTitle}>{money(available, currency)}</Text>
+        <Text style={styles.heroTitle}>{compactMoney(available, currency)}</Text>
         <Text style={styles.heroCopy}>Available balance is ready for room and tournament entry. Pending top-ups, locked entries, and winnings stay separate.</Text>
       </SurfaceCard>
 
@@ -262,10 +270,10 @@ export function WalletScreen() {
       {view === "overview" ? (
         <>
           <View style={styles.stats}>
-            <StatCard label="Available" value={money(available, currency)} detail="Ready to use" tone="green" />
-            <StatCard label="Locked" value={money(locked, currency)} detail="Reserved for rooms" tone="amber" />
-            <StatCard label="Winnings" value={money(winnings, currency)} detail="Payout source" tone="cyan" />
-            <StatCard label="Pending" value={money(pendingTopups, currency)} detail="Not spendable" tone="red" />
+            <StatCard label="Available" value={compactMoney(available, currency)} detail="Ready to use" tone="green" />
+            <StatCard label="Locked" value={compactMoney(locked, currency)} detail="Reserved for rooms" tone="amber" />
+            <StatCard label="Winnings" value={compactMoney(winnings, currency)} detail="Payout source" tone="cyan" />
+            <StatCard label="Pending" value={compactMoney(pendingTopups, currency)} detail="Not spendable" tone="red" />
           </View>
           <SurfaceCard>
             <Badge tone="amber">Money map</Badge>

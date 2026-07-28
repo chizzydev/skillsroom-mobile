@@ -41,7 +41,7 @@ import type { ManualFundingSubmission, MatchParticipant, MatchResultClaim, Match
 import { roomIssueRulesFromRuleset } from "../roomIssueRules";
 
 type Section = "overview" | "players" | "funding" | "live" | "result" | "history";
-type RoomFocus = "section" | "players-list" | "funding-action" | "live-action" | "result-claim" | "result-response" | "result-proof-request" | "history";
+type RoomFocus = "section" | "players-list" | "invite-player" | "funding-action" | "live-action" | "result-claim" | "result-response" | "result-proof-request" | "history";
 type Notice = { tone: "error" | "success" | "info"; message: string } | null;
 type SectionNotice = { section: Section; notice: NonNullable<Notice> } | null;
 
@@ -65,6 +65,13 @@ function validRoomFocus(value?: string | string[]) {
 
 function money(minor?: number, currency = "NGN") {
   return `${currency} ${Math.round((minor ?? 0) / 100).toLocaleString()}`;
+}
+
+function createdDateLabel(value?: string | null) {
+  if (!value) return "Not set";
+  const time = Date.parse(value);
+  if (!Number.isFinite(time)) return "Not set";
+  return new Date(time).toLocaleString("en-NG", { dateStyle: "medium", timeStyle: "short" });
 }
 
 function sectionLabel(section: Section) {
@@ -848,6 +855,7 @@ export function RoomDetailScreen() {
           <DarkMetric icon={ShieldCheck} label="Status" value={statusLabel(room?.status, isExpiredOpenRoom)} />
           <DarkMetric icon={Users} label="Slots" value={`${participantCount}/${room?.max_participants ?? 2}`} />
           <DarkMetric icon={Banknote} label="Entry" value={money(room?.entry_amount_minor, room?.currency)} />
+          <DarkMetric icon={Clock3} label="Created" value={createdDateLabel(room?.created_at)} />
         </View>
       </SurfaceCard>
 
@@ -867,7 +875,11 @@ export function RoomDetailScreen() {
         {canRespondToProofRequest ? <AppButton onPress={() => focusRoomSection("result", "result-proof-request")}>Send requested proof</AppButton> : null}
         <View style={styles.quickActions}>
           <QuickAction icon={Copy} label="Code" value={room?.room_code ?? "..."} copyValue={room?.room_code} />
-          <QuickAction icon={Share2} label="Invite" value="Copy text" copyValue={inviteCopy} copiedLabel="Invite copied" />
+          {canManageRoomInvites ? (
+            <QuickAction icon={Share2} label="Invite" value="By username" onPress={() => focusRoomSection("overview", "invite-player")} />
+          ) : (
+            <QuickAction icon={Share2} label="Share" value="Copy text" copyValue={inviteCopy} copiedLabel="Share text copied" />
+          )}
           <QuickAction icon={FileCheck2} label="Updates" value={(timelineQuery.data?.events?.length ?? 0).toString()} />
         </View>
       </SurfaceCard>
@@ -898,9 +910,9 @@ export function RoomDetailScreen() {
               <FormNotice tone="info" message="This challenge window has ended. Post a fresh challenge or create a new room before another player joins." />
             ) : null}
             {canManageRoomInvites ? (
-              <View style={styles.inviteBox}>
+              <View onLayout={registerFocusLayout("invite-player", "section")} style={styles.inviteBox}>
                 <Text style={styles.itemTitle}>Invite by username</Text>
-                <Text style={styles.copy}>Send a direct room invite to a Skillsroom username. They can accept it from Notifications.</Text>
+                <Text style={styles.copy}>Send a direct room invite to a Skillsroom username. They can accept it from Notifications and receive an alert if their sound is on.</Text>
                 <TextInput
                   value={inviteUsername}
                   onChangeText={setInviteUsername}
@@ -1355,21 +1367,31 @@ function QuickAction({
   label,
   value,
   copyValue,
-  copiedLabel
+  copiedLabel,
+  onPress
 }: {
   icon: typeof Copy;
   label: string;
   value: string;
   copyValue?: string | null;
   copiedLabel?: string;
+  onPress?: () => void;
 }) {
-  return (
-    <View style={styles.quickAction}>
+  const content = (
+    <>
       <Icon size={18} color={colors.cyan} />
       <Text style={styles.quickLabel}>{label}</Text>
       <Text style={styles.quickValue} numberOfLines={1}>{value}</Text>
       {copyValue ? <CopyButton value={copyValue} label="Copy" copiedLabel={copiedLabel ?? "Copied"} compact /> : null}
-    </View>
+    </>
+  );
+
+  if (!onPress) return <View style={styles.quickAction}>{content}</View>;
+
+  return (
+    <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.quickAction, pressed && styles.quickActionPressed]}>
+      {content}
+    </Pressable>
   );
 }
 
@@ -1444,6 +1466,7 @@ const styles = StyleSheet.create({
   fill: { flex: 1, minWidth: 0 },
   quickActions: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   quickAction: { flexBasis: "30%", flexGrow: 1, borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, padding: spacing.sm, backgroundColor: colors.surfaceAlt, gap: 4 },
+  quickActionPressed: { opacity: 0.8 },
   quickLabel: { color: colors.faint, fontSize: 11, fontWeight: "900", textTransform: "uppercase", letterSpacing: 1.5 },
   quickValue: { color: colors.ink, fontWeight: "900" },
   summaryGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },

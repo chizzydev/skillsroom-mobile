@@ -47,6 +47,12 @@ const defaultPlatforms = ["Mobile", "PlayStation", "Xbox", "PC", "Cross-play"];
 const defaultRegions = ["Nigeria", "West Africa", "Africa", "Europe", "North America", "Any region"];
 const marketplacePlatforms = ["", ...defaultPlatforms];
 const marketplaceRegions = ["", ...defaultRegions.filter((region) => region.toLowerCase() !== "any region")];
+const expiryOptions = [
+  { value: "1", label: "1h" },
+  { value: "24", label: "24h" },
+  { value: "48", label: "48h" },
+  { value: "168", label: "7d" }
+];
 const marketplaceSkills: Array<{ value: "" | MatchChallengeSkillLevel; label: string }> = [
   { value: "", label: "All skills" },
   ...skillLevels
@@ -92,10 +98,25 @@ function timeLeft(value?: string | null) {
   return `${Math.ceil(hours / 24)}d left`;
 }
 
-function expiryDate(hours: string) {
-  const parsed = Number(hours);
-  if (!Number.isFinite(parsed) || parsed <= 0) return undefined;
-  return new Date(Date.now() + Math.min(parsed, 168) * 60 * 60 * 1000).toISOString();
+function expiryHoursFromInput(value: string) {
+  const parsed = Number(value.trim());
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > 168) return null;
+  return parsed;
+}
+
+function expiryDate(hours: number) {
+  return new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
+}
+
+function expiryDurationLabel(value: string) {
+  const hours = expiryHoursFromInput(value);
+  if (!hours) return "Choose 1 hour to 7 days";
+  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"}`;
+  if (hours % 24 === 0) {
+    const days = hours / 24;
+    return `${days} day${days === 1 ? "" : "s"}`;
+  }
+  return `${hours} hours`;
 }
 
 function missingText(key: string) {
@@ -259,6 +280,8 @@ export function ChallengesScreen() {
       if (!selectedGame?.slug || !selectedRuleset?.slug) throw new Error("Choose a game and rules before posting a challenge.");
       const entryAmountMinor = moneyFromInput(entryAmount);
       if (entryAmountMinor < 10_000) throw new Error("Entry amount must be at least NGN 100.");
+      const expiryHours = expiryHoursFromInput(expiresInHours);
+      if (!expiryHours) throw new Error("Choose an expiry between 1 hour and 7 days.");
 
       return createMatchChallenge({
         game_slug: selectedGame.slug,
@@ -270,7 +293,7 @@ export function ChallengesScreen() {
         platform: platform.trim() || "Mobile",
         region: region.trim() || "Nigeria",
         skill_level: skillLevel,
-        expires_at: expiryDate(expiresInHours)
+        expires_at: expiryDate(expiryHours)
       });
     },
     onSuccess: async ({ room }) => {
@@ -358,7 +381,19 @@ export function ChallengesScreen() {
             <TextInput value={title} onChangeText={setTitle} placeholder="Challenge title, optional" placeholderTextColor={colors.faint} style={styles.input} />
             <TextInput value={platform} onChangeText={setPlatform} placeholder="Platform" placeholderTextColor={colors.faint} style={styles.input} />
             <TextInput value={region} onChangeText={setRegion} placeholder="Region" placeholderTextColor={colors.faint} style={styles.input} />
-            <TextInput value={expiresInHours} onChangeText={setExpiresInHours} keyboardType="number-pad" placeholder="Expires in hours" placeholderTextColor={colors.faint} style={styles.input} />
+            <TextInput value={expiresInHours} onChangeText={(value) => setExpiresInHours(value.replace(/[^0-9]/g, ""))} keyboardType="number-pad" placeholder="Expires in hours" placeholderTextColor={colors.faint} style={styles.input} />
+          </View>
+          <View style={styles.expiryBox}>
+            <View style={styles.rowBetween}>
+              <View style={styles.fill}>
+                <Text style={styles.label}>Challenge expiry</Text>
+                <Text style={styles.copy}>Open challenges wait for an opponent until the expiry time. Once accepted, the match moves to Rooms.</Text>
+              </View>
+              <Clock3 color={colors.cyan} size={22} />
+            </View>
+            <View style={styles.pickRow}>
+              {expiryOptions.map((item) => <Chip key={item.value} label={item.label} selected={expiresInHours === item.value} onPress={() => setExpiresInHours(item.value)} />)}
+            </View>
           </View>
           <View style={styles.pickRow}>
             {defaultPlatforms.map((item) => <Chip key={item} label={item} selected={platform === item} onPress={() => setPlatform(item)} />)}
@@ -369,6 +404,7 @@ export function ChallengesScreen() {
           <View style={styles.preview}>
             <Text style={styles.itemTitle}>{selectedGame?.name ?? "Game"} challenge</Text>
             <Text style={styles.copy}>{rulesetName({ ruleset_title: selectedRuleset?.name ?? null } as MatchChallengeListRow)} - {money(moneyFromInput(entryAmount))} entry - {displayLabel(skillLevel)}</Text>
+            <Text style={styles.copy}>Open for {expiryDurationLabel(expiresInHours)} unless someone accepts first.</Text>
           </View>
           <View style={styles.rulesBox}>
             <Text style={styles.label}>Fair play rules</Text>
@@ -598,7 +634,7 @@ function EmptyChallenge({ onPress }: { onPress: () => void }) {
     <View style={styles.empty}>
       <Clock3 color={colors.cyan} size={28} />
       <Text style={styles.itemTitle}>No open challenges found</Text>
-      <Text style={styles.copy}>Post a challenge with your preferred game, platform, region, and entry.</Text>
+      <Text style={styles.copy}>Play only shows challenges still waiting for an opponent. Accepted matches move to Rooms.</Text>
       <AppButton onPress={onPress}>Post challenge</AppButton>
     </View>
   );
@@ -650,6 +686,7 @@ const styles = StyleSheet.create({
   chipText: { color: colors.muted, fontWeight: "900" },
   chipTextOn: { color: colors.greenDark },
   preview: { borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, padding: spacing.md, backgroundColor: colors.surfaceAlt, ...shadow.card },
+  expiryBox: { borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, padding: spacing.md, backgroundColor: colors.surfaceAlt, gap: spacing.sm },
   rulesBox: { borderWidth: 1, borderColor: colors.cyan, borderRadius: radius.md, padding: spacing.md, backgroundColor: colors.cyanSoft, gap: spacing.sm },
   ruleChips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
   ruleChip: { borderWidth: 1, borderColor: "#bae6fd", borderRadius: radius.pill, paddingHorizontal: spacing.sm, paddingVertical: 6, color: colors.cyan, backgroundColor: colors.white, fontSize: 12, fontWeight: "900" },

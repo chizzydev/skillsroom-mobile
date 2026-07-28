@@ -39,6 +39,14 @@ function money(minor?: number, currency = "NGN") {
   return `${currency} ${Math.round((minor ?? 0) / 100).toLocaleString()}`;
 }
 
+function compactMoney(minor?: number, currency = "NGN") {
+  const amount = Math.round((minor ?? 0) / 100);
+  const absolute = Math.abs(amount);
+  if (absolute >= 1_000_000) return `${currency} ${(amount / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 1 }).replace(/\.0$/, "")}M`;
+  if (absolute >= 10_000) return `${currency} ${(amount / 1_000).toLocaleString(undefined, { maximumFractionDigits: 1 }).replace(/\.0$/, "")}K`;
+  return money(minor, currency);
+}
+
 function firstName(value?: string | null) {
   const trimmed = value?.trim();
   if (!trimmed) return "player";
@@ -56,6 +64,21 @@ function roomLabel(room: PlayerHomeRoomPreview) {
 function roomDetail(room: PlayerHomeRoomPreview) {
   const rules = room.ruleset_title ?? room.ruleset_slug ?? "Standard rules";
   return `${money(room.entry_amount_minor, room.currency)} entry - ${rules} - ${room.participant_count ?? 0}/${room.max_participants ?? 2} players`;
+}
+
+function createdDateLabel(value?: string | null) {
+  if (!value) return "Created time unavailable";
+  const time = Date.parse(value);
+  if (!Number.isFinite(time)) return "Created time unavailable";
+  return `Created ${new Date(time).toLocaleString("en-NG", { dateStyle: "medium", timeStyle: "short" })}`;
+}
+
+function newestRoomsFirst(rooms: PlayerHomeRoomPreview[]) {
+  return [...rooms].sort((left, right) => {
+    const leftTime = Date.parse(String(left.created_at ?? ""));
+    const rightTime = Date.parse(String(right.created_at ?? ""));
+    return (Number.isFinite(rightTime) ? rightTime : 0) - (Number.isFinite(leftTime) ? leftTime : 0);
+  });
 }
 
 function readinessFallback(kind: "profile" | "wallet", missingProfileItems: number): PlayerHomeReadiness {
@@ -82,9 +105,9 @@ export function HomeScreen() {
   const roomInvitesQuery = useQuery({ queryKey: ["notifications", "room-invites"], queryFn: () => listRoomInvites("pending") });
 
   const summary = summaryQuery.data;
-  const openRooms = summary?.open_room_previews ?? [];
-  const recommendedRooms = summary?.recommended_room_previews ?? [];
-  const activeRooms = summary?.active_room_previews ?? [];
+  const openRooms = newestRoomsFirst(summary?.open_room_previews ?? []);
+  const recommendedRooms = newestRoomsFirst(summary?.recommended_room_previews ?? []);
+  const activeRooms = newestRoomsFirst(summary?.active_room_previews ?? []);
   const reviewRooms = summary?.active_review_previews ?? [];
   const reviewQueueCount = reviewRooms.filter((room) => room.status === "under_review").length;
   const disputedQueueCount = reviewRooms.filter((room) => room.status === "disputed").length;
@@ -108,7 +131,7 @@ export function HomeScreen() {
   const profileReady = Boolean(profile?.completion?.complete || profileReadiness.status === "ready");
   const walletReadiness = summary?.wallet_readiness ?? readinessFallback("wallet", missingProfileItems);
   const balance = summary?.wallet_mini_balance;
-  const walletValue = walletReadiness.status === "ready" ? money((balance?.available_balance_minor ?? 0) + (balance?.winnings_balance_minor ?? 0), balance?.currency ?? "NGN") : walletReadiness.label;
+  const walletValue = walletReadiness.status === "ready" ? compactMoney((balance?.available_balance_minor ?? 0) + (balance?.winnings_balance_minor ?? 0), balance?.currency ?? "NGN") : walletReadiness.label;
   const openTournaments = summary?.open_tournament_previews ?? [];
   const missions = summary?.missions ?? [];
   const nextMission = missions.find((mission) => !mission.completed) ?? missions[0];
@@ -226,6 +249,7 @@ export function HomeScreen() {
             key={room.id}
             onPress={() => router.push(`/(app)/rooms/${room.id}`)}
             title={room.title ?? `${roomLabel(room)} match`}
+            timestamp={createdDateLabel(room.created_at)}
           />
         ))}
         {openRooms.slice(0, 2).map((room) => (
@@ -236,6 +260,7 @@ export function HomeScreen() {
             key={room.id}
             onPress={() => router.push(`/(app)/rooms/${room.id}`)}
             title={room.title ?? "Open room"}
+            timestamp={createdDateLabel(room.created_at)}
           />
         ))}
         {openTournaments.map((tournament) => (
@@ -294,6 +319,7 @@ export function HomeScreen() {
             <View style={styles.roomMain}>
               <Text style={styles.roomTitle}>{room.title ?? "Private match room"}</Text>
               <Text style={styles.roomMeta}>{room.room_code ?? "No code"} - {roomDetail(room)}</Text>
+              <Text style={styles.roomTimestamp}>{createdDateLabel(room.created_at)}</Text>
             </View>
             <ChevronRight color={colors.faint} size={21} />
           </Pressable>
@@ -407,12 +433,14 @@ function PlayNowRow({
   detail,
   icon,
   onPress,
+  timestamp,
   title
 }: {
   action: string;
   detail: string;
   icon: React.ReactNode;
   onPress: () => void;
+  timestamp?: string;
   title: string;
 }) {
   return (
@@ -421,6 +449,7 @@ function PlayNowRow({
       <View style={styles.roomMain}>
         <Text style={styles.roomTitle}>{title}</Text>
         <Text style={styles.roomMeta}>{detail}</Text>
+        {timestamp ? <Text style={styles.roomTimestamp}>{timestamp}</Text> : null}
       </View>
       <Text style={styles.playAction}>{action}</Text>
     </Pressable>
@@ -612,6 +641,7 @@ const styles = StyleSheet.create({
   roomMain: { flex: 1, minWidth: 0 },
   roomTitle: { color: colors.ink, fontSize: 16, lineHeight: 21, fontWeight: "900" },
   roomMeta: { color: colors.muted, fontSize: 13, lineHeight: 19 },
+  roomTimestamp: { color: colors.faint, fontSize: 12, lineHeight: 18, fontWeight: "800", marginTop: 2 },
   eventRow: { borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, padding: spacing.md, gap: spacing.md, backgroundColor: colors.surfaceAlt },
   eventText: { gap: spacing.xs },
   communityRow: { flexDirection: "row", gap: spacing.md, alignItems: "flex-start", borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, padding: spacing.md, backgroundColor: colors.surfaceAlt },
