@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { usePathname } from "expo-router";
 import type { ReactNode } from "react";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -61,6 +62,7 @@ function titleForEvent(event: RealtimeEvent) {
   if (event.event_type.startsWith("tournament")) return "Tournament update";
   if (event.event_type.startsWith("chat")) return "New chat update";
   if (event.event_type.startsWith("community.livestream")) return "Stream update";
+  if (event.event_type === "match.challenge.created") return "New challenge posted";
   if (event.event_type === "notification.created") return "New notification";
   return "Live update";
 }
@@ -69,6 +71,7 @@ function bodyForEvent(event: RealtimeEvent) {
   const payloadBody = textFromPayload(event.payload, "body") ?? textFromPayload(event.payload, "description") ?? textFromPayload(event.payload, "message");
   if (payloadBody) return payloadBody;
 
+  if (event.event_type === "match.challenge.created") return "A new open challenge is ready on Play.";
   if (event.match_room_id) return "Refreshing the related room so the latest status appears.";
   if (event.tournament_id) return "Refreshing the related tournament so the latest status appears.";
   return "Refreshing Skillsroom data in the background.";
@@ -111,6 +114,12 @@ function shouldToastForEvent(event: RealtimeEvent) {
   if (type.includes("presence") || type.includes("typing") || type.includes("reaction") || type.endsWith(".read")) return false;
 
   return true;
+}
+
+function shouldPlaySoundForEvent(event: RealtimeEvent, pathname: string, currentUserId?: string | null) {
+  if (currentUserId && event.actor_user_id === currentUserId) return false;
+  if (event.event_type === "match.challenge.created") return pathname.startsWith("/challenges");
+  return event.event_type === "notification.created" || event.event_type === "room.invite.created";
 }
 
 function happenedBeforeSession(timestamp?: string | null, sessionStartedAt = Date.now()) {
@@ -375,6 +384,7 @@ function invalidateForEvent(queryClient: ReturnType<typeof useQueryClient>, even
 
   if (type.startsWith("match.") || payloadRoomId) {
     void queryClient.invalidateQueries({ queryKey: ["rooms"] });
+    if (type.startsWith("match.challenge.")) void queryClient.invalidateQueries({ queryKey: ["challenges"] });
     if (payloadRoomId) void queryClient.invalidateQueries({ queryKey: ["room", payloadRoomId] });
   }
 
@@ -441,6 +451,7 @@ function invalidateForNotification(queryClient: ReturnType<typeof useQueryClient
 export function LiveUpdatesProvider({ children }: { children: ReactNode }) {
   const isSignedIn = useAuthStore((state) => state.isSignedIn);
   const currentUserId = useAuthStore((state) => state.user?.id);
+  const pathname = usePathname();
   const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
   const [toasts, setToasts] = useState<LiveToast[]>([]);
@@ -532,7 +543,7 @@ export function LiveUpdatesProvider({ children }: { children: ReactNode }) {
           playNotificationSound();
         }
         if (shouldToastForEvent(event) && !happenedBeforeSession(event.created_at, sessionStartedAt.current)) {
-          playNotificationSound();
+          if (shouldPlaySoundForEvent(event, pathname, currentUserId)) playNotificationSound();
           pushToast(eventToToast(event));
         }
       },
@@ -554,7 +565,7 @@ export function LiveUpdatesProvider({ children }: { children: ReactNode }) {
       cancelled = true;
       cleanup?.();
     };
-  }, [currentUserId, isSignedIn, pushToast, queryClient]);
+  }, [currentUserId, isSignedIn, pathname, playNotificationSound, pushToast, queryClient]);
 
   useEffect(() => {
     if (!toasts.length) return;

@@ -86,6 +86,16 @@ export function HomeScreen() {
   const recommendedRooms = summary?.recommended_room_previews ?? [];
   const activeRooms = summary?.active_room_previews ?? [];
   const reviewRooms = summary?.active_review_previews ?? [];
+  const reviewQueueCount = reviewRooms.filter((room) => room.status === "under_review").length;
+  const disputedQueueCount = reviewRooms.filter((room) => room.status === "disputed").length;
+  const reviewQueueTarget = reviewQueueCount > 0 ? "review" : "disputed";
+  const reviewQueueHref = `/(app)/(tabs)/rooms?queue=${reviewQueueTarget}` as Parameters<typeof router.push>[0];
+  const reviewPanelDetail =
+    reviewQueueCount > 0 && disputedQueueCount > 0
+      ? "Review and disputed rooms are split inside Room activity."
+      : disputedQueueCount > 0
+        ? "Open the Disputed queue to check proof and dispute status."
+        : "Open the Review queue to check proof and next steps.";
   const unreadChannels = (channelsQuery.data ?? []).reduce((sum, channel) => sum + (channel.unread_count ?? 0), 0);
   const dmRequests = (dmRequestsQuery.data ?? []).filter((request) => request.status === "pending").length;
   const unreadNotifications = Math.max(summary?.unread_notification_count ?? 0, notificationsQuery.data?.length ?? 0);
@@ -184,10 +194,10 @@ export function HomeScreen() {
       </SurfaceCard>
 
       <View style={styles.statsGrid}>
-        <MetricCard label="Rooms" value={playCounts?.open_rooms ?? openRooms.length} detail="Open now" tone="cyan" icon={<Swords color={colors.cyan} size={20} />} />
-        <MetricCard label="Matches" value={playCounts?.recommended_matches ?? recommendedRooms.length} detail="Recommended" tone="green" icon={<ShieldCheck color={colors.greenDark} size={20} />} />
-        <MetricCard label="Tourneys" value={playCounts?.open_tournaments ?? openTournaments.length} detail="Open entries" tone="amber" icon={<Trophy color={colors.amber} size={20} />} />
-        <MetricCard label="Reviews" value={playCounts?.active_reviews ?? reviewRooms.length} detail="Needs action" tone="red" icon={<MessageCircle color={colors.red} size={20} />} />
+        <MetricCard label="Rooms" value={playCounts?.open_rooms ?? openRooms.length} detail="Open now" tone="cyan" icon={<Swords color={colors.cyan} size={20} />} onPress={() => router.push("/(app)/(tabs)/rooms?queue=open")} />
+        <MetricCard label="Matches" value={playCounts?.recommended_matches ?? recommendedRooms.length} detail="Recommended" tone="green" icon={<ShieldCheck color={colors.greenDark} size={20} />} onPress={() => router.push(challengesHref)} />
+        <MetricCard label="Tourneys" value={playCounts?.open_tournaments ?? openTournaments.length} detail="Open entries" tone="amber" icon={<Trophy color={colors.amber} size={20} />} onPress={() => router.push("/(app)/(tabs)/tournaments")} />
+        <MetricCard label="Reviews" value={playCounts?.active_reviews ?? reviewRooms.length} detail="Needs action" tone="red" icon={<MessageCircle color={colors.red} size={20} />} onPress={() => router.push(reviewQueueHref)} />
       </View>
 
       {summaryQuery.isError || profileQuery.isError ? (
@@ -239,13 +249,18 @@ export function HomeScreen() {
           />
         ))}
         {reviewRooms.length ? (
-          <View style={styles.disputePanel}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push(reviewQueueHref)}
+            style={({ pressed }) => [styles.disputePanel, pressed && styles.pressed]}
+          >
             <Clock3 color={colors.red} size={20} />
             <View style={styles.roomMain}>
-              <Text style={styles.roomTitle}>{reviewRooms.length} active review{reviewRooms.length === 1 ? "" : "s"}</Text>
-              <Text style={styles.roomMeta}>Open the room, check proof, and follow the dispute status.</Text>
+              <Text style={styles.roomTitle}>{reviewRooms.length} room{reviewRooms.length === 1 ? "" : "s"} need review</Text>
+              <Text style={styles.roomMeta}>{reviewPanelDetail}</Text>
             </View>
-          </View>
+            <ChevronRight color={colors.red} size={20} />
+          </Pressable>
         ) : null}
       </SurfaceCard>
 
@@ -429,14 +444,14 @@ function MissionPreview({ mission, onPress }: { mission: { title: string; detail
   );
 }
 
-function MetricCard({ label, value, detail, tone, icon }: { label: string; value: number; detail: string; tone: Tone; icon: React.ReactNode }) {
+function MetricCard({ label, value, detail, tone, icon, onPress }: { label: string; value: number; detail: string; tone: Tone; icon: React.ReactNode; onPress?: () => void }) {
   return (
-    <SurfaceCard style={styles.metric}>
+    <Pressable accessibilityRole={onPress ? "button" : undefined} disabled={!onPress} onPress={onPress} style={({ pressed }) => [styles.metric, onPress && styles.metricPressable, pressed && styles.pressed]}>
       <View style={[styles.metricIcon, styles[`${tone}Soft`]]}>{icon}</View>
       <Text style={styles.metricLabel}>{label}</Text>
       <Text style={styles.metricValue}>{value}</Text>
       <Text style={styles.metricDetail}>{detail}</Text>
-    </SurfaceCard>
+    </Pressable>
   );
 }
 
@@ -542,7 +557,19 @@ const styles = StyleSheet.create({
   joinCodeActions: { flexDirection: "row", gap: spacing.sm },
   joinCodeButton: { flex: 1, minHeight: 48, borderRadius: radius.sm },
   statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md },
-  metric: { flexBasis: "47%", flexGrow: 1, padding: spacing.md, gap: spacing.sm },
+  metric: {
+    flexBasis: "47%",
+    flexGrow: 1,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
+    padding: spacing.md,
+    gap: spacing.sm,
+    ...shadow.card
+  },
+  metricPressable: { minHeight: 132 },
+  pressed: { opacity: 0.82 },
   metricIcon: { width: 38, height: 38, borderRadius: radius.md, alignItems: "center", justifyContent: "center" },
   cyanSoft: { backgroundColor: colors.cyanSoft },
   greenSoft: { backgroundColor: colors.greenSoft },

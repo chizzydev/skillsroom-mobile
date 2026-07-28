@@ -1,35 +1,52 @@
 import { useCallback, useEffect, useRef } from "react";
 import { AppState } from "react-native";
-import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from "expo-audio";
 
 const notificationTone = require("../../../assets/audio/notification-tone.wav");
 
+type NotificationAudioPlayer = {
+  play: () => void;
+  remove: () => void;
+  seekTo: (seconds: number) => Promise<void>;
+  volume: number;
+};
+
 export function useNotificationSound(enabled: boolean) {
-  const playerRef = useRef<AudioPlayer | null>(null);
+  const playerRef = useRef<NotificationAudioPlayer | null>(null);
   const lastPlayedAtRef = useRef(0);
 
   useEffect(() => {
+    let cancelled = false;
+
     if (!enabled) {
       playerRef.current?.remove();
       playerRef.current = null;
       return undefined;
     }
 
-    void setAudioModeAsync({
-      playsInSilentMode: true,
-      interruptionMode: "mixWithOthers"
-    }).catch(() => undefined);
+    void import("expo-audio")
+      .then(async ({ createAudioPlayer, setAudioModeAsync }) => {
+        if (cancelled) return;
 
-    const player = createAudioPlayer(notificationTone, {
-      keepAudioSessionActive: false,
-      updateInterval: 1000
-    });
-    player.volume = 1;
-    playerRef.current = player;
+        await setAudioModeAsync({
+          playsInSilentMode: true,
+          interruptionMode: "mixWithOthers"
+        }).catch(() => undefined);
+
+        if (cancelled) return;
+        const player = createAudioPlayer(notificationTone, {
+          keepAudioSessionActive: false,
+          updateInterval: 1000
+        });
+        player.volume = 1;
+        playerRef.current = player;
+      })
+      .catch(() => undefined);
 
     return () => {
-      if (playerRef.current === player) playerRef.current = null;
-      player.remove();
+      cancelled = true;
+      const player = playerRef.current;
+      playerRef.current = null;
+      player?.remove();
     };
   }, [enabled]);
 
@@ -43,8 +60,13 @@ export function useNotificationSound(enabled: boolean) {
     const player = playerRef.current;
     if (!player) return;
 
-    player.volume = 1;
-    void player.seekTo(0).catch(() => undefined);
-    player.play();
+    try {
+      player.volume = 1;
+      void player.seekTo(0).catch(() => undefined);
+      player.play();
+    } catch {
+      if (playerRef.current === player) playerRef.current = null;
+      player.remove();
+    }
   }, [enabled]);
 }

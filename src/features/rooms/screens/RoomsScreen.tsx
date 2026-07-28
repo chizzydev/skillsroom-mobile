@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { Clock3, DoorOpen, FileCheck2, Play, Plus, Search, ShieldCheck, Trophy, Users } from "lucide-react-native";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ImageBackground, Pressable, StyleSheet, Text, View } from "react-native";
 import { listRooms } from "../../../api/rooms";
 import { AppScreen } from "../../../components/screen/AppScreen";
@@ -18,6 +18,10 @@ type IconComponent = typeof DoorOpen;
 
 const queues: RoomQueue[] = ["open", "funding", "ready", "live", "result", "review", "disputed", "payout", "done", "expired"];
 const roomArtwork = require("../../../../assets/marketing/skillsroom-premium/tournaments-premium.png");
+
+function isRoomQueue(value: unknown): value is RoomQueue {
+  return typeof value === "string" && queues.includes(value as RoomQueue);
+}
 
 function money(minor?: number, currency = "NGN") {
   return `${currency} ${Math.round((minor ?? 0) / 100).toLocaleString()}`;
@@ -126,9 +130,14 @@ function nextStep(room: MatchRoom) {
 }
 
 export function RoomsScreen() {
+  const params = useLocalSearchParams<{ queue?: string }>();
   const [selectedQueue, setSelectedQueue] = useState<RoomQueue>("open");
   const [queueGridWidth, setQueueGridWidth] = useState(0);
   const roomsQuery = useQuery({ queryKey: ["rooms"], queryFn: () => listRooms(), refetchInterval: 15000 });
+
+  useEffect(() => {
+    if (isRoomQueue(params.queue)) setSelectedQueue(params.queue);
+  }, [params.queue]);
 
   const rooms = roomsQuery.data ?? [];
   const visibleRooms = useMemo(() => rooms.filter((room) => roomQueue(room) !== "other"), [rooms]);

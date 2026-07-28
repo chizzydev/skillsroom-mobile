@@ -120,7 +120,7 @@ function filterSummary(filters: MarketplaceFilters, games: Array<{ slug?: string
     filters.region,
     filters.skill_level ? displayLabel(filters.skill_level) : null
   ].filter(Boolean);
-  return active.length ? `Filters: ${active.join(" / ")}` : "No filters selected";
+  return active.length ? `Showing matches for ${active.join(" / ")}.` : "Showing every open challenge.";
 }
 
 export function ChallengesScreen() {
@@ -597,7 +597,7 @@ function EmptyChallenge({ onPress }: { onPress: () => void }) {
   return (
     <View style={styles.empty}>
       <Clock3 color={colors.cyan} size={28} />
-      <Text style={styles.itemTitle}>No open challenge found</Text>
+      <Text style={styles.itemTitle}>No open challenges found</Text>
       <Text style={styles.copy}>Post a challenge with your preferred game, platform, region, and entry.</Text>
       <AppButton onPress={onPress}>Post challenge</AppButton>
     </View>
