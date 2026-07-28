@@ -781,7 +781,7 @@ export function adminLanesFor(user: AuthUser | null | undefined): AdminLane[] {
   const lanes: AdminLane[] = [
     { key: "overview", label: "Overview", detail: "Everything waiting across your allowed workspace." },
     { key: "funding", label: "Funding", detail: "Manual transfers and room entry checks." },
-    { key: "wallet", label: "Wallet", detail: "Top-ups, wallet payouts, and ledger-sensitive reviews." },
+    { key: "wallet", label: "Wallet", detail: "Top-ups, wallet payouts, and balance reviews." },
     { key: "results", label: "Results", detail: "Match claims, proof, disputes, and review decisions." },
     { key: "settlements", label: "Payments", detail: "Winner payouts, refunds, and settlement reserves." },
     { key: "tournaments", label: "Tournaments", detail: "Event operations, bracket health, and host support." },

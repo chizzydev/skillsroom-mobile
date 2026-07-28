@@ -79,18 +79,18 @@ const chatCyan = "#47c7ef";
 const chatGreen = "#19c58b";
 
 const reactionOptions = [
-  { value: "like", label: "ðŸ‘" },
+  { value: "like", label: "\u{1F44D}" },
   { value: "gg", label: "GG" },
-  { value: "fire", label: "ðŸ”¥" },
-  { value: "clap", label: "ðŸ‘" },
-  { value: "trophy", label: "ðŸ†" },
-  { value: "heart", label: "â¤ï¸" },
-  { value: "laugh", label: "ðŸ˜‚" },
-  { value: "wow", label: "ðŸ˜®" },
-  { value: "sad", label: "ðŸ˜¢" },
-  { value: "angry", label: "ðŸ˜¡" },
-  { value: "hundred", label: "ðŸ’¯" },
-  { value: "game", label: "ðŸŽ®" }
+  { value: "fire", label: "\u{1F525}" },
+  { value: "clap", label: "\u{1F44F}" },
+  { value: "trophy", label: "\u{1F3C6}" },
+  { value: "heart", label: "\u2764\uFE0F" },
+  { value: "laugh", label: "\u{1F602}" },
+  { value: "wow", label: "\u{1F62E}" },
+  { value: "sad", label: "\u{1F622}" },
+  { value: "angry", label: "\u{1F621}" },
+  { value: "hundred", label: "\u{1F4AF}" },
+  { value: "game", label: "\u{1F3AE}" }
 ];
 
 const slowModeOptions = [0, 10, 30, 60, 300, 900, 3600];

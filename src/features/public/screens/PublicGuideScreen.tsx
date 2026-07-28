@@ -105,7 +105,7 @@ const guideContent: Record<GuideTopic, GuideContent> = {
       },
       {
         title: "Wallet help",
-        body: "Payment and payout questions need details that match the ledger.",
+        body: "Payment and payout questions need details that match your wallet record.",
         bullets: ["Include amount, date, sender name, and reference where available.", "Do not post sensitive banking details in public chat.", "Pending review means support may need time to match the proof."]
       },
       {

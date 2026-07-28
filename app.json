@@ -3,13 +3,12 @@
     "name": "Skillsroom",
     "slug": "skillsroom-mobile",
     "scheme": "skillsroom",
-    "version": "0.1.0",
+    "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "android": {
       "package": "com.skillsroom.mobile",
-      "versionCode": 1,
+      "versionCode": 10,
       "allowBackup": false
     },
     "androidNavigationBar": {

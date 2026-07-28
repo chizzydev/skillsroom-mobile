@@ -370,11 +370,11 @@ const AttachmentCard = memo(function AttachmentCard({ channelId, attachment, onP
       <View style={styles.attachmentActions}>
         {image && !accessUrl ? (
           <Pressable onPress={() => void loadAttachment(false)} disabled={loading} style={styles.attachmentButton}>
-            <Text style={styles.attachmentButtonText}>{loading ? "Loading..." : "Load image"}</Text>
+            <Text style={styles.attachmentButtonText}>{loading ? "Loading" : "Load image"}</Text>
           </Pressable>
         ) : null}
         <Pressable onPress={() => void loadAttachment(true)} disabled={loading} style={styles.attachmentButton}>
-          <Text style={styles.attachmentButtonText}>{loading ? "Loading..." : image ? "Preview" : "Open"}</Text>
+          <Text style={styles.attachmentButtonText}>{loading ? "Loading" : image ? "Preview" : "Open"}</Text>
         </Pressable>
       </View>
       {error ? <Text style={styles.errorText}>{error}</Text> : null}

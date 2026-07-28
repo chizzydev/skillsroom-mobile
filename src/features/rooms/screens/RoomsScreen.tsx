@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
-import { Clock3, DoorOpen, FileCheck2, Play, Plus, Search, ShieldCheck, Trophy, Users } from "lucide-react-native";
+import { ChevronRight, Clock3, DoorOpen, FileCheck2, Play, Plus, Search, ShieldCheck, Trophy, Users } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
 import { ImageBackground, Pressable, StyleSheet, Text, View } from "react-native";
 import { listRooms } from "../../../api/rooms";
@@ -285,7 +285,7 @@ function RoomCard({ room }: { room: MatchRoom }) {
 }
 
 function ChevronLike() {
-  return <Text style={styles.chevron}>›</Text>;
+  return <ChevronRight size={24} color={colors.cyan} strokeWidth={2.8} />;
 }
 
 const styles = StyleSheet.create({
@@ -360,6 +360,5 @@ const styles = StyleSheet.create({
   factPill: { flexDirection: "row", alignItems: "center", gap: spacing.xs, borderWidth: 1, borderColor: colors.line, borderRadius: radius.pill, paddingHorizontal: spacing.sm, minHeight: 36, backgroundColor: colors.surfaceAlt },
   factText: { color: colors.muted, fontWeight: "900" },
   roomFooter: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderTopWidth: 1, borderTopColor: colors.line, paddingTop: spacing.sm },
-  openText: { color: colors.ink, fontWeight: "900" },
-  chevron: { color: colors.cyan, fontSize: 30, fontWeight: "900" }
+  openText: { color: colors.ink, fontWeight: "900" }
 });
