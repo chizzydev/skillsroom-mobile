@@ -1,8 +1,12 @@
-import type { WalletLedgerEntry, WalletOverview, WalletPayoutRequest, WalletTopup } from "../types/api";
+import type { WalletLedgerEntry, WalletOverview, WalletOverviewSummary, WalletPayoutRequest, WalletTopup } from "../types/api";
 import { apiRequest } from "./client";
 
 export async function walletOverview() {
   return apiRequest<WalletOverview>("/wallet");
+}
+
+export async function walletOverviewSummary() {
+  return apiRequest<WalletOverviewSummary>("/wallet?view=summary");
 }
 
 export async function submitWalletTopup(input: {

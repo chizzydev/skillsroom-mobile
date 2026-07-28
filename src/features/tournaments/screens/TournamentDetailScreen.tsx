@@ -143,6 +143,7 @@ export function TournamentDetailScreen() {
   const [senderAccount, setSenderAccount] = useState("");
   const [proofNote, setProofNote] = useState("");
   const [proofUploadResetSignal, setProofUploadResetSignal] = useState(0);
+  const [streamAttachResetSignal, setStreamAttachResetSignal] = useState(0);
   const scrollRef = useRef<ScrollView | null>(null);
   const focusLayouts = useRef<Partial<Record<TournamentFocus, number>>>({});
   const lastScrolledFocus = useRef<string | null>(null);
@@ -295,6 +296,7 @@ export function TournamentDetailScreen() {
     },
     onSuccess: async () => {
       notify("streams", { tone: "success", message: "Tournament stream attached. Viewers can open it from Streams." });
+      setStreamAttachResetSignal((value) => value + 1);
       await queryClient.invalidateQueries({ queryKey: ["tournaments", "streams", target] });
     },
     onError: (error) => notify("streams", { tone: "error", message: plainApiError(error, "Could not attach stream link.") })
@@ -397,6 +399,7 @@ export function TournamentDetailScreen() {
             loading={streamsQuery.isLoading}
             canAttach={canAttachStream}
             attachLoading={streamMutation.isPending}
+            resetSignal={streamAttachResetSignal}
             onAttach={(input) => streamMutation.mutate(input)}
           />
         </View>
@@ -637,6 +640,7 @@ function StreamsPanel({
   loading,
   canAttach,
   attachLoading,
+  resetSignal,
   onAttach
 }: {
   notice?: Notice;
@@ -644,6 +648,7 @@ function StreamsPanel({
   loading: boolean;
   canAttach: boolean;
   attachLoading?: boolean;
+  resetSignal?: number;
   onAttach: (input: { title: string; stream_url: string; provider?: "youtube" | "twitch" | "tiktok" | "kick"; visibility: "public" | "participants"; stream_role: "official" | "player_a" | "player_b" }) => void;
 }) {
   return (
@@ -654,7 +659,7 @@ function StreamsPanel({
       {loading ? <Text style={styles.copy}>Loading streams...</Text> : null}
       {streams.map((stream) => <StreamLinkCard key={stream.id} stream={stream} />)}
       {!loading && !streams.length ? <NoStreamState target="tournament" /> : null}
-      <StreamAttachForm target="tournament" canAttach={canAttach} loading={attachLoading} onSubmit={onAttach} />
+      <StreamAttachForm target="tournament" canAttach={canAttach} loading={attachLoading} resetSignal={resetSignal} onSubmit={onAttach} />
     </SurfaceCard>
   );
 }

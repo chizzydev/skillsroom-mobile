@@ -12,6 +12,7 @@ import { colors, radius, spacing } from "../../../constants/theme";
 import type { CommunityLivestreamLink, StreamingAccount } from "../../../types/api";
 
 type StreamProvider = "youtube" | "twitch" | "tiktok" | "kick";
+type StreamFormNotice = { tone: "info" | "error" | "success"; message: string } | null;
 type AttachInput = {
   title: string;
   stream_url: string;
@@ -84,8 +85,32 @@ const playerConfigs: Record<StreamProvider, StreamPlayerConfig> = {
   }
 };
 
+const streamUrlPlaceholders: Record<StreamProvider, string> = {
+  youtube: "https://www.youtube.com/watch?v=...",
+  twitch: "https://www.twitch.tv/...",
+  kick: "https://kick.com/...",
+  tiktok: "https://www.tiktok.com/@player/video/..."
+};
+
+const streamSubmitHosts: Record<StreamProvider, string[]> = {
+  youtube: ["youtube.com", "youtu.be"],
+  twitch: ["twitch.tv"],
+  kick: ["kick.com", "player.kick.com"],
+  tiktok: ["tiktok.com", "tiktokv.com", "vt.tiktok.com"]
+};
+
 function clean(value?: string | null) {
   return String(value ?? "").replaceAll("_", " ") || "stream";
+}
+
+function roleLabel(value: AttachInput["stream_role"]) {
+  if (value === "player_a") return "Player A";
+  if (value === "player_b") return "Player B";
+  return "Official";
+}
+
+function visibilityLabel(value: AttachInput["visibility"]) {
+  return value === "participants" ? "Participants" : "Public";
 }
 
 function tone(value?: string | null): "cyan" | "green" | "amber" | "red" | "dark" {
@@ -112,12 +137,32 @@ function inferStreamProvider(input: { provider?: string | null; streamUrl?: stri
     const host = new URL(candidate).hostname.toLowerCase();
     if (host === "youtu.be" || host.endsWith("youtube.com") || host.endsWith("youtube-nocookie.com")) return "youtube";
     if (host.endsWith("twitch.tv")) return "twitch";
-    if (host.endsWith("tiktok.com") || host.endsWith("tiktokv.com")) return "tiktok";
+    if (host.endsWith("tiktok.com") || host.endsWith("tiktokv.com") || host.endsWith("vt.tiktok.com")) return "tiktok";
     if (host.endsWith("kick.com")) return "kick";
   } catch {
     return null;
   }
   return null;
+}
+
+function validateProviderUrl(provider: StreamProvider, streamUrl: string): string | null {
+  try {
+    const parsed = new URL(streamUrl);
+    if (parsed.protocol !== "https:") return "Use a secure HTTPS stream link.";
+    const host = parsed.hostname.toLowerCase();
+    const detectedProvider = inferStreamProvider({ streamUrl });
+    if (!detectedProvider) return "Use a YouTube, Twitch, Kick, or TikTok stream link.";
+    if (detectedProvider !== provider) {
+      return `Paste a ${playerConfigs[provider].label} link or choose the matching provider.`;
+    }
+    const allowedHosts = streamSubmitHosts[provider];
+    if (!allowedHosts.some((item) => host === item || host.endsWith(`.${item}`))) {
+      return `Paste a public ${playerConfigs[provider].label} link.`;
+    }
+    return null;
+  } catch {
+    return "Enter a valid stream link.";
+  }
 }
 
 function streamTelemetry(event: StreamTelemetryEvent, details: Record<string, unknown>) {
@@ -508,11 +553,13 @@ export function StreamAttachForm({
   canAttach,
   target,
   loading,
+  resetSignal,
   onSubmit
 }: {
   canAttach: boolean;
   target: "room" | "tournament";
   loading?: boolean;
+  resetSignal?: number;
   onSubmit: (input: AttachInput) => void;
 }) {
   const [provider, setProvider] = useState<StreamProvider>("youtube");
@@ -520,6 +567,25 @@ export function StreamAttachForm({
   const [streamRole, setStreamRole] = useState<"official" | "player_a" | "player_b">("official");
   const [title, setTitle] = useState("");
   const [url, setUrl] = useState("");
+  const [notice, setNotice] = useState<StreamFormNotice>(null);
+
+  useEffect(() => {
+    setTitle("");
+    setUrl("");
+    setNotice(null);
+  }, [resetSignal]);
+
+  const submit = () => {
+    const trimmedTitle = title.trim();
+    const trimmedUrl = url.trim();
+    const validationMessage = validateProviderUrl(provider, trimmedUrl);
+    if (validationMessage) {
+      setNotice({ tone: "error", message: validationMessage });
+      return;
+    }
+    setNotice(null);
+    onSubmit({ provider, visibility, stream_role: streamRole, title: trimmedTitle, stream_url: trimmedUrl });
+  };
 
   if (!canAttach) {
     return <FormNotice tone="info" message={`Only eligible ${target} hosts can attach stream links here. Viewers will still see the stream once it is attached.`} />;
@@ -530,32 +596,40 @@ export function StreamAttachForm({
       <Text style={styles.title}>Attach stream link</Text>
       <View style={styles.segmentRow}>
         {(["youtube", "twitch", "kick", "tiktok"] as const).map((item) => (
-          <Pressable key={item} onPress={() => setProvider(item)} style={[styles.segment, provider === item && styles.segmentOn]}>
-            <Text style={[styles.segmentText, provider === item && styles.segmentTextOn]}>{item}</Text>
+          <Pressable key={item} onPress={() => {
+            setProvider(item);
+            setNotice(null);
+          }} style={[styles.segment, provider === item && styles.segmentOn]}>
+            <Text style={[styles.segmentText, provider === item && styles.segmentTextOn]}>{playerConfigs[item].label}</Text>
           </Pressable>
         ))}
       </View>
       <View style={styles.segmentRow}>
         {(["official", "player_a", "player_b"] as const).map((item) => (
           <Pressable key={item} onPress={() => setStreamRole(item)} style={[styles.segment, streamRole === item && styles.segmentOn]}>
-            <Text style={[styles.segmentText, streamRole === item && styles.segmentTextOn]}>{clean(item)}</Text>
+            <Text style={[styles.segmentText, streamRole === item && styles.segmentTextOn]}>{roleLabel(item)}</Text>
           </Pressable>
         ))}
       </View>
       <View style={styles.segmentRow}>
         {(["participants", "public"] as const).map((item) => (
           <Pressable key={item} onPress={() => setVisibility(item)} style={[styles.segment, visibility === item && styles.segmentOn]}>
-            <Text style={[styles.segmentText, visibility === item && styles.segmentTextOn]}>{item}</Text>
+            <Text style={[styles.segmentText, visibility === item && styles.segmentTextOn]}>{visibilityLabel(item)}</Text>
           </Pressable>
         ))}
       </View>
       <TextInput value={title} onChangeText={setTitle} placeholder="Stream title" placeholderTextColor={colors.faint} style={styles.input} />
-      <TextInput value={url} onChangeText={setUrl} autoCapitalize="none" keyboardType="url" placeholder="https://kick.com/..." placeholderTextColor={colors.faint} style={styles.input} />
+      <TextInput value={url} onChangeText={(value) => {
+        setUrl(value);
+        if (notice) setNotice(null);
+      }} autoCapitalize="none" keyboardType="url" placeholder={streamUrlPlaceholders[provider]} placeholderTextColor={colors.faint} style={styles.input} />
       <Text style={styles.copy}>Twitch and Kick are best for live rooms. YouTube videos and TikTok video links can load in-app where the provider allows it; some channel, LIVE, or short links may need external open.</Text>
+      {notice ? <FormNotice tone={notice.tone} message={notice.message} /> : null}
       <AppButton
         loading={loading}
-        disabled={!title.trim() || !url.trim()}
-        onPress={() => onSubmit({ provider, visibility, stream_role: streamRole, title: title.trim(), stream_url: url.trim() })}
+        loadingLabel="Attaching..."
+        disabled={loading || !title.trim() || !url.trim()}
+        onPress={submit}
       >
         Attach stream
       </AppButton>

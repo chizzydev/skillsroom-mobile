@@ -490,21 +490,21 @@ export function AdminResultsScreen() {
       />
 
       <SurfaceCard>
-        <SectionHeader eyebrow="Decision" title="Review result claim" detail="Approve only after the opponent agrees. Submitted claims can be disputed, rejected, closed without a winner, or left for the opponent response." />
+        <SectionHeader eyebrow="Decision" title="Review result claim" detail="Approve agreed results after the opponent accepts. No-response awards run automatically after the deadline, with manual catch-up available if needed." />
         {noticeFor("decision") ? <FormNotice tone={noticeFor("decision")!.tone} message={noticeFor("decision")!.message} /> : null}
         {selectedCard ? (
           <View style={styles.selectedPanel}>
             <Badge tone="cyan">Selected claim</Badge>
             <Text style={styles.selectedTitle}>{scoreSummaryLabel(selectedCard.claim.score_summary)}</Text>
             <Text style={styles.rowMeta}>{selectedCard.room?.title ?? "Room"} - {shortId(selectedCard.claim.match_room_id)}</Text>
-            {selectedCard.claim.status !== "opponent_agreed" ? (
+            {selectedCard.claim.status !== "opponent_agreed" && !(selectedCard.claim.status === "submitted" && responseWindowExpired(selectedCard.claim)) ? (
               <FormNotice tone="info" message="Winner approval is locked until the opponent accepts this claim. Mark it disputed if the evidence needs team review before payout." />
             ) : null}
             {selectedCard.claim.status === "submitted" ? (
               <FormNotice
                 tone={responseWindowExpired(selectedCard.claim) ? "warning" : "info"}
                 message={responseWindowExpired(selectedCard.claim)
-                  ? "The opponent response window is overdue. Use no-response approval only after checking evidence and room history."
+                  ? "Ready for no-response catch-up if the automatic award has not finished yet."
                   : `Opponent response due: ${dateLabel(selectedCard.claim.opponent_response_due_at)}.`}
               />
             ) : null}

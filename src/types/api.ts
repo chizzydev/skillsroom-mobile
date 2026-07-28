@@ -335,6 +335,20 @@ export type WalletOverview = {
   [key: string]: unknown;
 };
 
+export type WalletPendingSummary = {
+  pending_count?: number;
+  pending_amount_minor?: number;
+  currency?: string;
+  [key: string]: unknown;
+};
+
+export type WalletOverviewSummary = {
+  account?: WalletAccount;
+  pending_topups?: WalletPendingSummary;
+  pending_payouts?: WalletPendingSummary;
+  [key: string]: unknown;
+};
+
 export type ChatNotificationLevel = "all" | "mentions" | "none";
 
 export type ChatChannel = {

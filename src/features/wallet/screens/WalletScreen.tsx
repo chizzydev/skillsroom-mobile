@@ -4,7 +4,7 @@ import { Fragment, useCallback, type ReactNode } from "react";
 import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { plainApiError } from "../../../api/errors";
-import { requestWalletPayout, submitWalletTopup, walletOverview } from "../../../api/wallet";
+import { requestWalletPayout, submitWalletTopup, walletOverview, walletOverviewSummary } from "../../../api/wallet";
 import { AppScreen } from "../../../components/screen/AppScreen";
 import { AppButton } from "../../../components/ui/AppButton";
 import { Badge } from "../../../components/ui/Badge";
@@ -93,6 +93,12 @@ function feedbackTitle(tone: NonNullable<Notice>["tone"], view: WalletView) {
   return "Wallet update";
 }
 
+function pendingSummaryAmount(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const amount = (value as { pending_amount_minor?: unknown }).pending_amount_minor;
+  return typeof amount === "number" && Number.isFinite(amount) ? amount : null;
+}
+
 export function WalletScreen() {
   const queryClient = useQueryClient();
   const { pushFeedback } = useActionFeedback();
@@ -115,21 +121,31 @@ export function WalletScreen() {
   const [payoutBankCode, setPayoutBankCode] = useState("");
   const [payoutNote, setPayoutNote] = useState("");
 
+  const walletSummaryQuery = useQuery({
+    queryKey: ["wallet", "summary"],
+    queryFn: walletOverviewSummary,
+    refetchInterval: 15000,
+    refetchOnMount: "always",
+    staleTime: 5000
+  });
+
   const walletQuery = useQuery({
     queryKey: ["wallet"],
     queryFn: walletOverview,
-    refetchInterval: 15000,
-    refetchOnMount: "always",
-    staleTime: 0
+    enabled: Boolean(walletSummaryQuery.data),
+    refetchInterval: 30000,
+    staleTime: 15000
   });
 
   useFocusEffect(
     useCallback(() => {
-      void walletQuery.refetch();
-    }, [walletQuery.refetch])
+      void walletSummaryQuery.refetch();
+      if (view === "history") void walletQuery.refetch();
+    }, [view, walletQuery.refetch, walletSummaryQuery.refetch])
   );
   const overview = walletQuery.data;
-  const account = overview?.account;
+  const summary = walletSummaryQuery.data;
+  const account = summary?.account ?? overview?.account;
   const currency = account?.currency ?? overview?.balance?.currency ?? "NGN";
   const available = account?.available_balance_minor ?? overview?.balance?.available_minor ?? 0;
   const locked = account?.locked_balance_minor ?? overview?.balance?.locked_minor ?? 0;
@@ -138,12 +154,16 @@ export function WalletScreen() {
   const payoutRequests = overview?.payout_requests ?? [];
   const ledgerEntries = overview?.ledger_entries ?? [];
   const pendingTopups = useMemo(
-    () => topups.filter((topup) => topup.status === "submitted").reduce((sum, topup) => sum + topup.amount_minor, 0),
-    [topups]
+    () => pendingSummaryAmount(summary?.pending_topups)
+      ?? topups.filter((topup) => topup.status === "submitted").reduce((sum, topup) => sum + topup.amount_minor, 0),
+    [summary?.pending_topups, topups]
   );
 
   const refreshWallet = async () => {
-    await queryClient.invalidateQueries({ queryKey: ["wallet"] });
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["wallet"] }),
+      queryClient.invalidateQueries({ queryKey: ["wallet", "summary"] })
+    ]);
   };
 
   const notify = (targetView: WalletView, nextNotice: NonNullable<Notice>) => {
@@ -225,7 +245,10 @@ export function WalletScreen() {
         <Text style={styles.heroCopy}>Available balance is ready for room and tournament entry. Pending top-ups, locked entries, and winnings stay separate.</Text>
       </SurfaceCard>
 
-      {walletQuery.isError ? <FeedbackState tone="error" title="Wallet unavailable" body="We could not load your wallet right now." actionLabel="Retry" onAction={() => void walletQuery.refetch()} /> : null}
+      {walletSummaryQuery.isError && walletQuery.isError ? <FeedbackState tone="error" title="Wallet unavailable" body="We could not load your wallet right now." actionLabel="Retry" onAction={() => {
+        void walletSummaryQuery.refetch();
+        void walletQuery.refetch();
+      }} /> : null}
       {notice && !noticeFor(view) ? <FormNotice tone={notice.tone} message={notice.message} /> : null}
 
       <View style={styles.nav}>

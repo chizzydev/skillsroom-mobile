@@ -3,9 +3,10 @@ import type { ReactNode } from "react";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { listNotifications, markNotificationRead } from "../api/notifications";
+import { getNotificationPreferences, listNotifications, markNotificationRead } from "../api/notifications";
 import { openRealtimeStream } from "../api/realtime";
 import { colors, radius, shadow, spacing } from "../constants/theme";
+import { useNotificationSound } from "../features/notifications/notificationSound";
 import { useAuthStore } from "../store/auth-store";
 import type {
   ChatAttachment,
@@ -463,6 +464,17 @@ export function LiveUpdatesProvider({ children }: { children: ReactNode }) {
     enabled: isSignedIn,
     refetchInterval: 12_000
   });
+  const preferencesQuery = useQuery({
+    queryKey: ["notifications", "preferences"],
+    queryFn: getNotificationPreferences,
+    enabled: isSignedIn,
+    staleTime: 60_000
+  });
+  const notificationPreferences = preferencesQuery.data ?? {
+    in_app_enabled: true,
+    in_app_sound_enabled: true
+  };
+  const playNotificationSound = useNotificationSound(Boolean(notificationPreferences.in_app_enabled && notificationPreferences.in_app_sound_enabled));
 
   useEffect(() => {
     if (isSignedIn) {
@@ -492,10 +504,11 @@ export function LiveUpdatesProvider({ children }: { children: ReactNode }) {
       seenNotificationIds.current.add(notification.id);
       invalidateForNotification(queryClient, notification);
       if (!happenedBeforeSession(notification.created_at, sessionStartedAt.current)) {
+        playNotificationSound();
         pushToast(notificationToToast(notification));
       }
     });
-  }, [notificationsQuery.data, pushToast, queryClient]);
+  }, [notificationsQuery.data, playNotificationSound, pushToast, queryClient]);
 
   useEffect(() => {
     if (!isSignedIn) return;
@@ -513,7 +526,13 @@ export function LiveUpdatesProvider({ children }: { children: ReactNode }) {
         if (!event.id || !event.event_type || seenEventIds.current.has(event.id)) return;
         seenEventIds.current.add(event.id);
         invalidateForEvent(queryClient, event, currentUserId);
+        if (event.event_type === "notification.created" && !happenedBeforeSession(event.created_at, sessionStartedAt.current)) {
+          const notificationId = textFromPayload(event.payload, "notification_id") ?? textFromPayload(event.payload, "id");
+          if (notificationId) seenNotificationIds.current.add(notificationId);
+          playNotificationSound();
+        }
         if (shouldToastForEvent(event) && !happenedBeforeSession(event.created_at, sessionStartedAt.current)) {
+          playNotificationSound();
           pushToast(eventToToast(event));
         }
       },

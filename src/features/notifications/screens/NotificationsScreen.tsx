@@ -33,7 +33,7 @@ const defaultPreferences: NotificationPreference = {
 
 const preferenceRows: Array<{ key: PreferenceKey; label: string; description: string; disabled?: boolean }> = [
   { key: "in_app_enabled", label: "In-app notifications", description: "Show updates inside Skillsroom." },
-  { key: "in_app_sound_enabled", label: "In-app sound", description: "Use this preference for in-app notification sounds when the app supports them." },
+  { key: "in_app_sound_enabled", label: "In-app sound", description: "Play a short sound for new in-app notifications." },
   { key: "email_enabled", label: "Email for priority updates", description: "Only important alerts, requests, and announcements are sent by email." },
   { key: "sms_enabled", label: "SMS", description: "Reserved for future critical alerts.", disabled: true },
   { key: "room_invites_enabled", label: "Room invites", description: "Notify me when a player sends a room invite." },

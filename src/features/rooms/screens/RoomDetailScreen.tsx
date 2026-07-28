@@ -249,6 +249,9 @@ function resultStatusCopy(claim?: MatchResultClaim | null, room?: MatchRoom) {
   if (claim.status === "admin_approved") return { label: "Winner confirmed", detail: "A final result decision has been made.", tone: "green" as const };
   if (claim.status === "admin_rejected") return { label: "Result rejected", detail: "The result claim was not accepted after review.", tone: "red" as const };
   if (claim.status === "withdrawn") return { label: "Result withdrawn", detail: "The claim was withdrawn. A fresh result may be needed.", tone: "amber" as const };
+  if (claim.status === "submitted" && resultResponseWindowExpired(claim)) {
+    return { label: "Response window passed", detail: "Skillsroom can award the submitted result from the saved proof if automatic review has not finished yet.", tone: "amber" as const };
+  }
   if (room?.status === "under_review") return { label: "Team review", detail: "Proof and responses are being checked.", tone: "amber" as const };
   if (room?.status === "disputed") return { label: "Dispute review", detail: "The room is paused while the dispute is reviewed.", tone: "red" as const };
   return { label: "Opponent response", detail: "Waiting for the other player to agree or dispute.", tone: "cyan" as const };
@@ -267,6 +270,9 @@ function claimResponseCopy(claim?: MatchResultClaim | null, responses?: RoomResu
       label: "Opponent disputed",
       detail: note || "Skillsroom review is needed before payout."
     };
+  }
+  if (resultResponseWindowExpired(claim)) {
+    return { done: false, label: "Response window passed", detail: "Automatic no-response review can now award the submitted result." };
   }
   return { done: claim.status !== "submitted", label: "Opponent response", detail: responseCountdown(claim) };
 }
@@ -359,6 +365,7 @@ export function RoomDetailScreen() {
   const [fundingUploadResetSignal, setFundingUploadResetSignal] = useState(0);
   const [resultUploadResetSignal, setResultUploadResetSignal] = useState(0);
   const [proofRequestUploadResetSignal, setProofRequestUploadResetSignal] = useState(0);
+  const [streamAttachResetSignal, setStreamAttachResetSignal] = useState(0);
   const promptedNextStep = useRef<string | null>(null);
   const scrollRef = useRef<ScrollView | null>(null);
   const focusLayouts = useRef<Partial<Record<RoomFocus, number>>>({});
@@ -444,6 +451,7 @@ export function RoomDetailScreen() {
     claim &&
     ownParticipant &&
     ["submitted"].includes(String(claim.status)) &&
+    !resultResponseWindowExpired(claim) &&
     claim.claimant_user_id !== user?.id &&
     claim.submitted_by_user_id !== user?.id &&
     claim.claimant_participant_id !== ownParticipant.id &&
@@ -765,6 +773,7 @@ export function RoomDetailScreen() {
       }),
     onSuccess: async () => {
       notify("live", { tone: "success", message: "Stream link attached. Viewers can open it from the Live section." });
+      setStreamAttachResetSignal((value) => value + 1);
       await queryClient.invalidateQueries({ queryKey: ["room", roomId, "livestreams"] });
     },
     onError: (error) => notify("live", { tone: "error", message: plainApiError(error, "Could not attach stream link.") })
@@ -1117,7 +1126,7 @@ export function RoomDetailScreen() {
           ) : null}
           <FormNotice tone="info" message="Play only when the room says it is live. Streams can be official, Player A, or Player B links." />
           {livestreamsQuery.data?.length ? livestreamsQuery.data.map((stream) => <StreamLinkCard key={stream.id} stream={stream} />) : <NoStreamState target="room" />}
-          <StreamAttachForm target="room" canAttach={canAttachStream} loading={streamMutation.isPending} onSubmit={(input) => streamMutation.mutate(input)} />
+          <StreamAttachForm target="room" canAttach={canAttachStream} loading={streamMutation.isPending} resetSignal={streamAttachResetSignal} onSubmit={(input) => streamMutation.mutate(input)} />
         </SurfaceCard>
         </View>
       ) : null}
@@ -1134,7 +1143,7 @@ export function RoomDetailScreen() {
             <FormNotice
               tone={resultResponseExpired ? "error" : "info"}
               message={resultResponseExpired
-                ? "Your response window is overdue. You can still try to agree or dispute while the team has not reviewed the claim."
+                ? "Your response window has passed. The submitted result can now be awarded automatically."
                 : `Respond by ${dateTimeLabel(claim.opponent_response_due_at)}. Agree if the result is correct, or dispute if it needs review.`}
             />
           ) : null}
@@ -1142,7 +1151,7 @@ export function RoomDetailScreen() {
             <FormNotice
               tone={resultResponseExpired ? "info" : "success"}
               message={resultResponseExpired
-                ? "The opponent response window is overdue. Skillsroom can now review this under the no-response policy."
+                ? "The opponent response window passed. Skillsroom can award the submitted result from the saved proof."
                 : `Waiting for opponent response until ${dateTimeLabel(claim.opponent_response_due_at)}.`}
             />
           ) : null}
@@ -1150,7 +1159,7 @@ export function RoomDetailScreen() {
             <FormNotice
               tone={resultResponseExpired ? "info" : "success"}
               message={resultResponseExpired
-                ? "Opponent response is overdue. Skillsroom review can use the no-response path after checking evidence."
+                ? "Opponent response is overdue. Automatic no-response review can award the submitted result."
                 : `Opponent response due: ${dateTimeLabel(claim.opponent_response_due_at)}.`}
             />
           ) : null}
