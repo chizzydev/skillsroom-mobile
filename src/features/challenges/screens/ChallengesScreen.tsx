@@ -3,6 +3,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { CheckCircle2, Clock3, Filter, Gamepad2, MapPin, Plus, ShieldCheck, Swords, Trophy, Users } from "lucide-react-native";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View, type LayoutChangeEvent } from "react-native";
+import { trackAnalyticsEvent } from "../../../api/analytics";
 import { plainApiError } from "../../../api/errors";
 import { profileOverview } from "../../../api/profile";
 import { acceptMatchChallenge, createMatchChallenge, getGames, listMatchChallenges } from "../../../api/rooms";
@@ -170,6 +171,14 @@ export function ChallengesScreen() {
   const [marketplaceVisibility, setMarketplaceVisibility] = useState<MarketplaceVisibilityFilter>("");
   const [appliedMarketplaceFilters, setAppliedMarketplaceFilters] = useState<MarketplaceFilters>({});
 
+  useEffect(() => {
+    trackAnalyticsEvent({
+      eventName: "screen.viewed",
+      screen: "challenges",
+      metadata: { tab: "challenges" }
+    });
+  }, []);
+
   const challengesQuery = useQuery({ queryKey: ["challenges", "open", "recommended"], queryFn: () => listMatchChallenges({ limit: 40 }) });
   const marketplaceQuery = useQuery({
     queryKey: ["challenges", "open", "marketplace", appliedMarketplaceFilters],
@@ -250,6 +259,15 @@ export function ChallengesScreen() {
     };
     shouldScrollToResultsRef.current = true;
     setAppliedMarketplaceFilters(nextFilters);
+    trackAnalyticsEvent({
+      eventName: "challenges.filters_applied",
+      screen: "challenges",
+      metadata: {
+        target: nextFilters.game_slug,
+        entry_type: nextFilters.visibility ?? nextFilters.scope ?? "all",
+        mode: nextFilters.skill_level
+      }
+    });
     scrollToMarketplaceResults();
     pushFeedback({
       tone: "info",
@@ -297,6 +315,14 @@ export function ChallengesScreen() {
       });
     },
     onSuccess: async ({ room }) => {
+      trackAnalyticsEvent({
+        eventName: "challenge.created",
+        screen: "challenges",
+        entityType: "match_room",
+        entityId: room.id,
+        matchRoomId: room.id,
+        metadata: { entry_type: visibility, mode: skillLevel }
+      });
       notify({ tone: "success", message: "Challenge posted. Players can accept it while it is open." });
       setTitle("");
       await Promise.all([
@@ -312,6 +338,14 @@ export function ChallengesScreen() {
   const acceptMutation = useMutation({
     mutationFn: acceptMatchChallenge,
     onSuccess: async ({ room }) => {
+      trackAnalyticsEvent({
+        eventName: "challenge.accepted",
+        screen: "challenges",
+        entityType: "match_room",
+        entityId: room.id,
+        matchRoomId: room.id,
+        metadata: { source: "challenge_card" }
+      });
       notify({ tone: "success", message: "Challenge accepted. Open the room to confirm entry and play." });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["challenges"] }),

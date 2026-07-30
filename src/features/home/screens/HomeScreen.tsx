@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import { Bell, ChevronRight, Clock3, ExternalLink, MessageCircle, Plus, ShieldCheck, Swords, Trophy, Wallet } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { Image, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { trackAnalyticsEvent } from "../../../api/analytics";
 import { listChannels, listDmRequests } from "../../../api/chat";
 import { plainApiError } from "../../../api/errors";
 import { listNotifications, listRoomInvites } from "../../../api/notifications";
@@ -104,6 +105,14 @@ export function HomeScreen() {
   const notificationsQuery = useQuery({ queryKey: ["notifications", "unread"], queryFn: () => listNotifications("unread") });
   const roomInvitesQuery = useQuery({ queryKey: ["notifications", "room-invites"], queryFn: () => listRoomInvites("pending") });
 
+  useEffect(() => {
+    trackAnalyticsEvent({
+      eventName: "screen.viewed",
+      screen: "home",
+      metadata: { tab: "home" }
+    });
+  }, []);
+
   const summary = summaryQuery.data;
   const openRooms = newestRoomsFirst(summary?.open_room_previews ?? []);
   const recommendedRooms = newestRoomsFirst(summary?.recommended_room_previews ?? []);
@@ -153,6 +162,12 @@ export function HomeScreen() {
       return joinRoom(roomCode);
     },
     onSuccess: async (result) => {
+      trackAnalyticsEvent({
+        eventName: "room.join_code_succeeded",
+        screen: "home",
+        matchRoomId: result.room?.id,
+        metadata: { source: "home_join_code" }
+      });
       setJoinCode("");
       notifyJoin({ tone: "success", message: `Joined ${result.room?.room_code ?? "the room"}. Complete your entry when the room asks for it.` });
       await Promise.all([
@@ -187,7 +202,10 @@ export function HomeScreen() {
         <Text style={styles.heroTitle}>What can you play now, {firstName(profileName)}?</Text>
         <Text style={styles.heroCopy}>Jump into open rooms, accept a challenge, enter a tournament, or post a new challenge for another player.</Text>
         <View style={styles.heroActions}>
-          <AppButton style={styles.heroAction} onPress={() => router.push(createChallengeHref)}>Create challenge</AppButton>
+          <AppButton style={styles.heroAction} onPress={() => {
+            trackAnalyticsEvent({ eventName: "challenge.create_started", screen: "home", metadata: { source: "home_hero" } });
+            router.push(createChallengeHref);
+          }}>Create challenge</AppButton>
         </View>
         <View style={styles.joinCodePanel}>
           <Text style={styles.joinCodeLabel}>Join room code</Text>
@@ -217,10 +235,22 @@ export function HomeScreen() {
       </SurfaceCard>
 
       <View style={styles.statsGrid}>
-        <MetricCard label="Rooms" value={playCounts?.open_rooms ?? openRooms.length} detail="Open now" tone="cyan" icon={<Swords color={colors.cyan} size={20} />} onPress={() => router.push("/(app)/(tabs)/rooms?queue=open")} />
-        <MetricCard label="Matches" value={playCounts?.recommended_matches ?? recommendedRooms.length} detail="Recommended" tone="green" icon={<ShieldCheck color={colors.greenDark} size={20} />} onPress={() => router.push(challengesHref)} />
-        <MetricCard label="Tourneys" value={playCounts?.open_tournaments ?? openTournaments.length} detail="Open entries" tone="amber" icon={<Trophy color={colors.amber} size={20} />} onPress={() => router.push("/(app)/(tabs)/tournaments")} />
-        <MetricCard label="Reviews" value={playCounts?.active_reviews ?? reviewRooms.length} detail="Needs action" tone="red" icon={<MessageCircle color={colors.red} size={20} />} onPress={() => router.push(reviewQueueHref)} />
+        <MetricCard label="Rooms" value={playCounts?.open_rooms ?? openRooms.length} detail="Open now" tone="cyan" icon={<Swords color={colors.cyan} size={20} />} onPress={() => {
+          trackAnalyticsEvent({ eventName: "home.play_now_opened", screen: "home", metadata: { target: "rooms_open" } });
+          router.push("/(app)/(tabs)/rooms?queue=open");
+        }} />
+        <MetricCard label="Matches" value={playCounts?.recommended_matches ?? recommendedRooms.length} detail="Recommended" tone="green" icon={<ShieldCheck color={colors.greenDark} size={20} />} onPress={() => {
+          trackAnalyticsEvent({ eventName: "home.play_now_opened", screen: "home", metadata: { target: "challenges" } });
+          router.push(challengesHref);
+        }} />
+        <MetricCard label="Tourneys" value={playCounts?.open_tournaments ?? openTournaments.length} detail="Open entries" tone="amber" icon={<Trophy color={colors.amber} size={20} />} onPress={() => {
+          trackAnalyticsEvent({ eventName: "home.play_now_opened", screen: "home", metadata: { target: "tournaments" } });
+          router.push("/(app)/(tabs)/tournaments");
+        }} />
+        <MetricCard label="Reviews" value={playCounts?.active_reviews ?? reviewRooms.length} detail="Needs action" tone="red" icon={<MessageCircle color={colors.red} size={20} />} onPress={() => {
+          trackAnalyticsEvent({ eventName: "home.play_now_opened", screen: "home", metadata: { target: "room_reviews" } });
+          router.push(reviewQueueHref);
+        }} />
       </View>
 
       {summaryQuery.isError || profileQuery.isError ? (

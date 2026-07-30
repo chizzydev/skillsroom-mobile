@@ -3,6 +3,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { ChevronRight, Clock3, DoorOpen, FileCheck2, Play, Plus, Search, ShieldCheck, Trophy, Users } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
 import { ImageBackground, Pressable, StyleSheet, Text, View } from "react-native";
+import { trackAnalyticsEvent } from "../../../api/analytics";
 import { listRooms } from "../../../api/rooms";
 import { AppScreen } from "../../../components/screen/AppScreen";
 import { AppButton } from "../../../components/ui/AppButton";
@@ -136,6 +137,14 @@ export function RoomsScreen() {
   const roomsQuery = useQuery({ queryKey: ["rooms"], queryFn: () => listRooms(), refetchInterval: 15000 });
 
   useEffect(() => {
+    trackAnalyticsEvent({
+      eventName: "screen.viewed",
+      screen: "rooms",
+      metadata: { tab: "rooms" }
+    });
+  }, []);
+
+  useEffect(() => {
     if (isRoomQueue(params.queue)) setSelectedQueue(params.queue);
   }, [params.queue]);
 
@@ -204,7 +213,14 @@ export function RoomsScreen() {
           {queues.map((queue) => (
             <Pressable
               key={queue}
-              onPress={() => setSelectedQueue(queue)}
+              onPress={() => {
+                trackAnalyticsEvent({
+                  eventName: "rooms.queue_selected",
+                  screen: "rooms",
+                  metadata: { queue }
+                });
+                setSelectedQueue(queue);
+              }}
               style={[styles.queueButton, queueButtonWidth ? { width: queueButtonWidth } : null, selectedQueue === queue && styles.queueButtonOn]}
             >
               <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85} style={[styles.queueText, selectedQueue === queue && styles.queueTextOn]}>
@@ -264,7 +280,17 @@ function FlowStep({ index, title, detail }: { index: string; title: string; deta
 function RoomCard({ room }: { room: MatchRoom }) {
   const expired = room.status === "open" && roomExpired(room);
   return (
-    <Pressable style={styles.roomCard} onPress={() => router.push(`/(app)/rooms/${room.id}`)}>
+    <Pressable style={styles.roomCard} onPress={() => {
+      trackAnalyticsEvent({
+        eventName: "room.opened",
+        screen: "rooms",
+        entityType: "match_room",
+        entityId: room.id,
+        matchRoomId: room.id,
+        metadata: { status: String(room.status) }
+      });
+      router.push(`/(app)/rooms/${room.id}`);
+    }}>
       <View style={styles.roomTop}>
         <Badge tone={statusTone(room.status, expired)}>{expired ? "Expired" : roomStatusLabel(room.status)}</Badge>
         <Text style={styles.roomPlayers}>{playerCount(room)}</Text>

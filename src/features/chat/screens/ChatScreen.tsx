@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { Hash, MessageCircle, Search, ShieldCheck, UserPlus, Users } from "lucide-react-native";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { trackAnalyticsEvent } from "../../../api/analytics";
 import { listChannels, listDmRequests } from "../../../api/chat";
 import { AppScreen } from "../../../components/screen/AppScreen";
 import { FeedbackState } from "../../../components/ui/FeedbackState";
@@ -77,9 +78,49 @@ export function ChatScreen() {
   const onlineCount = channels.reduce((sum, channel) => sum + Number(channel.online_count ?? 0), 0);
   const loadingChannels = channelsQuery.isLoading && channels.length === 0;
 
+  useEffect(() => {
+    trackAnalyticsEvent({
+      eventName: "screen.viewed",
+      screen: "chat",
+      metadata: { surface: "chat", tab: view }
+    });
+  }, [view]);
+
   const openChannel = (channel: ChatChannel) => {
     const target = channelTarget(channel);
+    trackAnalyticsEvent({
+      eventName: "chat.channel_opened",
+      screen: "chat",
+      entityType: "chat_channel",
+      entityId: channel.id,
+      metadata: {
+        surface: "chat",
+        mode: channel.channel_type === "dm" ? "dm" : "channel",
+        status: channel.status
+      }
+    });
     if (target) router.push(`/(app)/chat/${encodeURIComponent(target)}`);
+  };
+
+  const openDmRequests = () => {
+    trackAnalyticsEvent({
+      eventName: "chat.dm_requests_opened",
+      screen: "chat",
+      metadata: { surface: "chat" }
+    });
+    router.push("/(app)/chat/dm-requests");
+  };
+
+  const openAcceptedDmRequest = (request: ChatDmRequest) => {
+    if (!request.channel_slug) return;
+    trackAnalyticsEvent({
+      eventName: "chat.dm_opened",
+      screen: "chat",
+      entityType: "dm_request",
+      entityId: request.id,
+      metadata: { surface: "chat", mode: "dm", status: request.status }
+    });
+    router.push(`/(app)/chat/${encodeURIComponent(request.channel_slug)}`);
   };
 
   return (
@@ -140,7 +181,7 @@ export function ChatScreen() {
                 <Text style={styles.dmManagerTitle}>Direct messages</Text>
                 <Text style={styles.dmManagerCopy}>{incomingPendingRequests.length} incoming request{incomingPendingRequests.length === 1 ? "" : "s"}</Text>
               </View>
-              <Pressable onPress={() => router.push("/(app)/chat/dm-requests")} style={styles.manageButton}>
+              <Pressable onPress={openDmRequests} style={styles.manageButton}>
                 <Text style={styles.manageButtonText}>Manage</Text>
               </Pressable>
             </View>
@@ -151,7 +192,7 @@ export function ChatScreen() {
             {acceptedRequests
               .filter((request) => request.channel_slug && !dmChannels.some((channel) => channel.slug === request.channel_slug))
               .map((request) => (
-                <Pressable key={request.id} onPress={() => request.channel_slug && router.push(`/(app)/chat/${encodeURIComponent(request.channel_slug)}`)} style={styles.channelRow}>
+                <Pressable key={request.id} onPress={() => openAcceptedDmRequest(request)} style={styles.channelRow}>
                   <View style={styles.channelAvatar}>
                     <Text style={styles.channelAvatarText}>{initialsFor(requestPeer(request))}</Text>
                   </View>

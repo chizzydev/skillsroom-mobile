@@ -25,7 +25,7 @@ function nativeGoogleErrorMessage(error: unknown) {
   if (code === statusCodes.IN_PROGRESS) return "Google sign-in is already open. Finish that request or try again.";
   if (code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) return "Google Play services is not available or needs an update on this device.";
   if (code === "10" || rawMessage.includes("DEVELOPER_ERROR")) {
-    return "Google sign-in is not fully connected for this installed app yet. Update the app or use email/password for now.";
+    return "Google sign-in is not ready on this device yet. Use email or password for now.";
   }
 
   if (rawMessage) return rawMessage;

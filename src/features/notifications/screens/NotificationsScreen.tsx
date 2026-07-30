@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { ArrowLeft, Bell, Check, ChevronRight, MessageCircle, RefreshCw } from "lucide-react-native";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Switch, Text, View } from "react-native";
+import { trackAnalyticsEvent } from "../../../api/analytics";
 import { listDmRequests } from "../../../api/chat";
 import { plainApiError } from "../../../api/errors";
 import { getNotificationPreferences, listNotifications, listRoomInvites, markNotificationRead, respondToRoomInvite, updateNotificationPreferences } from "../../../api/notifications";
@@ -71,9 +72,24 @@ export function NotificationsScreen() {
   const preferences = preferencesQuery.data ?? defaultPreferences;
   const pendingDmRequests = useMemo(() => (dmRequestsQuery.data ?? []).filter((request) => request.status === "pending"), [dmRequestsQuery.data]);
 
+  useEffect(() => {
+    trackAnalyticsEvent({
+      eventName: "screen.viewed",
+      screen: "notifications",
+      metadata: { surface: "notifications", tab }
+    });
+  }, [tab]);
+
   const readMutation = useMutation({
     mutationFn: markNotificationRead,
-    onSuccess: async () => {
+    onSuccess: async (_data, notificationId) => {
+      trackAnalyticsEvent({
+        eventName: "notification.marked_read",
+        screen: "notifications",
+        entityType: "notification",
+        entityId: notificationId,
+        metadata: { surface: "notifications", status: "read" }
+      });
       setNotice(null);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["notifications"] }),
@@ -88,6 +104,14 @@ export function NotificationsScreen() {
       respondToRoomInvite(input.inviteId, input.response),
     onSuccess: async (invite, input) => {
       const accepted = input.response === "accepted";
+      trackAnalyticsEvent({
+        eventName: "room.invite_responded",
+        screen: "notifications",
+        matchRoomId: invite.match_room_id,
+        entityType: "room_invite",
+        entityId: input.inviteId,
+        metadata: { surface: "notifications", action: input.response, status: accepted ? "accepted" : "declined" }
+      });
       setNotice(null);
       pushFeedback({
         tone: "success",
@@ -117,6 +141,11 @@ export function NotificationsScreen() {
       marketing_enabled: input.marketing_enabled
     }),
     onSuccess: async () => {
+      trackAnalyticsEvent({
+        eventName: "notifications.preferences_updated",
+        screen: "notifications",
+        metadata: { surface: "notifications", status: "saved" }
+      });
       setNotice(null);
       pushFeedback({
         tone: "success",
@@ -136,6 +165,13 @@ export function NotificationsScreen() {
   }
 
   async function openNotification(notification: UserNotification) {
+    trackAnalyticsEvent({
+      eventName: "notification.opened",
+      screen: "notifications",
+      entityType: "notification",
+      entityId: notification.id,
+      metadata: { surface: "notifications", status: notification.status }
+    });
     if (notification.status === "unread") {
       readMutation.mutate(notification.id);
     }
@@ -167,7 +203,14 @@ export function NotificationsScreen() {
 
       <View style={styles.tabs}>
         {(["unread", "read"] as const).map((item) => (
-          <Pressable key={item} style={[styles.tab, tab === item && styles.tabActive]} onPress={() => setTab(item)}>
+          <Pressable key={item} style={[styles.tab, tab === item && styles.tabActive]} onPress={() => {
+            trackAnalyticsEvent({
+              eventName: "notifications.tab_selected",
+              screen: "notifications",
+              metadata: { surface: "notifications", tab: item }
+            });
+            setTab(item);
+          }}>
             <Text style={[styles.tabText, tab === item && styles.tabTextActive]}>{item === "unread" ? "Unread" : "Read"}</Text>
           </Pressable>
         ))}
@@ -223,7 +266,14 @@ export function NotificationsScreen() {
             <Text style={styles.sectionTitle}>DM requests</Text>
             <Text style={styles.copy}>{pendingDmRequests.length ? `${pendingDmRequests.length} request${pendingDmRequests.length === 1 ? "" : "s"} waiting.` : "No private chat requests waiting."}</Text>
           </View>
-          <Pressable style={styles.smallAction} onPress={() => router.push("/(app)/chat/dm-requests")}>
+          <Pressable style={styles.smallAction} onPress={() => {
+            trackAnalyticsEvent({
+              eventName: "chat.dm_requests_opened",
+              screen: "notifications",
+              metadata: { surface: "notifications" }
+            });
+            router.push("/(app)/chat/dm-requests");
+          }}>
             <ChevronRight color={colors.ink} size={20} />
           </Pressable>
         </View>

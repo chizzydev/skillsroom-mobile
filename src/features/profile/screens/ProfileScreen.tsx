@@ -6,6 +6,7 @@ import { ImageBackground, Pressable, StyleSheet, Text, TextInput, View } from "r
 import * as AuthSession from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
 import { canAccessAdmin, roleLabel } from "../../../api/admin";
+import { trackAnalyticsEvent } from "../../../api/analytics";
 import { plainApiError } from "../../../api/errors";
 import { myCommunityClan, myReferralProgram, profileDetails, profileTrustSummary, saveGameAccount, savePayoutProfile, saveProfile } from "../../../api/profile";
 import { getGames } from "../../../api/rooms";
@@ -149,6 +150,7 @@ export function ProfileScreen() {
   const [visibility, setVisibility] = useState<Visibility>("room_participants");
   const [ageConfirmed, setAgeConfirmed] = useState(false);
   const hydratedProfileForm = useRef(false);
+  const trackedReadinessKey = useRef<string | null>(null);
 
   const [gameSlug, setGameSlug] = useState(defaultGameSlug);
   const [gameHandle, setGameHandle] = useState("");
@@ -234,6 +236,19 @@ export function ProfileScreen() {
   const completedReadiness = readinessItems.filter((item) => item.done).length;
   const hasAdminAccess = canAccessAdmin(user);
 
+  useEffect(() => {
+    if (profileQuery.isLoading || profileQuery.isError) return;
+    const status = completedReadiness === readinessItems.length ? "complete" : "incomplete";
+    const key = `${status}:${completedReadiness}:${readinessItems.length}`;
+    if (trackedReadinessKey.current === key) return;
+    trackedReadinessKey.current = key;
+    trackAnalyticsEvent({
+      eventName: "profile.readiness_viewed",
+      screen: "profile",
+      metadata: { surface: "profile", status }
+    });
+  }, [completedReadiness, profileQuery.isError, profileQuery.isLoading, readinessItems.length]);
+
   const notify = (target: NoticeTarget, nextNotice: NonNullable<Notice>) => {
     if (target === "profile") setProfileNotice(nextNotice);
     if (target === "game") setGameNotice(nextNotice);
@@ -277,6 +292,11 @@ export function ProfileScreen() {
       });
     },
     onSuccess: async (savedProfile) => {
+      trackAnalyticsEvent({
+        eventName: "profile.details_saved",
+        screen: "profile",
+        metadata: { surface: "profile", status: "saved" }
+      });
       const savedBio = bio.trim();
       setBio(savedBio);
       setAgeConfirmed(true);
@@ -315,6 +335,11 @@ export function ProfileScreen() {
       });
     },
     onSuccess: async () => {
+      trackAnalyticsEvent({
+        eventName: "profile.game_account_saved",
+        screen: "profile",
+        metadata: { surface: "profile", status: "saved" }
+      });
       setGameHandle("");
       setExternalUid("");
       notify("game", { tone: "success", message: "Primary game account saved." });
@@ -338,6 +363,11 @@ export function ProfileScreen() {
       });
     },
     onSuccess: async () => {
+      trackAnalyticsEvent({
+        eventName: "profile.payout_details_saved",
+        screen: "profile",
+        metadata: { surface: "profile", status: "saved" }
+      });
       setAccountNumber("");
       notify("payout", { tone: "success", message: "Payout details saved for future winnings." });
       await refreshProfile();
@@ -356,6 +386,11 @@ export function ProfileScreen() {
       });
     },
     onSuccess: async () => {
+      trackAnalyticsEvent({
+        eventName: "profile.stream_saved",
+        screen: "profile",
+        metadata: { surface: "profile", target: streamProvider, status: "saved" }
+      });
       setStreamName("");
       setStreamUrl("");
       setStreamLogin("");
@@ -368,6 +403,11 @@ export function ProfileScreen() {
   const disconnectStreamMutation = useMutation({
     mutationFn: (accountId: string) => disconnectStreamingAccount(accountId),
     onSuccess: async () => {
+      trackAnalyticsEvent({
+        eventName: "profile.stream_disconnected",
+        screen: "profile",
+        metadata: { surface: "profile", status: "disconnected" }
+      });
       notify("stream", { tone: "success", message: "Stream channel disconnected." });
       await refreshProfile();
     },
@@ -382,6 +422,11 @@ export function ProfileScreen() {
   }
 
   async function connectStreamingOauth(provider: StreamProvider) {
+    trackAnalyticsEvent({
+      eventName: "profile.streaming_oauth_started",
+      screen: "profile",
+      metadata: { surface: "profile", target: provider }
+    });
     setOauthProvider(provider);
     setStreamNotice(null);
     try {

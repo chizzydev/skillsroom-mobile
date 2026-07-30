@@ -1,7 +1,9 @@
 import { Tabs } from "expo-router";
 import { MessageCircle, Trophy, UserRound, Wallet, House, Swords, Target } from "lucide-react-native";
+import { useEffect } from "react";
 import { useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { trackAnalyticsEvent } from "../../../src/api/analytics";
 import { colors } from "../../../src/constants/theme";
 
 export default function TabsLayout() {
@@ -11,6 +13,14 @@ export default function TabsLayout() {
   const tabBarHeight = (compact ? 64 : 68) + Math.max(insets.bottom, 8);
   const labelSize = compact ? 9 : 10;
   const iconSize = compact ? 22 : 24;
+
+  useEffect(() => {
+    trackAnalyticsEvent({
+      eventName: "app.opened",
+      screen: "tabs",
+      metadata: { surface: "mobile_tabs" }
+    });
+  }, []);
 
   return (
     <Tabs

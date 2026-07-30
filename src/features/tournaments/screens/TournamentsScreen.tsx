@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ImageBackground, Pressable, StyleSheet, Text, View } from "react-native";
+import { trackAnalyticsEvent } from "../../../api/analytics";
 import { listTournaments } from "../../../api/tournaments";
 import { AppScreen } from "../../../components/screen/AppScreen";
 import { Badge } from "../../../components/ui/Badge";
@@ -116,6 +117,14 @@ export function TournamentsScreen() {
   const completedCount = tournaments.filter((tournament) => tournament.status === "completed").length;
   const totalPrize = tournaments.reduce((sum, tournament) => sum + projectedPrize(tournament), 0);
 
+  useEffect(() => {
+    trackAnalyticsEvent({
+      eventName: "screen.viewed",
+      screen: "tournaments",
+      metadata: { tab: "tournaments" }
+    });
+  }, []);
+
   return (
     <AppScreen>
       <SurfaceCard dark style={styles.hero}>
@@ -161,7 +170,14 @@ export function TournamentsScreen() {
 
         <View style={styles.filterTabs}>
           {filters.map((filter) => (
-            <Pressable key={filter.key} onPress={() => setActiveFilter(filter.key)} style={[styles.filterButton, activeFilter === filter.key && styles.filterButtonOn]}>
+            <Pressable key={filter.key} onPress={() => {
+              trackAnalyticsEvent({
+                eventName: "tournaments.filter_selected",
+                screen: "tournaments",
+                metadata: { status: filter.key }
+              });
+              setActiveFilter(filter.key);
+            }} style={[styles.filterButton, activeFilter === filter.key && styles.filterButtonOn]}>
               <Text style={[styles.filterText, activeFilter === filter.key && styles.filterTextOn]}>{filter.label}</Text>
             </Pressable>
           ))}
@@ -243,7 +259,17 @@ function TournamentCard({ tournament }: { tournament: Tournament }) {
   const entryFee = tournament.entry_fee_amount_minor > 0 ? money(tournament.entry_fee_amount_minor, tournament.currency) : "NGN 0";
 
   return (
-    <Pressable onPress={() => router.push(`/(app)/tournaments/${encodeURIComponent(tournament.id)}`)}>
+    <Pressable onPress={() => {
+      trackAnalyticsEvent({
+        eventName: "tournament.opened",
+        screen: "tournaments",
+        entityType: "tournament",
+        entityId: tournament.id,
+        tournamentId: tournament.id,
+        metadata: { status: String(tournament.status), mode: String(tournament.format) }
+      });
+      router.push(`/(app)/tournaments/${encodeURIComponent(tournament.id)}`);
+    }}>
       <SurfaceCard>
         <View style={styles.chips}>
           <Badge tone={statusTone(tournament.status)}>{label(tournament.status)}</Badge>

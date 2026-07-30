@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { LayoutChangeEvent, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { trackAnalyticsEvent } from "../../../api/analytics";
 import { plainApiError } from "../../../api/errors";
 import { createLivestream } from "../../../api/streaming";
 import {
@@ -182,6 +183,18 @@ export function TournamentDetailScreen() {
   const noticeFor = (targetView: DetailView) => localNotice?.view === targetView ? localNotice.notice : null;
   const focusKey = routedFocus ? `${target}:${view}:${routedFocus}` : null;
 
+  useEffect(() => {
+    if (!tournament?.id) return;
+    trackAnalyticsEvent({
+      eventName: "screen.viewed",
+      screen: "tournament_detail",
+      entityType: "tournament",
+      entityId: tournament.id,
+      tournamentId: tournament.id,
+      metadata: { surface: "tournaments", tab: view, status: tournament.status, mode: tournament.format }
+    });
+  }, [tournament?.format, tournament?.id, tournament?.status, view]);
+
   const scrollToFocus = (focus: TournamentFocus) => {
     const y = focusLayouts.current[focus] ?? focusLayouts.current.section;
     if (y === undefined || !focusKey || lastScrolledFocus.current === focusKey) return;
@@ -219,6 +232,14 @@ export function TournamentDetailScreen() {
       });
     },
     onSuccess: async () => {
+      trackAnalyticsEvent({
+        eventName: "tournament.registered",
+        screen: "tournament_detail",
+        entityType: "tournament",
+        entityId: tournament?.id,
+        tournamentId: tournament?.id,
+        metadata: { surface: "tournaments", mode: tournament?.format, status: tournament?.status }
+      });
       notify("entry", { tone: "success", message: "Registration saved. Paid entries still need payment confirmation before play." }, true);
       setDisplayName("");
       setTeamName("");
@@ -233,6 +254,14 @@ export function TournamentDetailScreen() {
       return payTournamentEntryWithBalance(tournament.id);
     },
     onSuccess: async () => {
+      trackAnalyticsEvent({
+        eventName: "tournament.entry_paid_balance",
+        screen: "tournament_detail",
+        entityType: "tournament",
+        entityId: tournament?.id,
+        tournamentId: tournament?.id,
+        metadata: { surface: "tournaments", entry_type: "balance" }
+      });
       notify("entry", { tone: "success", message: "Entry paid from your Skillsroom balance. We are confirming the tournament entry now." });
       await refresh();
     },
@@ -262,6 +291,14 @@ export function TournamentDetailScreen() {
       });
     },
     onSuccess: async () => {
+      trackAnalyticsEvent({
+        eventName: "tournament.entry_proof_submitted",
+        screen: "tournament_detail",
+        entityType: "tournament",
+        entityId: tournament?.id,
+        tournamentId: tournament?.id,
+        metadata: { surface: "tournaments", entry_type: "manual_transfer" }
+      });
       notify("entry", { tone: "success", message: "Receipt submitted. Your entry will update after Skillsroom confirms the transfer." });
       setProofUrl("");
       setTransferReference("");
@@ -278,6 +315,14 @@ export function TournamentDetailScreen() {
       return checkInForTournament(tournament.id);
     },
     onSuccess: async () => {
+      trackAnalyticsEvent({
+        eventName: "tournament.checked_in",
+        screen: "tournament_detail",
+        entityType: "tournament",
+        entityId: tournament?.id,
+        tournamentId: tournament?.id,
+        metadata: { surface: "tournaments", status: tournament?.status }
+      });
       notify("entry", { tone: "success", message: "Checked in. You are ready for seeding or pairing." });
       await refresh();
     },
@@ -295,6 +340,14 @@ export function TournamentDetailScreen() {
       });
     },
     onSuccess: async () => {
+      trackAnalyticsEvent({
+        eventName: "tournament.livestream_saved",
+        screen: "tournament_detail",
+        entityType: "tournament",
+        entityId: tournament?.id,
+        tournamentId: tournament?.id,
+        metadata: { surface: "tournaments" }
+      });
       notify("streams", { tone: "success", message: "Tournament stream attached. Viewers can open it from Streams." });
       setStreamAttachResetSignal((value) => value + 1);
       await queryClient.invalidateQueries({ queryKey: ["tournaments", "streams", target] });

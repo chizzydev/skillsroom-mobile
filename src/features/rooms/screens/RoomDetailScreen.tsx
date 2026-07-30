@@ -3,6 +3,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { BadgeCheck, Banknote, Clock3, Copy, FileCheck2, KeyRound, Play, Radio, RefreshCw, Send, Share2, ShieldCheck, Trophy, Users } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LayoutChangeEvent, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { trackAnalyticsEvent } from "../../../api/analytics";
 import { plainApiError } from "../../../api/errors";
 import { profileTrustSummary } from "../../../api/profile";
 import { walletOverview } from "../../../api/wallet";
@@ -535,6 +536,14 @@ export function RoomDetailScreen() {
 
   const focusRoomSection = useCallback((targetSection: Section, focus: RoomFocus = "section") => {
     if (section !== targetSection) focusLayouts.current = {};
+    trackAnalyticsEvent({
+      eventName: "room.section_selected",
+      screen: "room_detail",
+      entityType: "match_room",
+      entityId: roomId,
+      matchRoomId: roomId,
+      metadata: { surface: "rooms", tab: targetSection, status: room?.status }
+    });
     pendingLocalFocus.current = { section: targetSection, focus };
     lastScrolledFocus.current = null;
     setSection(targetSection);
@@ -543,7 +552,19 @@ export function RoomDetailScreen() {
       if (!pending || pending.section !== targetSection || pending.focus !== focus) return;
       if (scrollToRegisteredFocus(focus)) pendingLocalFocus.current = null;
     }, section === targetSection ? 80 : 180);
-  }, [scrollToRegisteredFocus, section]);
+  }, [room?.status, roomId, scrollToRegisteredFocus, section]);
+
+  useEffect(() => {
+    if (!room?.id) return;
+    trackAnalyticsEvent({
+      eventName: "screen.viewed",
+      screen: "room_detail",
+      entityType: "match_room",
+      entityId: room.id,
+      matchRoomId: room.id,
+      metadata: { surface: "rooms", tab: section, status: room.status }
+    });
+  }, [room?.id, room?.status, section]);
 
   const registerFocusLayout = (focus: RoomFocus, parent?: RoomFocus) => (event: LayoutChangeEvent) => {
     const parentY = parent ? focusLayouts.current[parent] ?? 0 : 0;
@@ -623,6 +644,14 @@ export function RoomDetailScreen() {
   const openMutation = useMutation({
     mutationFn: () => openRoom(roomId),
     onSuccess: async () => {
+      trackAnalyticsEvent({
+        eventName: "room.opened",
+        screen: "room_detail",
+        entityType: "match_room",
+        entityId: roomId,
+        matchRoomId: roomId,
+        metadata: { surface: "rooms", status: room?.status }
+      });
       notify("overview", { tone: "success", message: "Room opened. Share the code with your opponent." }, true);
       await refreshRoom();
     },
@@ -639,6 +668,14 @@ export function RoomDetailScreen() {
       });
     },
     onSuccess: async () => {
+      trackAnalyticsEvent({
+        eventName: "room.invite_sent",
+        screen: "room_detail",
+        entityType: "match_room",
+        entityId: roomId,
+        matchRoomId: roomId,
+        metadata: { surface: "rooms", status: room?.status }
+      });
       notify("overview", { tone: "success", message: `Invite sent to ${inviteUsername.trim()}.` });
       setInviteUsername("");
       setInviteMessage("");
@@ -654,6 +691,14 @@ export function RoomDetailScreen() {
       return joinRoom(roomCode);
     },
     onSuccess: async (result) => {
+      trackAnalyticsEvent({
+        eventName: "room.joined",
+        screen: "room_detail",
+        entityType: "match_room",
+        entityId: result.room?.id ?? roomId,
+        matchRoomId: result.room?.id ?? roomId,
+        metadata: { surface: "rooms", status: result.room?.status }
+      });
       setDetailJoinCode("");
       setSection("funding");
       notify("funding", { tone: "success", message: `Joined ${result.room?.room_code ?? "the room"}. Choose balance payment or upload transfer proof below.` }, true);
@@ -666,6 +711,14 @@ export function RoomDetailScreen() {
   const balanceMutation = useMutation({
     mutationFn: () => payRoomWithBalance(roomId),
     onSuccess: async (result) => {
+      trackAnalyticsEvent({
+        eventName: "room.entry_paid_balance",
+        screen: "room_detail",
+        entityType: "match_room",
+        entityId: roomId,
+        matchRoomId: roomId,
+        metadata: { surface: "rooms", entry_type: "balance", status: room?.status }
+      });
       queryClient.setQueryData<RoomFundingOverview | undefined>(["room", roomId, "funding"], (current) => {
         if (!current) return current;
         const nextParticipants = current.participants.map((participant) =>
@@ -701,6 +754,14 @@ export function RoomDetailScreen() {
       });
     },
     onSuccess: async (submission) => {
+      trackAnalyticsEvent({
+        eventName: "room.funding_submitted",
+        screen: "room_detail",
+        entityType: "match_room",
+        entityId: roomId,
+        matchRoomId: roomId,
+        metadata: { surface: "rooms", entry_type: "manual_transfer", status: submission.status }
+      });
       queryClient.setQueryData<RoomFundingOverview | undefined>(["room", roomId, "funding"], (current) => {
         if (!current) return current;
         const submissions = current.submissions ?? [];
@@ -729,6 +790,14 @@ export function RoomDetailScreen() {
   const startMutation = useMutation({
     mutationFn: () => startMatchPlay(roomId),
     onSuccess: async (updatedRoom) => {
+      trackAnalyticsEvent({
+        eventName: "room.play_ready_confirmed",
+        screen: "room_detail",
+        entityType: "match_room",
+        entityId: roomId,
+        matchRoomId: roomId,
+        metadata: { surface: "rooms", status: updatedRoom.status }
+      });
       if (updatedRoom.status === "active") {
         setSection("result");
         notify("result", { tone: "success", message: "Both players confirmed. Submit result evidence when play is done." }, true);
@@ -760,6 +829,14 @@ export function RoomDetailScreen() {
       });
     },
     onSuccess: async () => {
+      trackAnalyticsEvent({
+        eventName: "room.result_submitted",
+        screen: "room_detail",
+        entityType: "match_room",
+        entityId: roomId,
+        matchRoomId: roomId,
+        metadata: { surface: "rooms", status: room?.status }
+      });
       notify("result", { tone: "success", message: "Result submitted. It will update after response or review." });
       setEvidenceUrl("");
       setResultNote("");
@@ -779,6 +856,14 @@ export function RoomDetailScreen() {
         ...input
       }),
     onSuccess: async () => {
+      trackAnalyticsEvent({
+        eventName: "room.livestream_saved",
+        screen: "room_detail",
+        entityType: "match_room",
+        entityId: roomId,
+        matchRoomId: roomId,
+        metadata: { surface: "rooms" }
+      });
       notify("live", { tone: "success", message: "Stream link attached. Viewers can open it from the Live section." });
       setStreamAttachResetSignal((value) => value + 1);
       await queryClient.invalidateQueries({ queryKey: ["room", roomId, "livestreams"] });
@@ -791,7 +876,15 @@ export function RoomDetailScreen() {
       if (!claim?.id) throw new Error("There is no result claim to respond to.");
       return respondToResultClaim(claim.id, { response, note: responseNote.trim() || undefined });
     },
-    onSuccess: async () => {
+    onSuccess: async (_data, response) => {
+      trackAnalyticsEvent({
+        eventName: "room.result_response_submitted",
+        screen: "room_detail",
+        entityType: "match_room",
+        entityId: roomId,
+        matchRoomId: roomId,
+        metadata: { surface: "rooms", action: response, status: claim?.status }
+      });
       notify("result", { tone: "success", message: "Response submitted. The room will update after review." });
       setResponseNote("");
       await refreshRoom();
@@ -819,6 +912,14 @@ export function RoomDetailScreen() {
       });
     },
     onSuccess: async () => {
+      trackAnalyticsEvent({
+        eventName: "room.proof_response_submitted",
+        screen: "room_detail",
+        entityType: "match_room",
+        entityId: roomId,
+        matchRoomId: roomId,
+        metadata: { surface: "rooms", status: activeProofRequest ? proofRequestStatus(activeProofRequest) : "submitted" }
+      });
       notify("result", { tone: "success", message: "Requested proof sent. Skillsroom will continue the review." });
       setProofRequestUrl("");
       setProofRequestNote("");

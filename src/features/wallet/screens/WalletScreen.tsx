@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useFocusEffect } from "expo-router";
 import { Fragment, useCallback, type ReactNode } from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { trackAnalyticsEvent } from "../../../api/analytics";
 import { plainApiError } from "../../../api/errors";
 import { requestWalletPayout, submitWalletTopup, walletOverview, walletOverviewSummary } from "../../../api/wallet";
 import { AppScreen } from "../../../components/screen/AppScreen";
@@ -151,6 +152,15 @@ export function WalletScreen() {
       if (view === "history") void walletQuery.refetch();
     }, [view, walletQuery.refetch, walletSummaryQuery.refetch])
   );
+
+  useEffect(() => {
+    trackAnalyticsEvent({
+      eventName: "screen.viewed",
+      screen: "wallet",
+      metadata: { surface: "wallet", tab: view }
+    });
+  }, [view]);
+
   const overview = walletQuery.data;
   const summary = walletSummaryQuery.data;
   const account = summary?.account ?? overview?.account;
@@ -186,6 +196,15 @@ export function WalletScreen() {
 
   const noticeFor = (targetView: WalletView) => localNotice?.view === targetView ? localNotice.notice : null;
 
+  const selectWalletView = (nextView: WalletView, source: "nav" | "shortcut") => {
+    trackAnalyticsEvent({
+      eventName: "wallet.view_selected",
+      screen: "wallet",
+      metadata: { surface: "wallet", tab: nextView, source }
+    });
+    setView(nextView);
+  };
+
   const topupMutation = useMutation({
     mutationFn: () => {
       const amountMinor = amountFromNaira(topupAmount);
@@ -205,6 +224,11 @@ export function WalletScreen() {
       });
     },
     onSuccess: async () => {
+      trackAnalyticsEvent({
+        eventName: "wallet.topup_submitted",
+        screen: "wallet",
+        metadata: { surface: "wallet", entry_type: "manual_transfer" }
+      });
       notify("topup", { tone: "success", message: "Top-up receipt submitted. Your balance will update after Skillsroom confirms the transfer." });
       setTopupAmount("");
       setTransferReference("");
@@ -237,6 +261,11 @@ export function WalletScreen() {
       });
     },
     onSuccess: async () => {
+      trackAnalyticsEvent({
+        eventName: "wallet.payout_requested",
+        screen: "wallet",
+        metadata: { surface: "wallet" }
+      });
       notify("payout", { tone: "success", message: "Payout requested. The amount has left winnings so it cannot be requested twice." });
       setPayoutAmount("");
       setPayoutNote("");
@@ -261,7 +290,7 @@ export function WalletScreen() {
 
       <View style={styles.nav}>
         {views.map((item) => (
-          <Pressable key={item} onPress={() => setView(item)} style={[styles.navButton, view === item && styles.navButtonOn]}>
+          <Pressable key={item} onPress={() => selectWalletView(item, "nav")} style={[styles.navButton, view === item && styles.navButtonOn]}>
             <Text style={[styles.navText, view === item && styles.navTextOn]}>{viewLabel(item)}</Text>
           </Pressable>
         ))}
@@ -288,11 +317,11 @@ export function WalletScreen() {
             <Text style={styles.sectionTitle}>Top up, withdraw, and track activity</Text>
             <Text style={styles.copy}>The full wallet flow is visible from Overview. The tabs above are shortcuts for when you want to focus on one task.</Text>
             <View style={styles.actionGrid}>
-              <Pressable style={styles.actionCard} onPress={() => setView("topup")}>
+              <Pressable style={styles.actionCard} onPress={() => selectWalletView("topup", "shortcut")}>
                 <Text style={styles.actionTitle}>Top-up</Text>
                 <Text style={styles.copy}>Send a transfer and upload the receipt.</Text>
               </Pressable>
-              <Pressable style={styles.actionCardDark} onPress={() => setView("payout")}>
+              <Pressable style={styles.actionCardDark} onPress={() => selectWalletView("payout", "shortcut")}>
                 <Text style={styles.actionTitleDark}>Payout</Text>
                 <Text style={styles.actionCopyDark}>Withdraw approved winnings only.</Text>
               </Pressable>

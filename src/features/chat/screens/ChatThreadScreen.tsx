@@ -58,6 +58,7 @@ import {
   voteChatPoll,
   uploadChatAttachment
 } from "../../../api/chat";
+import { trackAnalyticsEvent } from "../../../api/analytics";
 import { plainApiError } from "../../../api/errors";
 import { AppScreen } from "../../../components/screen/AppScreen";
 import { FeedbackState } from "../../../components/ui/FeedbackState";
@@ -382,6 +383,22 @@ export function ChatThreadScreen() {
   const summary = channel?.channel_type === "dm"
     ? "Direct message"
     : `${onlineCount} online / ${channelsQuery.data?.length ?? "?"} channels`;
+
+  useEffect(() => {
+    if (!channel?.id) return;
+    trackAnalyticsEvent({
+      eventName: "screen.viewed",
+      screen: "chat_thread",
+      entityType: "chat_channel",
+      entityId: channel.id,
+      metadata: {
+        surface: "chat",
+        mode: channel.channel_type === "dm" ? "dm" : "channel",
+        status: channel.status
+      }
+    });
+  }, [channel?.channel_type, channel?.id, channel?.status]);
+
   const notify = useCallback((notice: ChatNotice) => {
     pushFeedback({
       tone: notice.tone,
@@ -764,6 +781,34 @@ export function ChatThreadScreen() {
     votePoll({ messageId, optionIds });
   }, [votePoll]);
 
+  const openChannelInfo = useCallback(() => {
+    trackAnalyticsEvent({
+      eventName: "chat.thread_info_opened",
+      screen: "chat_thread",
+      entityType: "chat_channel",
+      entityId: channel?.id,
+      metadata: {
+        surface: "chat",
+        mode: channel?.channel_type === "dm" ? "dm" : "channel"
+      }
+    });
+    setShowInfo(true);
+  }, [channel?.channel_type, channel?.id]);
+
+  const openChannelSearch = useCallback(() => {
+    trackAnalyticsEvent({
+      eventName: "chat.search_opened",
+      screen: "chat_thread",
+      entityType: "chat_channel",
+      entityId: channel?.id,
+      metadata: {
+        surface: "chat",
+        mode: channel?.channel_type === "dm" ? "dm" : "channel"
+      }
+    });
+    setShowSearch(true);
+  }, [channel?.channel_type, channel?.id]);
+
   const renderMessage = useCallback(({ item: message }: ListRenderItemInfo<ChatMessage>) => (
     <ChatMessageBubble
       channelId={target}
@@ -788,17 +833,17 @@ export function ChatThreadScreen() {
           <IconButton label="Back" onPress={() => router.replace("/(app)/(tabs)/chat")}>
             <ArrowLeft size={22} color={colors.white} strokeWidth={2.7} />
           </IconButton>
-          <Pressable accessibilityLabel="Open channel details" onPress={() => setShowInfo(true)} style={styles.avatar}>
+          <Pressable accessibilityLabel="Open channel details" onPress={openChannelInfo} style={styles.avatar}>
             <Text style={styles.avatarText}>{initialsFor(title)}</Text>
           </Pressable>
-          <Pressable accessibilityLabel="Open channel details" onPress={() => setShowInfo(true)} style={styles.headerText}>
+          <Pressable accessibilityLabel="Open channel details" onPress={openChannelInfo} style={styles.headerText}>
             <Text style={styles.title} numberOfLines={1}>{title}</Text>
             <Text style={styles.subtitle} numberOfLines={1}>{summary}</Text>
           </Pressable>
-          <IconButton label="Search" onPress={() => setShowSearch(true)}>
+          <IconButton label="Search" onPress={openChannelSearch}>
             <Search size={20} color={colors.white} strokeWidth={2.7} />
           </IconButton>
-          <IconButton label="Info" onPress={() => setShowInfo(true)}>
+          <IconButton label="Info" onPress={openChannelInfo}>
             <Info size={20} color={colors.white} strokeWidth={2.7} />
           </IconButton>
         </View>
