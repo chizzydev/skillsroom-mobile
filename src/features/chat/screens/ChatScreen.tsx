@@ -8,6 +8,7 @@ import { listChannels, listDmRequests } from "../../../api/chat";
 import { AppScreen } from "../../../components/screen/AppScreen";
 import { FeedbackState } from "../../../components/ui/FeedbackState";
 import { colors, radius, spacing } from "../../../constants/theme";
+import { queryTiming } from "../../../constants/queryTiming";
 import { useAuthStore } from "../../../store/auth-store";
 import type { ChatChannel, ChatDmRequest } from "../../../types/api";
 
@@ -60,8 +61,8 @@ function requestPeer(request: ChatDmRequest) {
 export function ChatScreen() {
   const currentUserId = useAuthStore((state) => state.user?.id);
   const [view, setView] = useState<ChatView>("channels");
-  const channelsQuery = useQuery({ queryKey: ["chat", "channels"], queryFn: listChannels, refetchInterval: 30000 });
-  const dmRequestsQuery = useQuery({ queryKey: ["chat", "dm-requests"], queryFn: listDmRequests, refetchInterval: 30000 });
+  const channelsQuery = useQuery({ queryKey: ["chat", "channels"], queryFn: listChannels, refetchInterval: queryTiming.chatSafetyPollMs, refetchIntervalInBackground: false });
+  const dmRequestsQuery = useQuery({ queryKey: ["chat", "dm-requests"], queryFn: listDmRequests, refetchInterval: queryTiming.chatSafetyPollMs, refetchIntervalInBackground: false });
 
   const channels = channelsQuery.data ?? [];
   const dmRequests = dmRequestsQuery.data ?? [];

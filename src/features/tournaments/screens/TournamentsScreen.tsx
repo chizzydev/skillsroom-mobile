@@ -9,6 +9,7 @@ import { Badge } from "../../../components/ui/Badge";
 import { FeedbackState } from "../../../components/ui/FeedbackState";
 import { SurfaceCard } from "../../../components/ui/SurfaceCard";
 import { colors, radius, shadow, spacing } from "../../../constants/theme";
+import { queryTiming } from "../../../constants/queryTiming";
 import type { Tournament } from "../../../types/api";
 
 type TournamentFilter = "all" | "registration_open" | "in_motion" | "completed";
@@ -107,7 +108,8 @@ export function TournamentsScreen() {
   const tournamentsQuery = useQuery({
     queryKey: ["tournaments", "list"],
     queryFn: () => listTournaments({ limit: 100 }),
-    refetchInterval: 15000
+    refetchInterval: queryTiming.listSafetyPollMs,
+    refetchIntervalInBackground: false
   });
   const tournaments = useMemo(() => sortTournaments(tournamentsQuery.data ?? []), [tournamentsQuery.data]);
   const visibleTournaments = useMemo(() => tournaments.filter((tournament) => filterTournament(tournament, activeFilter)), [activeFilter, tournaments]);

@@ -12,6 +12,7 @@ import { FeedbackState } from "../../../components/ui/FeedbackState";
 import { FormNotice } from "../../../components/ui/FormNotice";
 import { SurfaceCard } from "../../../components/ui/SurfaceCard";
 import { colors, radius, shadow, spacing } from "../../../constants/theme";
+import { queryTiming } from "../../../constants/queryTiming";
 import type { MatchRoom } from "../../../types/api";
 
 type RoomQueue = "open" | "funding" | "ready" | "live" | "result" | "review" | "disputed" | "payout" | "done" | "expired";
@@ -134,7 +135,7 @@ export function RoomsScreen() {
   const params = useLocalSearchParams<{ queue?: string }>();
   const [selectedQueue, setSelectedQueue] = useState<RoomQueue>("open");
   const [queueGridWidth, setQueueGridWidth] = useState(0);
-  const roomsQuery = useQuery({ queryKey: ["rooms"], queryFn: () => listRooms(), refetchInterval: 15000 });
+  const roomsQuery = useQuery({ queryKey: ["rooms"], queryFn: () => listRooms(), refetchInterval: queryTiming.listSafetyPollMs, refetchIntervalInBackground: false });
 
   useEffect(() => {
     trackAnalyticsEvent({

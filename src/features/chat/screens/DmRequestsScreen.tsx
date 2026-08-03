@@ -10,6 +10,7 @@ import { Badge } from "../../../components/ui/Badge";
 import { FeedbackState } from "../../../components/ui/FeedbackState";
 import { SurfaceCard } from "../../../components/ui/SurfaceCard";
 import { colors, radius, spacing } from "../../../constants/theme";
+import { queryTiming } from "../../../constants/queryTiming";
 import { useActionFeedback } from "../../../providers/ActionFeedbackProvider";
 import { useAuthStore } from "../../../store/auth-store";
 import type { ChatDmRequest } from "../../../types/api";
@@ -57,7 +58,7 @@ export function DmRequestsScreen() {
   const [intro, setIntro] = useState("");
   const [activeTab, setActiveTab] = useState<RequestTab>("requests");
 
-  const requestsQuery = useQuery({ queryKey: ["chat", "dm-requests"], queryFn: listDmRequests, refetchInterval: 30000 });
+  const requestsQuery = useQuery({ queryKey: ["chat", "dm-requests"], queryFn: listDmRequests, refetchInterval: queryTiming.chatSafetyPollMs, refetchIntervalInBackground: false });
   const requests = requestsQuery.data ?? [];
   const groupedRequests = useMemo(() => {
     const incoming: ChatDmRequest[] = [];

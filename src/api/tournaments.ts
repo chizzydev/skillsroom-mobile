@@ -2,7 +2,7 @@ import type { CommunityLivestreamLink, Tournament, TournamentDetail, TournamentE
 import { apiRequest } from "./client";
 
 export async function listTournaments(input: { status?: string; format?: string; limit?: number } = {}) {
-  const params = new URLSearchParams();
+  const params = new URLSearchParams({ view: "list" });
   if (input.status) params.set("status", input.status);
   if (input.format) params.set("format", input.format);
   if (input.limit) params.set("limit", String(input.limit));

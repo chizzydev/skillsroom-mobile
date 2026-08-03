@@ -22,6 +22,7 @@ import { FormNotice } from "../../../components/ui/FormNotice";
 import { OptionalFieldsPanel } from "../../../components/ui/OptionalFieldsPanel";
 import { SurfaceCard } from "../../../components/ui/SurfaceCard";
 import { colors, radius, spacing } from "../../../constants/theme";
+import { queryTiming } from "../../../constants/queryTiming";
 import { EvidenceUploadField } from "../../uploads/components/EvidenceUploadField";
 import { NoStreamState, StreamAttachForm, StreamLinkCard } from "../../streaming/components/StreamCards";
 import { useActionFeedback } from "../../../providers/ActionFeedbackProvider";
@@ -149,8 +150,8 @@ export function TournamentDetailScreen() {
   const focusLayouts = useRef<Partial<Record<TournamentFocus, number>>>({});
   const lastScrolledFocus = useRef<string | null>(null);
 
-  const detailQuery = useQuery({ queryKey: ["tournaments", "detail", target], queryFn: () => getTournamentDetail(target), enabled: Boolean(target), refetchInterval: 10000 });
-  const streamsQuery = useQuery({ queryKey: ["tournaments", "streams", target], queryFn: () => listTournamentLivestreams(target), enabled: Boolean(target), refetchInterval: 15000 });
+  const detailQuery = useQuery({ queryKey: ["tournaments", "detail", target], queryFn: () => getTournamentDetail(target), enabled: Boolean(target), refetchInterval: queryTiming.detailSafetyPollMs, refetchIntervalInBackground: false });
+  const streamsQuery = useQuery({ queryKey: ["tournaments", "streams", target], queryFn: () => listTournamentLivestreams(target), enabled: Boolean(target), refetchInterval: queryTiming.mediaSafetyPollMs, refetchIntervalInBackground: false });
   const walletQuery = useQuery({ queryKey: ["wallet"], queryFn: walletOverview });
   const tournament = detailQuery.data?.tournament;
   const events = detailQuery.data?.events ?? [];

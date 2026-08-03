@@ -1,4 +1,4 @@
-import { QueryClientProvider } from "@tanstack/react-query";
+import { focusManager, QueryClientProvider } from "@tanstack/react-query";
 import * as NavigationBar from "expo-navigation-bar";
 import { usePathname } from "expo-router";
 import { ReactNode, useEffect } from "react";
@@ -63,6 +63,21 @@ function SessionResumeController() {
   return null;
 }
 
+function QueryFocusController() {
+  useEffect(() => {
+    focusManager.setFocused(AppState.currentState === "active");
+
+    function handleAppStateChange(nextState: AppStateStatus) {
+      focusManager.setFocused(nextState === "active");
+    }
+
+    const subscription = AppState.addEventListener("change", handleAppStateChange);
+    return () => subscription.remove();
+  }, []);
+
+  return null;
+}
+
 export function AppProviders({ children }: { children: ReactNode }) {
   const bootstrap = useAuthStore((state) => state.bootstrap);
 
@@ -76,6 +91,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
         <QueryClientProvider client={queryClient}>
           <ActionFeedbackProvider>
             <AndroidNavigationBarController />
+            <QueryFocusController />
             <SessionResumeController />
             <PushNotificationsProvider>
               <LiveUpdatesProvider>{children}</LiveUpdatesProvider>

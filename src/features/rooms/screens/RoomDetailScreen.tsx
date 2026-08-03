@@ -33,6 +33,7 @@ import { OptionalFieldsPanel } from "../../../components/ui/OptionalFieldsPanel"
 import { SurfaceCard } from "../../../components/ui/SurfaceCard";
 import { openEvidenceInApp } from "../../evidence/openEvidence";
 import { colors, radius, spacing } from "../../../constants/theme";
+import { queryTiming } from "../../../constants/queryTiming";
 import { EvidenceUploadField } from "../../uploads/components/EvidenceUploadField";
 import { NoStreamState, StreamAttachForm, StreamLinkCard } from "../../streaming/components/StreamCards";
 import { PlayerTrustCard } from "../../trust/components/PlayerTrustCard";
@@ -380,10 +381,10 @@ export function RoomDetailScreen() {
   const lastScrolledFocus = useRef<string | null>(null);
   const pendingLocalFocus = useRef<{ section: Section; focus: RoomFocus } | null>(null);
 
-  const timelineQuery = useQuery({ queryKey: ["room", roomId, "timeline"], queryFn: () => getRoomTimeline(roomId), enabled: Boolean(roomId), refetchInterval: 10000 });
-  const fundingQuery = useQuery({ queryKey: ["room", roomId, "funding"], queryFn: () => getRoomFunding(roomId), enabled: Boolean(roomId), refetchInterval: 10000 });
-  const resultsQuery = useQuery({ queryKey: ["room", roomId, "results"], queryFn: () => getRoomResults(roomId), enabled: Boolean(roomId), refetchInterval: 10000 });
-  const livestreamsQuery = useQuery({ queryKey: ["room", roomId, "livestreams"], queryFn: () => listRoomLivestreams(roomId), enabled: Boolean(roomId), refetchInterval: 15000 });
+  const timelineQuery = useQuery({ queryKey: ["room", roomId, "timeline"], queryFn: () => getRoomTimeline(roomId), enabled: Boolean(roomId), refetchInterval: queryTiming.detailSafetyPollMs, refetchIntervalInBackground: false });
+  const fundingQuery = useQuery({ queryKey: ["room", roomId, "funding"], queryFn: () => getRoomFunding(roomId), enabled: Boolean(roomId), refetchInterval: queryTiming.detailSafetyPollMs, refetchIntervalInBackground: false });
+  const resultsQuery = useQuery({ queryKey: ["room", roomId, "results"], queryFn: () => getRoomResults(roomId), enabled: Boolean(roomId), refetchInterval: queryTiming.detailSafetyPollMs, refetchIntervalInBackground: false });
+  const livestreamsQuery = useQuery({ queryKey: ["room", roomId, "livestreams"], queryFn: () => listRoomLivestreams(roomId), enabled: Boolean(roomId), refetchInterval: queryTiming.mediaSafetyPollMs, refetchIntervalInBackground: false });
   const walletQuery = useQuery({ queryKey: ["wallet"], queryFn: walletOverview, enabled: Boolean(roomId && user?.id) });
 
   const room = timelineQuery.data?.room;

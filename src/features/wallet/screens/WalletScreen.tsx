@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useFocusEffect } from "expo-router";
 import { Fragment, useCallback, type ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { trackAnalyticsEvent } from "../../../api/analytics";
 import { plainApiError } from "../../../api/errors";
@@ -15,6 +15,7 @@ import { OptionalFieldsPanel } from "../../../components/ui/OptionalFieldsPanel"
 import { SurfaceCard } from "../../../components/ui/SurfaceCard";
 import { openEvidenceInApp } from "../../evidence/openEvidence";
 import { colors, radius, spacing } from "../../../constants/theme";
+import { queryTiming } from "../../../constants/queryTiming";
 import { EvidenceUploadField } from "../../uploads/components/EvidenceUploadField";
 import { useActionFeedback } from "../../../providers/ActionFeedbackProvider";
 import type { WalletLedgerEntry, WalletPayoutRequest, WalletTopup } from "../../../types/api";
@@ -129,25 +130,30 @@ export function WalletScreen() {
   const [payoutAccount, setPayoutAccount] = useState("");
   const [payoutBankCode, setPayoutBankCode] = useState("");
   const [payoutNote, setPayoutNote] = useState("");
+  const lastFocusRefreshAt = useRef(0);
 
   const walletSummaryQuery = useQuery({
     queryKey: ["wallet", "summary"],
     queryFn: walletOverviewSummary,
-    refetchInterval: 15000,
-    refetchOnMount: "always",
-    staleTime: 5000
+    refetchInterval: queryTiming.walletSafetyPollMs,
+    refetchIntervalInBackground: false,
+    staleTime: 60_000
   });
 
   const walletQuery = useQuery({
     queryKey: ["wallet"],
     queryFn: walletOverview,
     enabled: Boolean(walletSummaryQuery.data),
-    refetchInterval: 30000,
-    staleTime: 15000
+    refetchInterval: queryTiming.mediaSafetyPollMs,
+    refetchIntervalInBackground: false,
+    staleTime: 60_000
   });
 
   useFocusEffect(
     useCallback(() => {
+      const now = Date.now();
+      if (now - lastFocusRefreshAt.current < queryTiming.focusRefreshCooldownMs) return;
+      lastFocusRefreshAt.current = now;
       void walletSummaryQuery.refetch();
       if (view === "history") void walletQuery.refetch();
     }, [view, walletQuery.refetch, walletSummaryQuery.refetch])

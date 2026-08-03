@@ -18,7 +18,9 @@ import { apiRequest } from "./client";
 export type RoomListStatus = "open" | "awaiting_funding" | "funding_review" | "funded" | "active" | "under_review" | "disputed";
 
 export async function listRooms(status?: RoomListStatus) {
-  const query = status ? `?status=${encodeURIComponent(status)}` : "";
+  const params = new URLSearchParams({ view: "list", limit: "50" });
+  if (status) params.set("status", status);
+  const query = `?${params.toString()}`;
   const data = await apiRequest<{ rooms: MatchRoom[] }>(`/match-rooms${query}`);
   return data.rooms ?? [];
 }

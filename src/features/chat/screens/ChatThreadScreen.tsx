@@ -63,6 +63,7 @@ import { plainApiError } from "../../../api/errors";
 import { AppScreen } from "../../../components/screen/AppScreen";
 import { FeedbackState } from "../../../components/ui/FeedbackState";
 import { colors, radius, spacing } from "../../../constants/theme";
+import { queryTiming } from "../../../constants/queryTiming";
 import { useActionFeedback } from "../../../providers/ActionFeedbackProvider";
 import { useAuthStore } from "../../../store/auth-store";
 import type { ChatAttachment, ChatChannel, ChatChannelControls, ChatDmRequest, ChatMessage, ChatMessagesResponse, ChatNotificationLevel, ChatPresenceMember } from "../../../types/api";
@@ -317,49 +318,56 @@ export function ChatThreadScreen() {
     queryKey: ["chat", "messages", target],
     queryFn: () => listChatMessages(target, { limit: 80, view: "list" }),
     enabled: Boolean(target),
-    refetchInterval: 30000
+    refetchInterval: queryTiming.chatSafetyPollMs,
+    refetchIntervalInBackground: false
   });
 
   const channelsQuery = useQuery({
     queryKey: ["chat", "channels"],
     queryFn: listChannels,
     enabled: showInfo,
-    refetchInterval: 30000
+    refetchInterval: queryTiming.chatSafetyPollMs,
+    refetchIntervalInBackground: false
   });
 
   const dmRequestsQuery = useQuery({
     queryKey: ["chat", "dm-requests"],
     queryFn: listDmRequests,
     enabled: showInfo,
-    refetchInterval: 15000
+    refetchInterval: queryTiming.chatSafetyPollMs,
+    refetchIntervalInBackground: false
   });
 
   const presenceQuery = useQuery({
     queryKey: ["chat", "presence", target],
     queryFn: () => listChatPresence(target),
     enabled: Boolean(target),
-    refetchInterval: 15000
+    refetchInterval: queryTiming.chatPresenceSafetyPollMs,
+    refetchIntervalInBackground: false
   });
 
   const mediaQuery = useQuery({
     queryKey: ["chat", "media", target],
     queryFn: () => listChatMedia(target, { limit: 24 }),
     enabled: Boolean(target) && showInfo,
-    refetchInterval: 20000
+    refetchInterval: queryTiming.mediaSafetyPollMs,
+    refetchIntervalInBackground: false
   });
 
   const scheduledQuery = useQuery({
     queryKey: ["chat", "scheduled-announcements", target],
     queryFn: () => listScheduledChatAnnouncements(target),
     enabled: Boolean(target && ["admin", "owner"].includes(String(currentUser?.role ?? "")) && showInfo),
-    refetchInterval: 30000
+    refetchInterval: queryTiming.mediaSafetyPollMs,
+    refetchIntervalInBackground: false
   });
 
   const controlsQuery = useQuery({
     queryKey: ["chat", "controls", target],
     queryFn: () => getChatChannelControls(target),
     enabled: Boolean(target) && showInfo,
-    refetchInterval: 20000
+    refetchInterval: queryTiming.mediaSafetyPollMs,
+    refetchIntervalInBackground: false
   });
 
   const threadQuery = useQuery({
@@ -454,7 +462,7 @@ export function ChatThreadScreen() {
     void sendChatHeartbeat(target).catch(() => undefined);
     const handle = setInterval(() => {
       void sendChatHeartbeat(target).catch(() => undefined);
-    }, 45000);
+    }, queryTiming.chatHeartbeatMs);
     return () => clearInterval(handle);
   }, [target]);
 

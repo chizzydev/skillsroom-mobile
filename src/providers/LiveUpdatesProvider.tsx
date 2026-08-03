@@ -6,6 +6,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getNotificationPreferences, listNotifications, markNotificationRead } from "../api/notifications";
 import { openRealtimeStream } from "../api/realtime";
+import { queryTiming } from "../constants/queryTiming";
 import { colors, radius, shadow, spacing } from "../constants/theme";
 import { useNotificationSound } from "../features/notifications/notificationSound";
 import { useAuthStore } from "../store/auth-store";
@@ -473,7 +474,9 @@ export function LiveUpdatesProvider({ children }: { children: ReactNode }) {
     queryKey: ["notifications", "unread"],
     queryFn: () => listNotifications("unread"),
     enabled: isSignedIn,
-    refetchInterval: 12_000
+    refetchInterval: queryTiming.notificationSafetyPollMs,
+    refetchIntervalInBackground: false,
+    staleTime: 60_000
   });
   const preferencesQuery = useQuery({
     queryKey: ["notifications", "preferences"],

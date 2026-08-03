@@ -20,7 +20,7 @@ $env:NODE_ENV="production"
 $env:Path="$env:JAVA_HOME\bin;$env:ANDROID_HOME\platform-tools;$env:ANDROID_HOME\emulator;$env:Path"
 
 cd C:\Users\HP\sr-mobile\android
-.\gradlew.bat assembleRelease --console=plain --no-daemon
+.\gradlew.bat assembleRelease -PreactNativeArchitectures=arm64-v8a --console=plain --no-daemon
 ```
 
-The APK is written to `android/app/build/outputs/apk/release/app-release.apk`.
+The APK is written to `android/app/build/outputs/apk/release/app-release.apk`. The public website download is the arm64 release APK.
