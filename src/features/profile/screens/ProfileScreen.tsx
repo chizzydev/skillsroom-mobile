@@ -431,9 +431,9 @@ export function ProfileScreen() {
     setStreamNotice(null);
     try {
       const appRedirectUri = AuthSession.makeRedirectUri({
-        scheme: "skillsroom",
+        scheme: env.appScheme,
         path: "oauth/streaming",
-        native: "skillsroom://oauth/streaming"
+        native: `${env.appScheme}://oauth/streaming`
       });
       const started = await startStreamingOauth({
         provider,
@@ -605,10 +605,11 @@ export function ProfileScreen() {
         <Text style={styles.sectionTitle}>Future winnings</Text>
         <Text style={styles.copy}>Payout details stay ready so winner payouts and refunds can be handled without asking for account details again.</Text>
         {payoutProfile ? <FormNotice tone="success" message={`Saved for ${payoutProfile.recipient_name ?? "your account"} at ${payoutProfile.bank_name ?? "your bank"} ${payoutProfile.account_number_masked ?? ""}.`} /> : null}
+        {payoutProfile ? <FormNotice tone="info" message="Saved account numbers stay hidden. Re-enter the account number only when saving payout changes." /> : null}
         <View style={styles.formGrid}>
           <TextInput value={recipientName} onChangeText={setRecipientName} placeholder="Account name" placeholderTextColor={colors.faint} style={styles.input} />
           <TextInput value={bankName} onChangeText={setBankName} placeholder="Bank name" placeholderTextColor={colors.faint} style={styles.input} />
-          <TextInput value={accountNumber} onChangeText={setAccountNumber} keyboardType="number-pad" placeholder={payoutProfile ? "Account number required to update" : "Account number"} placeholderTextColor={colors.faint} style={styles.input} />
+          <TextInput value={accountNumber} onChangeText={setAccountNumber} keyboardType="number-pad" placeholder={payoutProfile ? "Re-enter account number" : "Account number"} placeholderTextColor={colors.faint} style={styles.input} />
           <OptionalFieldsPanel title="Optional payout details" helper="Add a bank code or note only if your bank details need extra context.">
             <TextInput value={bankCode} onChangeText={setBankCode} placeholder="Bank code, if you know it" placeholderTextColor={colors.faint} style={styles.input} />
             <TextInput value={payoutNote} onChangeText={setPayoutNote} placeholder="Payout note" placeholderTextColor={colors.faint} style={styles.input} />

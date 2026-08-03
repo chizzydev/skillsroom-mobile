@@ -60,7 +60,7 @@ const channelVisibilities: Array<{ value: ChatChannelVisibility; label: string }
 ];
 
 type Notice = { tone: "error" | "success" | "info"; message: string } | null;
-type AdminLaneKey = "overview" | "funding" | "wallet" | "results" | "settlements" | "tournaments" | "players" | "team" | "risk";
+type AdminLaneKey = "overview" | "analytics" | "funding" | "wallet" | "results" | "settlements" | "tournaments" | "players" | "team" | "risk";
 
 function roleCopy(role?: string) {
   if (role === "moderator") {
@@ -248,6 +248,10 @@ export function AdminOverviewScreen() {
   const openLane = (laneKey: AdminLaneKey) => {
     if (laneKey === "funding") {
       router.push({ pathname: "/admin/funding" } as never);
+      return;
+    }
+    if (laneKey === "analytics") {
+      router.push({ pathname: "/admin/analytics" } as never);
       return;
     }
     if (laneKey === "wallet") {
@@ -524,17 +528,6 @@ export function AdminOverviewScreen() {
         </SurfaceCard>
       ) : null}
 
-      {user?.role === "owner" ? (
-        <SurfaceCard>
-          <SectionHeader eyebrow="Team access" title="Role guide" detail="Owner-only reference for what each team role can see and manage." />
-          <View style={styles.roleGrid}>
-            <RoleCard role="Owner" scope="Full" detail="Full platform control, team roles, money, safety, and public operations." />
-            <RoleCard role="Admin" scope="Money" detail="Funding, wallet, payouts, refunds, tournaments, and result support." />
-            <RoleCard role="Community Manager" scope="Community" detail="Result evidence, disputes, room holds, player trust, and tournament moderation." />
-            <RoleCard role="Support" scope="Assist" detail="Player context, support notes, and safe visibility into reports." />
-          </View>
-        </SurfaceCard>
-      ) : null}
     </AppScreen>
   );
 }
@@ -648,16 +641,6 @@ function DarkStat({ label, value }: { label: string; value: string }) {
     <View style={styles.darkStat}>
       <Text style={styles.darkStatValue}>{value}</Text>
       <Text style={styles.darkStatLabel}>{label}</Text>
-    </View>
-  );
-}
-
-function RoleCard({ role, scope, detail }: { role: string; scope: string; detail: string }) {
-  return (
-    <View style={styles.roleCard}>
-      <Text style={styles.metricLabel}>{role}</Text>
-      <Text style={styles.roleScope}>{scope}</Text>
-      <Text style={styles.rowMeta}>{detail}</Text>
     </View>
   );
 }
@@ -1160,20 +1143,4 @@ const styles = StyleSheet.create({
     margin: spacing.md,
     marginTop: 0
   },
-  roleGrid: {
-    gap: spacing.sm
-  },
-  roleCard: {
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.surfaceAlt,
-    padding: spacing.md
-  },
-  roleScope: {
-    marginVertical: spacing.xs,
-    color: colors.ink,
-    fontSize: 22,
-    fontWeight: "900"
-  }
 });

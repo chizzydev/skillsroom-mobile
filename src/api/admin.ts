@@ -20,6 +20,7 @@ import { apiRequest } from "./client";
 
 export type AdminSection =
   | "overview"
+  | "analytics"
   | "funding"
   | "wallet"
   | "results"
@@ -244,6 +245,185 @@ export type AdminWalletDashboardInput = {
   matchRoomId?: string;
   tournamentId?: string;
   limit?: number;
+};
+
+export type AdminAnalyticsSummary = {
+  settings: {
+    production_activity_starts_at: string;
+    production_revenue_starts_at: string;
+    note: string;
+    updated_at: string;
+  };
+  kpis: {
+    total_users: number;
+    total_players: number;
+    new_users: number;
+    new_players: number;
+    real_production_users: number;
+    web_visitors: number;
+    anonymous_web_visitors: number;
+    active_users: number;
+    sessions: number;
+    events: number;
+    room_creators: number;
+    wallet_topup_players: number;
+  };
+  revenue: Array<{
+    currency: string;
+    approved_player_funds_minor: number;
+    provider_successful_funds_minor: number;
+    match_commission_reserved_minor: number;
+    match_commission_completed_minor: number;
+    tournament_commission_reserved_minor: number;
+    tournament_commission_completed_minor: number;
+    payout_paid_minor: number;
+    payout_queued_minor: number;
+    refund_paid_minor: number;
+    refund_queued_minor: number;
+  }>;
+  revenue_depth: Array<{
+    currency: string;
+    wallet_topups_submitted_count: number;
+    wallet_topups_submitted_minor: number;
+    wallet_topups_approved_count: number;
+    wallet_topups_approved_minor: number;
+    wallet_topups_rejected_count: number;
+    wallet_topups_rejected_minor: number;
+    wallet_payouts_requested_count: number;
+    wallet_payouts_requested_minor: number;
+    wallet_payouts_approved_count: number;
+    wallet_payouts_approved_minor: number;
+    wallet_payouts_paid_count: number;
+    wallet_payouts_paid_minor: number;
+    wallet_payouts_failed_count: number;
+    wallet_payouts_failed_minor: number;
+    match_payouts_queued_count: number;
+    match_payouts_queued_minor: number;
+    match_payouts_completed_count: number;
+    match_payouts_completed_minor: number;
+    tournament_payouts_queued_count: number;
+    tournament_payouts_queued_minor: number;
+    tournament_payouts_completed_count: number;
+    tournament_payouts_completed_minor: number;
+    match_refunds_queued_count: number;
+    match_refunds_queued_minor: number;
+    match_refunds_completed_count: number;
+    match_refunds_completed_minor: number;
+    tournament_refunds_queued_count: number;
+    tournament_refunds_queued_minor: number;
+    tournament_refunds_completed_count: number;
+    tournament_refunds_completed_minor: number;
+    match_commission_reserved_minor: number;
+    match_commission_completed_minor: number;
+    tournament_entry_funds_approved_minor: number;
+    tournament_commission_reserved_minor: number;
+    tournament_commission_completed_minor: number;
+  }>;
+  transaction_windows: Array<{
+    window_key: "today" | "seven_days" | "thirty_days";
+    label: string;
+    transaction_count: number;
+    topup_count: number;
+    provider_payment_count: number;
+    payout_count: number;
+    refund_count: number;
+    prize_record_count: number;
+  }>;
+  visitor_conversion: {
+    web_visitors: number;
+    anonymous_web_visitors: number;
+    signups: number;
+    player_signups: number;
+    profile_ready_users: number;
+    first_action_users: number;
+  };
+  funnel: {
+    room_created: number;
+    challenge_created: number;
+    challenge_accepted: number;
+    room_joined: number;
+    funding_submitted: number;
+    funding_approved: number;
+    room_active: number;
+    result_submitted: number;
+    result_disputed: number;
+    result_admin_approved: number;
+    settlement_reserved: number;
+    settlement_completed: number;
+    tournament_created: number;
+    tournament_published: number;
+    tournament_entries: number;
+    tournament_check_ins: number;
+    tournament_completed: number;
+  };
+  funnel_depth: {
+    room_entry: {
+      rooms_created: number;
+      possible_player_slots: number;
+      joined_players: number;
+      funded_players: number;
+      active_rooms: number;
+      completed_rooms: number;
+    };
+    challenge_acceptance: {
+      challenges_created: number;
+      challenges_open: number;
+      challenges_accepted: number;
+      challenges_expired: number;
+      challenges_cancelled: number;
+    };
+    tournament_progress: {
+      tournaments_created: number;
+      tournaments_published: number;
+      tournaments_registration_open: number;
+      tournament_entries: number;
+      tournament_checked_in_entries: number;
+      tournament_active_entries: number;
+      tournament_matches_created: number;
+      tournament_matches_completed: number;
+      tournaments_completed: number;
+    };
+  };
+  daily: Array<{
+    day: string;
+    active_users: number;
+    sessions: number;
+    events: number;
+    rooms_created: number;
+    challenges_created: number;
+    tournament_entries: number;
+    approved_player_funds_minor: number;
+    trusted_commission_minor: number;
+  }>;
+  top_events: Array<{
+    event_name: string;
+    event_count: number;
+    user_count: number;
+  }>;
+  recent_events: Array<{
+    id: string;
+    event_name: string;
+    platform: "web" | "android" | "ios" | "server";
+    screen: string | null;
+    path: string | null;
+    user_id: string | null;
+    occurred_at: string;
+  }>;
+  excluded_users: Array<{
+    user_id: string;
+    email: string | null;
+    display_name: string | null;
+    role: string | null;
+    reason: string;
+    created_by_user_id: string | null;
+    created_at: string;
+  }>;
+  quality: {
+    excluded_users_count: number;
+    explicitly_excluded_events: number;
+    pre_cutover_events: number;
+    pre_cutover_approved_player_funds_minor: number;
+  };
 };
 
 export type ReviewWalletTopupInput = {
@@ -769,7 +949,7 @@ export function canUseAdminSection(user: AuthUser | null | undefined, section: A
   if (user?.role === "owner") return true;
 
   const sectionsByRole: Record<Exclude<UserRole, "player" | "owner">, AdminSection[]> = {
-    admin: ["overview", "funding", "wallet", "results", "settlements", "tournaments"],
+    admin: ["overview", "analytics", "funding", "wallet", "results", "settlements", "tournaments"],
     moderator: ["overview", "results", "tournaments", "players", "risk"],
     support: ["overview", "players", "risk"]
   };
@@ -780,6 +960,7 @@ export function canUseAdminSection(user: AuthUser | null | undefined, section: A
 export function adminLanesFor(user: AuthUser | null | undefined): AdminLane[] {
   const lanes: AdminLane[] = [
     { key: "overview", label: "Overview", detail: "Everything waiting across your allowed workspace." },
+    { key: "analytics", label: "Analytics", detail: "Product, revenue, funnel, and test-activity health." },
     { key: "funding", label: "Funding", detail: "Manual transfers and room entry checks." },
     { key: "wallet", label: "Wallet", detail: "Top-ups, wallet payouts, and balance reviews." },
     { key: "results", label: "Results", detail: "Match claims, proof, disputes, and review decisions." },
@@ -993,6 +1174,10 @@ export async function adminOverview(user: AuthUser | null | undefined): Promise<
     announcements,
     loadErrors
   };
+}
+
+export async function getAdminAnalyticsSummary(days = 28) {
+  return apiRequest<AdminAnalyticsSummary>(`/admin/analytics/summary?days=${encodeURIComponent(String(days))}`);
 }
 
 export async function createCommunityAnnouncement(input: CreateCommunityAnnouncementInput) {

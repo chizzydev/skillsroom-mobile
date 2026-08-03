@@ -83,6 +83,10 @@ function openAdminLane(section: string) {
     router.replace({ pathname: "/admin" } as never);
     return;
   }
+  if (section === "analytics") {
+    router.push({ pathname: "/admin/analytics" } as never);
+    return;
+  }
   if (section === "funding") {
     router.push({ pathname: "/admin/funding" } as never);
     return;
@@ -321,7 +325,7 @@ export function AdminPlayersScreen() {
           )) : <EmptyState title="No player records yet" body="Player records appear after profiles and match history exist." />}
         </View>
 
-        <SectionHeader eyebrow="Verified" title="Recently verified handles" detail="A quick reference for the handles that have already passed review." />
+        <SectionHeader eyebrow="Verified" title="Recently verified handles" detail="Handles that have already passed review." />
         <View style={styles.queueBlock}>
           {verifiedAccounts.slice(0, 8).map((account) => (
             <GameAccountCard key={account.id} account={account} selected={selectedAccountId === account.id} onPress={() => {

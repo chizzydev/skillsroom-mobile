@@ -1,12 +1,14 @@
 {
   "name": "skillsroom-mobile",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
+    "android:dev": "set APP_VARIANT=development&& expo run:android --variant debug --app-id com.skillsroom.mobile.dev",
     "android:native": "expo run:android",
+    "android:prod": "set APP_VARIANT=production&& expo run:android --variant release --app-id com.skillsroom.mobile",
     "ios": "expo run:ios",
     "web": "expo start --web",
     "build:android:preview": "npx eas build --platform android --profile preview",
@@ -37,6 +39,7 @@
     "expo-notifications": "~55.0.25",
     "expo-router": "~55.0.17",
     "expo-secure-store": "~55.0.16",
+    "expo-splash-screen": "~55.0.23",
     "expo-status-bar": "~55.0.4",
     "expo-web-browser": "~55.0.18",
     "lucide-react-native": "^1.24.0",

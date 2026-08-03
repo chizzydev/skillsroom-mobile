@@ -138,6 +138,10 @@ function openAdminLane(section: string) {
     router.replace({ pathname: "/admin" } as never);
     return;
   }
+  if (section === "analytics") {
+    router.push({ pathname: "/admin/analytics" } as never);
+    return;
+  }
   if (section === "funding") {
     router.push({ pathname: "/admin/funding" } as never);
     return;
@@ -401,11 +405,10 @@ export function AdminWalletScreen() {
         payouts={payouts}
         duplicateCount={suspiciousDuplicates.length}
         paymentHistoryCount={financeTimeline.length + ledgerEntries.length}
-        guardrails={dashboard?.guardrails ?? []}
       />
 
       <SurfaceCard>
-        <SectionHeader eyebrow="Search" title="Find wallet history" detail="Read-only lookup for user, room, or tournament payment history. It helps you see what happened without changing money." />
+        <SectionHeader eyebrow="Search" title="Find wallet history" detail="Look up player, room, or tournament payment history before making a decision." />
         <View style={styles.formStack}>
           <LabeledInput label="User ID" optional value={historyUserId} onChangeText={setHistoryUserId} placeholder="User ID for wallet history" mono />
           <LabeledInput label="Match room ID" optional value={historyRoomId} onChangeText={setHistoryRoomId} placeholder="Match room ID" mono />
@@ -571,38 +574,27 @@ function ProviderReadinessPanel({
   topups,
   payouts,
   duplicateCount,
-  paymentHistoryCount,
-  guardrails
+  paymentHistoryCount
 }: {
   topups: WalletTopup[];
   payouts: WalletPayoutRequest[];
   duplicateCount: number;
   paymentHistoryCount: number;
-  guardrails: string[];
 }) {
   const matchedReferenceCount = topups.filter((row) => Boolean(row.transfer_reference?.trim())).length;
   const payoutReferenceNeeded = payouts.filter((row) => row.status === "requested").length;
   return (
     <SurfaceCard style={styles.providerPanel}>
       <SectionHeader
-        eyebrow="Automation ready"
-        title="Provider boundary"
-        detail="Kora, Monnify, or another approved provider can plug into this same review flow later. Until then, admins still match bank alerts, proof, references, and payouts clearly."
+        eyebrow="Checks"
+        title="Payment checks"
+        detail="Use these signals before approving top-ups or completing payout requests."
       />
       <View style={styles.readinessGrid}>
         <ReadinessItem icon={<ShieldCheck color={colors.greenDark} size={19} />} title="Payment status" detail={`${topups.length} top-up(s), ${payouts.length} payout request(s)`} tone="green" />
         <ReadinessItem icon={<SearchCheck color={colors.cyan} size={19} />} title="Matching queue" detail={`${paymentHistoryCount} payment record(s) visible`} tone="cyan" />
         <ReadinessItem icon={<ShieldAlert color={colors.red} size={19} />} title="Duplicate checks" detail={duplicateCount ? `${duplicateCount} warning(s) to review` : "No active duplicate warning"} tone={duplicateCount ? "red" : "green"} />
         <ReadinessItem icon={<Link2 color={colors.amber} size={19} />} title="Bank reference matching" detail={`${matchedReferenceCount} submitted reference(s), ${payoutReferenceNeeded} payout reference(s) needed`} tone="amber" />
-      </View>
-      <View style={styles.operatorAuditPanel}>
-        <Text style={styles.rowTitle}>Operator review trail</Text>
-        <Text style={styles.rowMeta}>Every approval, rejection, payout, refund, and payment proof check stays tied to a player, room, tournament, note, and time.</Text>
-        {guardrails.length ? (
-          guardrails.slice(0, 3).map((item) => <Text key={item} style={styles.guardrailText}>{item}</Text>)
-        ) : (
-          <Text style={styles.guardrailText}>Provider automation is not live yet. Manual review remains the approved path.</Text>
-        )}
       </View>
     </SurfaceCard>
   );
@@ -981,8 +973,6 @@ const styles = StyleSheet.create({
   greenSoftBorder: { borderColor: "#b6f4db" },
   amberSoftBorder: { borderColor: "#ffdf9d" },
   redSoftBorder: { borderColor: "#ffc6d0" },
-  operatorAuditPanel: { borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, backgroundColor: colors.white, padding: spacing.md, gap: spacing.xs },
-  guardrailText: { color: colors.muted, fontSize: 13, lineHeight: 20, fontWeight: "800" },
   duplicateCard: { borderRadius: radius.lg, borderWidth: 1, borderColor: "#ffc6d0", backgroundColor: colors.redSoft, padding: spacing.md, gap: spacing.sm },
   rowBetween: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },
   redStrong: { color: colors.red, fontSize: 18, fontWeight: "900" },

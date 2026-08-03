@@ -353,6 +353,10 @@ function openAdminLane(section: string) {
     router.replace({ pathname: "/admin" } as never);
     return;
   }
+  if (section === "analytics") {
+    router.push({ pathname: "/admin/analytics" } as never);
+    return;
+  }
   if (section === "funding") return;
   if (section === "wallet") {
     router.push({ pathname: "/admin/wallet" } as never);

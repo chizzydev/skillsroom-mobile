@@ -140,6 +140,10 @@ function openAdminLane(section: string) {
     router.replace({ pathname: "/admin" } as never);
     return;
   }
+  if (section === "analytics") {
+    router.push({ pathname: "/admin/analytics" } as never);
+    return;
+  }
   if (section === "funding") {
     router.push({ pathname: "/admin/funding" } as never);
     return;
@@ -612,7 +616,7 @@ export function AdminSafetyScreen() {
           </AppButton>
         </SurfaceCard>
 
-        <SectionHeader eyebrow="History" title="Recent moderation actions" detail="The latest warnings, restrictions, notes, room holds, and releases stay visible here for handoff between operators." />
+        <SectionHeader eyebrow="History" title="Recent moderation actions" detail="The latest warnings, restrictions, notes, room holds, and releases stay visible for team handoff." />
         <View style={styles.queueBlock}>
           {actions.slice(0, 10).map((action) => <ModerationActionCard key={action.id} action={action} />)}
           {!actions.length ? <EmptyState title="No moderation actions yet" body="Account and room safety actions will appear here after they are saved." /> : null}

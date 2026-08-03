@@ -3,13 +3,18 @@
     "name": "Skillsroom",
     "slug": "skillsroom-mobile",
     "scheme": "skillsroom",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0B1324"
+    },
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "android": {
       "package": "com.skillsroom.mobile",
-      "versionCode": 12,
+      "versionCode": 13,
       "allowBackup": false,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -29,7 +34,20 @@
       "expo-notifications",
       "expo-web-browser",
       "expo-audio",
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 180,
+          "resizeMode": "contain",
+          "backgroundColor": "#0B1324",
+          "dark": {
+            "image": "./assets/splash-icon.png",
+            "backgroundColor": "#0B1324"
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

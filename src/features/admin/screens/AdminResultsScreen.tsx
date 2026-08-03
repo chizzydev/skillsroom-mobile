@@ -160,6 +160,10 @@ function openAdminLane(section: string) {
     router.replace({ pathname: "/admin" } as never);
     return;
   }
+  if (section === "analytics") {
+    router.push({ pathname: "/admin/analytics" } as never);
+    return;
+  }
   if (section === "funding") {
     router.push({ pathname: "/admin/funding" } as never);
     return;

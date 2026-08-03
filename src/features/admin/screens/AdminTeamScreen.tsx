@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
-import { ArrowLeft, Crown, KeyRound, Radio, ShieldCheck, ShieldQuestion, UserCog, UsersRound } from "lucide-react-native";
+import { ArrowLeft, Crown, KeyRound, UserCog, UsersRound } from "lucide-react-native";
 import { useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import {
@@ -49,6 +49,37 @@ function shortId(value?: string | null) {
   return value.length <= 14 ? value : `${value.slice(0, 8)}...${value.slice(-5)}`;
 }
 
+function normalized(value?: string | null) {
+  return value?.trim().toLowerCase() ?? "";
+}
+
+function memberLookupValues(member: AdminTeamMember) {
+  return [
+    member.user_id,
+    member.email,
+    member.username,
+    member.display_name,
+    member.profile_display_name
+  ].map(normalized).filter(Boolean);
+}
+
+function resolveMemberLookup(members: AdminTeamMember[], lookup: string) {
+  const query = normalized(lookup);
+  if (!query) return null;
+
+  const exactMatch = members.find((member) => memberLookupValues(member).includes(query));
+  if (exactMatch) return exactMatch;
+
+  const partialMatches = members.filter((member) => memberLookupValues(member).some((value) => value.includes(query)));
+  return partialMatches.length === 1 ? partialMatches[0] : null;
+}
+
+function lookupMatchCount(members: AdminTeamMember[], lookup: string) {
+  const query = normalized(lookup);
+  if (!query) return 0;
+  return members.filter((member) => memberLookupValues(member).some((value) => value.includes(query))).length;
+}
+
 function label(value?: string | null) {
   if (!value) return "Unknown";
   if (value === "moderator") return "Community Manager";
@@ -79,6 +110,10 @@ function statusTone(status?: string | null): Tone {
 function openAdminLane(section: string) {
   if (section === "overview") {
     router.replace({ pathname: "/admin" } as never);
+    return;
+  }
+  if (section === "analytics") {
+    router.push({ pathname: "/admin/analytics" } as never);
     return;
   }
   if (section === "funding") {
@@ -119,7 +154,7 @@ export function AdminTeamScreen() {
   const { pushFeedback } = useActionFeedback();
   const [notice, setNotice] = useState<Notice>(null);
   const [targetNotice, setTargetNotice] = useState<{ target: NoticeTarget; notice: NonNullable<Notice> } | null>(null);
-  const [selectedUserId, setSelectedUserId] = useState("");
+  const [memberLookup, setMemberLookup] = useState("");
   const [selectedRole, setSelectedRole] = useState<Exclude<TeamRole, "owner">>("support");
   const [note, setNote] = useState("");
   const [password, setPassword] = useState("");
@@ -142,7 +177,8 @@ export function AdminTeamScreen() {
   });
 
   const members = teamQuery.data ?? [];
-  const selectedMember = members.find((member) => member.user_id === selectedUserId);
+  const selectedMember = resolveMemberLookup(members, memberLookup);
+  const memberLookupMatches = lookupMatchCount(members, memberLookup);
   const ownerCount = members.filter((member) => member.user_role === "owner").length;
   const adminCount = members.filter((member) => member.user_role === "admin").length;
   const moderatorCount = members.filter((member) => member.user_role === "moderator").length;
@@ -178,10 +214,16 @@ export function AdminTeamScreen() {
 
   const roleMutation = useMutation({
     mutationFn: () => {
-      if (!selectedUserId.trim()) throw new Error("Select a team member first.");
+      if (!memberLookup.trim()) throw new Error("Select a team member first.");
+      const member = resolveMemberLookup(members, memberLookup);
+      if (!member) {
+        const matches = lookupMatchCount(members, memberLookup);
+        throw new Error(matches > 1 ? "More than one member matches. Use the exact email, username, or user ID." : "No team member matches that email, username, or user ID.");
+      }
+      if (member.is_platform_owner || member.user_role === "owner") throw new Error("The protected owner account cannot be changed from this page.");
       if (!stepUpToken) throw new Error("Confirm your password before changing a team role.");
       return updateAdminTeamMemberRole({
-        userId: selectedUserId.trim(),
+        userId: member.user_id,
         role: selectedRole,
         note,
         stepUpToken
@@ -202,7 +244,7 @@ export function AdminTeamScreen() {
         <SurfaceCard dark style={styles.permissionHero}>
           <Badge tone="dark">Team workspace</Badge>
           <Text style={styles.darkHeroTitle}>Admin access is not enabled for this account.</Text>
-          <Text style={styles.darkCopy}>Only platform operators can open the Skillsroom admin workspace.</Text>
+          <Text style={styles.darkCopy}>Only Skillsroom team members can open the admin workspace.</Text>
         </SurfaceCard>
         <AppButton onPress={() => router.replace("/(app)/(tabs)/home")}>Back to player app</AppButton>
       </AppScreen>
@@ -251,21 +293,14 @@ export function AdminTeamScreen() {
         {notice && !targetNotice ? <FormNotice tone={notice.tone} message={notice.message} /> : null}
         {teamQuery.isError ? <FormNotice tone="error" message={plainApiError(teamQuery.error, "Unable to load team roles right now.")} /> : null}
 
-        <SurfaceCard style={styles.hero}>
-          <Badge tone="cyan">Owner</Badge>
-          <Text style={styles.heroTitle}>Team roles without loose access.</Text>
-          <Text style={styles.copy}>Give each operator the exact level they need, keep owner controls protected, and record a clear reason for every role change.</Text>
-        </SurfaceCard>
-
-        <View style={styles.livePill}>
-          <View style={styles.liveIcon}><Radio color={colors.greenDark} size={22} /></View>
+        <View style={styles.summaryHeader}>
           <View style={styles.fill}>
-            <Text style={styles.liveTitle}>Role directory</Text>
-            <Text style={styles.liveMeta}>Owner-only view. Role changes require password confirmation and stay visible in team history.</Text>
+            <Text style={styles.eyebrow}>Team access</Text>
+            <Text style={styles.sectionTitle}>Roles and permissions</Text>
+            <Text style={styles.copy}>Review team access, unlock changes, and move test or former team accounts back to Player.</Text>
           </View>
-          <Badge tone="green">Locked</Badge>
+          <Badge tone={stepUpToken ? "green" : "amber"}>{stepUpToken ? "Unlocked" : "Locked"}</Badge>
         </View>
-
         <View style={styles.metricGrid}>
           <MetricCard tone="green" label="Owner" value={String(ownerCount)} detail="Protected account" />
           <MetricCard tone="cyan" label="Admins" value={String(adminCount)} detail="Money and key decisions" />
@@ -293,44 +328,18 @@ export function AdminTeamScreen() {
           {noticeFor("security")}
         </SurfaceCard>
 
-        <SectionHeader
-          eyebrow="Team"
-          title="Members and roles"
-          detail="Tap a user to prepare a role change. The protected owner account cannot be changed from this page."
-        />
-        {teamQuery.isLoading ? (
-          <FeedbackState title="Loading team roles" body="Checking registered users and operator assignments." />
-        ) : (
-          <View style={styles.queueBlock}>
-            {noticeFor("members")}
-            {members.length ? members.map((member) => (
-              <MemberCard
-                key={member.user_id}
-                member={member}
-                selected={member.user_id === selectedUserId}
-                onPress={() => {
-                  if (member.is_platform_owner || member.user_role === "owner") {
-                    notify("members", { tone: "info", message: "The protected owner account cannot be changed from this page." });
-                    return;
-                  }
-                  setSelectedUserId(member.user_id);
-                  setSelectedRole(member.user_role);
-                }}
-              />
-            )) : <EmptyState title="No team members loaded" body="Registered users will appear here when role records are available." />}
-          </View>
-        )}
-
         <SurfaceCard style={styles.formStack}>
           {noticeFor("role")}
           <View style={styles.securityHeader}>
             <View style={styles.securityIcon}><UserCog color={colors.cyan} size={24} /></View>
             <View style={styles.fill}>
               <Text style={styles.rowTitle}>Assign role</Text>
-              <Text style={styles.rowMeta}>{selectedMember ? `Selected: ${displayName(selectedMember)}` : "Select a member above or paste a user ID."}</Text>
+              <Text style={styles.rowMeta}>
+                {selectedMember ? `Selected: ${displayName(selectedMember)}` : memberLookupMatches > 1 ? "Multiple matches. Use the exact email, username, or user ID." : "Type an email, username, or user ID. You can also tap a member below."}
+              </Text>
             </View>
           </View>
-          <LabeledInput label="User ID" value={selectedUserId} onChangeText={setSelectedUserId} placeholder="Paste user ID" mono />
+          <LabeledInput label="Member" value={memberLookup} onChangeText={setMemberLookup} placeholder="Email, username, or user ID" />
           <ChipRow label="New role" values={assignableRoles} selected={selectedRole} onSelect={setSelectedRole} />
           <LabeledInput
             label="Change reason"
@@ -341,30 +350,44 @@ export function AdminTeamScreen() {
             multiline
             minHeight={110}
           />
-          <Text style={styles.helpText}>Owner cannot be assigned here. Choose Player to remove admin workspace access from a non-owner operator.</Text>
+          <Text style={styles.helpText}>Owner cannot be assigned here. Choose Player to remove admin workspace access from a non-owner team member.</Text>
           <AppButton
             onPress={() => roleMutation.mutate()}
             loading={roleMutation.isPending}
-            disabled={!selectedUserId.trim() || !stepUpToken}
+            disabled={!memberLookup.trim() || !stepUpToken}
           >
             Update role
           </AppButton>
         </SurfaceCard>
 
-        <SectionHeader eyebrow="Role guide" title="What each role can do" detail="Use the narrowest role that lets the person do their job. That keeps wallet, payout, and safety decisions cleaner." />
-        <View style={styles.roleGuide}>
-          {(Object.keys(roleDescriptions) as TeamRole[]).map((role) => (
-            <SurfaceCard key={role} style={styles.roleCard}>
-              <View style={styles.rowTop}>
-                <RoleIcon role={role} />
-                <View style={styles.fill}>
-                  <Text style={styles.rowTitle}>{label(role)}</Text>
-                  <Text style={styles.rowMeta}>{roleDescriptions[role]}</Text>
-                </View>
-              </View>
-            </SurfaceCard>
-          ))}
-        </View>
+        <SectionHeader
+          eyebrow="Team"
+          title="Members and roles"
+          detail="Tap a user to fill the role form above. The protected owner account cannot be changed from this page."
+        />
+        {teamQuery.isLoading ? (
+          <FeedbackState title="Loading team roles" body="Checking registered users and team assignments." />
+        ) : (
+          <View style={styles.queueBlock}>
+            {noticeFor("members")}
+            {members.length ? members.map((member) => (
+              <MemberCard
+                key={member.user_id}
+                member={member}
+                selected={member.user_id === selectedMember?.user_id}
+                onPress={() => {
+                  if (member.is_platform_owner || member.user_role === "owner") {
+                    notify("members", { tone: "info", message: "The protected owner account cannot be changed from this page." });
+                    return;
+                  }
+                  setMemberLookup(member.email ?? member.username ?? member.user_id);
+                  setSelectedRole(member.user_role);
+                }}
+              />
+            )) : <EmptyState title="No team members loaded" body="Registered users will appear here when role records are available." />}
+          </View>
+        )}
+
       </ScrollView>
     </AppScreen>
   );
@@ -410,15 +433,6 @@ function MetricCard({ tone, label: labelText, value, detail }: { tone: Tone; lab
       <Text style={[styles.metricValue, styles[`${tone}Text`]]}>{value}</Text>
       <Text style={styles.metricDetail}>{detail}</Text>
     </SurfaceCard>
-  );
-}
-
-function RoleIcon({ role }: { role: TeamRole }) {
-  const iconColor = role === "owner" || role === "support" ? colors.greenDark : role === "admin" ? colors.cyan : colors.amber;
-  return (
-    <View style={styles.avatar}>
-      {role === "owner" ? <Crown color={iconColor} size={22} /> : role === "admin" ? <ShieldCheck color={iconColor} size={22} /> : <ShieldQuestion color={iconColor} size={22} />}
-    </View>
   );
 }
 
@@ -523,15 +537,11 @@ const styles = StyleSheet.create({
   laneTabText: { color: "#b7c4d4", fontWeight: "900" },
   laneTabTextActive: { color: colors.navy },
   content: { padding: spacing.md, gap: spacing.lg, paddingBottom: spacing.xl * 2 },
-  hero: { backgroundColor: "#fbfefe" },
   heroTitle: { color: colors.ink, fontSize: 32, lineHeight: 38, fontWeight: "900" },
   darkHeroTitle: { color: colors.white, fontSize: 32, lineHeight: 38, fontWeight: "900" },
   copy: { color: colors.muted, fontSize: 16, lineHeight: 25, fontWeight: "600" },
   darkCopy: { color: "#cbd6e5", fontSize: 16, lineHeight: 25, fontWeight: "600" },
-  livePill: { minHeight: 78, borderRadius: radius.lg, borderWidth: 1, borderColor: "#b6f4db", backgroundColor: colors.greenSoft, flexDirection: "row", alignItems: "center", gap: spacing.sm, padding: spacing.md },
-  liveIcon: { width: 46, height: 46, borderRadius: 23, backgroundColor: colors.white, alignItems: "center", justifyContent: "center" },
-  liveTitle: { color: colors.ink, fontSize: 16, fontWeight: "900" },
-  liveMeta: { color: colors.muted, fontSize: 13, fontWeight: "800" },
+  summaryHeader: { flexDirection: "row", alignItems: "flex-start", gap: spacing.md },
   fill: { flex: 1, minWidth: 0 },
   metricGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md },
   metricCard: { width: "47%", minHeight: 142, justifyContent: "space-between", padding: spacing.md },
@@ -580,7 +590,5 @@ const styles = StyleSheet.create({
   chipText: { color: colors.ink, fontSize: 13, fontWeight: "900" },
   chipTextActive: { color: colors.white },
   helpText: { color: colors.amber, fontSize: 13, lineHeight: 20, fontWeight: "800" },
-  roleGuide: { gap: spacing.sm },
-  roleCard: { padding: spacing.md },
   emptyState: { borderRadius: radius.md, borderWidth: 1, borderStyle: "dashed", borderColor: colors.line, padding: spacing.lg, alignItems: "center", gap: spacing.xs }
 });
