@@ -64,6 +64,7 @@ import { AppScreen } from "../../../components/screen/AppScreen";
 import { FeedbackState } from "../../../components/ui/FeedbackState";
 import { colors, radius, spacing } from "../../../constants/theme";
 import { queryTiming } from "../../../constants/queryTiming";
+import { useAppIsActive } from "../../../hooks/useAppIsActive";
 import { useActionFeedback } from "../../../providers/ActionFeedbackProvider";
 import { useAuthStore } from "../../../store/auth-store";
 import type { ChatAttachment, ChatChannel, ChatChannelControls, ChatDmRequest, ChatMessage, ChatMessagesResponse, ChatNotificationLevel, ChatPresenceMember } from "../../../types/api";
@@ -299,6 +300,7 @@ export function ChatThreadScreen() {
   const hydratedMessageIdsRef = useRef(new Set<string>());
   const hydratingMessageIdsRef = useRef(new Set<string>());
   const pendingScrollToLatestRef = useRef(false);
+  const appIsActive = useAppIsActive();
   const [body, setBody] = useState("");
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const [showInfo, setShowInfo] = useState(false);
@@ -458,13 +460,13 @@ export function ChatThreadScreen() {
   }, [lastMessageId, scrollToNewest]);
 
   useEffect(() => {
-    if (!target) return;
+    if (!target || !appIsActive) return;
     void sendChatHeartbeat(target).catch(() => undefined);
     const handle = setInterval(() => {
       void sendChatHeartbeat(target).catch(() => undefined);
     }, queryTiming.chatHeartbeatMs);
     return () => clearInterval(handle);
-  }, [target]);
+  }, [appIsActive, target]);
 
   useEffect(() => {
     if (!target) return;

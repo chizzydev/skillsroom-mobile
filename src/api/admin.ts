@@ -1382,14 +1382,18 @@ export async function reviewAdminFundingSubmission(submissionId: string, input: 
   return data.submission;
 }
 
-export async function listAdminWalletTopups(status: WalletTopupStatus = "submitted") {
-  const data = await apiRequest<{ topups: WalletTopup[] }>(`/admin/wallet/topups?status=${encodeURIComponent(status)}`);
+export async function listAdminWalletTopups(status: WalletTopupStatus = "submitted", limit?: number) {
+  const params = new URLSearchParams({ status });
+  if (limit) params.set("limit", String(limit));
+  const data = await apiRequest<{ topups: WalletTopup[] }>(`/admin/wallet/topups?${params.toString()}`);
   return data.topups ?? [];
 }
 
-export async function listAdminWalletPayoutRequests(status: WalletPayoutRequestStatus = "requested") {
+export async function listAdminWalletPayoutRequests(status: WalletPayoutRequestStatus = "requested", limit?: number) {
+  const params = new URLSearchParams({ status });
+  if (limit) params.set("limit", String(limit));
   const data = await apiRequest<{ payout_requests: WalletPayoutRequest[] }>(
-    `/admin/wallet/payout-requests?status=${encodeURIComponent(status)}`
+    `/admin/wallet/payout-requests?${params.toString()}`
   );
   return data.payout_requests ?? [];
 }

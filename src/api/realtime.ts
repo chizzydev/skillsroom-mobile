@@ -35,7 +35,7 @@ export async function openRealtimeStream(handlers: RealtimeHandlers): Promise<Re
       },
       timeout: 0,
       timeoutBeforeConnection: 250,
-      pollingInterval: 5000,
+      pollingInterval: 15_000,
       lineEndingCharacter: "\n"
     });
 

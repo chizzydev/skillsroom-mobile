@@ -13,6 +13,7 @@ Important context:
 
 - Do not keep re-reading Decide Mobile for product decisions. Use it only as a process reference.
 - The real source of truth is Skillsroom web + Skillsroom API.
+- Skillsroom public APK releases are `arm64-v8a` only. Do not ship a universal APK. Use the release command in `C:\Users\HP\sr-mobile\docs\android-release-signing.md`.
 - Read these files first:
   - `C:\Users\HP\sr-mobile\docs\implementation-plan.md`
   - `C:\Users\HP\sr-mobile\docs\web-to-mobile-parity.md`

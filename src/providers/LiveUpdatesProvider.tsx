@@ -9,6 +9,7 @@ import { openRealtimeStream } from "../api/realtime";
 import { queryTiming } from "../constants/queryTiming";
 import { colors, radius, shadow, spacing } from "../constants/theme";
 import { useNotificationSound } from "../features/notifications/notificationSound";
+import { useAppIsActive } from "../hooks/useAppIsActive";
 import { useAuthStore } from "../store/auth-store";
 import type {
   ChatAttachment,
@@ -456,6 +457,7 @@ export function LiveUpdatesProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
   const [toasts, setToasts] = useState<LiveToast[]>([]);
+  const appIsActive = useAppIsActive();
   const seenNotificationIds = useRef<Set<string>>(new Set());
   const seenEventIds = useRef<Set<string>>(new Set());
   const notificationBaselineReady = useRef(false);
@@ -489,6 +491,7 @@ export function LiveUpdatesProvider({ children }: { children: ReactNode }) {
     in_app_sound_enabled: true
   };
   const playNotificationSound = useNotificationSound(Boolean(notificationPreferences.in_app_enabled && notificationPreferences.in_app_sound_enabled));
+  const realtimeEnabled = isSignedIn && appIsActive;
 
   useEffect(() => {
     if (isSignedIn) {
@@ -525,7 +528,7 @@ export function LiveUpdatesProvider({ children }: { children: ReactNode }) {
   }, [notificationsQuery.data, playNotificationSound, pushToast, queryClient]);
 
   useEffect(() => {
-    if (!isSignedIn) return;
+    if (!realtimeEnabled) return;
 
     let cleanup: (() => void) | null = null;
     let cancelled = false;
@@ -568,7 +571,7 @@ export function LiveUpdatesProvider({ children }: { children: ReactNode }) {
       cancelled = true;
       cleanup?.();
     };
-  }, [currentUserId, isSignedIn, pathname, playNotificationSound, pushToast, queryClient]);
+  }, [currentUserId, pathname, playNotificationSound, pushToast, queryClient, realtimeEnabled]);
 
   useEffect(() => {
     if (!toasts.length) return;

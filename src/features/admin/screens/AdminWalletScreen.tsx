@@ -200,14 +200,14 @@ export function AdminWalletScreen() {
   const lanes = useMemo(() => adminLanesFor(user), [user]);
 
   const topupsQuery = useQuery({
-    queryKey: ["admin", "wallet", "topups", "submitted"],
-    queryFn: () => listAdminWalletTopups("submitted"),
+    queryKey: ["admin", "wallet", "topups", "submitted", 25],
+    queryFn: () => listAdminWalletTopups("submitted", 25),
     enabled: canWallet
   });
 
   const payoutsQuery = useQuery({
-    queryKey: ["admin", "wallet", "payouts", "requested"],
-    queryFn: () => listAdminWalletPayoutRequests("requested"),
+    queryKey: ["admin", "wallet", "payouts", "requested", 25],
+    queryFn: () => listAdminWalletPayoutRequests("requested", 25),
     enabled: canWallet
   });
 
@@ -218,7 +218,7 @@ export function AdminWalletScreen() {
         userId: historyFilters.userId || undefined,
         matchRoomId: historyFilters.matchRoomId || undefined,
         tournamentId: historyFilters.tournamentId || undefined,
-        limit: 100
+        limit: 50
       }),
     enabled: canWallet
   });

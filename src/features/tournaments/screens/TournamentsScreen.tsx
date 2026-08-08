@@ -107,7 +107,7 @@ export function TournamentsScreen() {
   const [activeFilter, setActiveFilter] = useState<TournamentFilter>("all");
   const tournamentsQuery = useQuery({
     queryKey: ["tournaments", "list"],
-    queryFn: () => listTournaments({ limit: 100 }),
+    queryFn: () => listTournaments({ limit: 50 }),
     refetchInterval: queryTiming.listSafetyPollMs,
     refetchIntervalInBackground: false
   });
